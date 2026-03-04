@@ -1,7 +1,7 @@
  'use client'
 
  import { useState, useEffect } from 'react'
- import { ArticleData, ProcessingState } from '@/lib/types'
+ import { ArticleData, ProcessingState, Step } from '@/lib/types'
  import StepIndicator from './StepIndicator'
  import Button from '@/components/ui/Button'
  import GeminiLoadingCard from './GeminiLoadingCard'
@@ -11,20 +11,24 @@
    article: ArticleData
    geminiStatus: ProcessingState
    geminiError?: string | null
+   onRefinedTitleChange?: (title: string) => void
    onRefinedContentChange: (content: string) => void
    onBack: () => void
    onNext: () => void
    onRetry?: () => void
+   onStepClick?: (step: Step) => void
  }
 
  export default function GeminiResult({
    article,
    geminiStatus,
    geminiError,
+   onRefinedTitleChange,
    onRefinedContentChange,
    onBack,
    onNext,
    onRetry,
+   onStepClick,
  }: GeminiResultProps) {
    const [copied, setCopied] = useState(false)
    const [showToast, setShowToast] = useState(false)
@@ -43,15 +47,18 @@
      setTimeout(() => setCopied(false), 2000)
    }
 
-   return (
-     <div className="max-w-5xl mx-auto px-4 py-6">
-       <div className="flex items-start gap-8">
-         {/* メインコンテンツ */}
-         <div className="flex-1 space-y-5">
-           {/* ローディング */}
+  return (
+    <div className="w-full pt-6 pb-12">
+      <div className="flex gap-8 items-start">
+        {/* 左：メインコンテンツ（可変幅） */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
+           {/* ローディング（戻るボタンは下の「記事を修正する」でいつでも前のステップに戻れます） */}
            {geminiStatus === 'loading' && (
-             <div className="max-w-2xl">
+             <div className="max-w-2xl space-y-3">
                <GeminiLoadingCard />
+               <p className="text-xs text-[#64748B]">
+                 推敲中です。キャンセルする場合は下の「記事を修正する」で戻れます。
+               </p>
              </div>
            )}
 
@@ -68,11 +75,16 @@
              </div>
            )}
 
-           {/* 2カラム */}
-           {(geminiStatus === 'success' || geminiStatus === 'error') && (
-             <div className="grid grid-cols-2 gap-0 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm">
+          {/* 2カラム（各カラム上にタイトルボックス） */}
+          {(geminiStatus === 'success' || geminiStatus === 'error') && (
+            <div
+              className="
+                grid grid-cols-2 gap-0 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm
+                divide-x divide-[#E2E8F0]
+              "
+            >
                {/* 左: 元の記事 */}
-               <div className="flex flex-col bg-[#F8FAFC]">
+              <div className="flex flex-col bg-[#F8FAFC]">
                  <div className="flex items-center gap-2 px-5 py-3 border-b border-[#E2E8F0]">
                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">
                      元の記事
@@ -80,6 +92,17 @@
                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E2E8F0] text-[#64748B]">
                      入力済み
                    </span>
+                 </div>
+                 <div className="px-5 py-3 border-b border-[#E2E8F0]">
+                   <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                     記事タイトル
+                   </label>
+                   <input
+                     type="text"
+                     readOnly
+                     value={article.title}
+                     className="w-full px-4 py-2 rounded-lg border border-[#E2E8F0] bg-[#F1F5F9] text-[#64748B] text-sm focus:outline-none"
+                   />
                  </div>
                  <textarea
                    readOnly
@@ -93,11 +116,8 @@
                  />
                </div>
 
-               {/* 区切り線（将来拡張用に残しつつ非表示） */}
-               <div className="col-span-2 hidden" />
-
-               {/* 右: 改善後 */}
-               <div className="flex flex-col bg-white border-l border-[#E2E8F0]">
+              {/* 右: Gemini 改善後 */}
+              <div className="flex flex-col bg-white">
                  <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0]">
                    <div className="flex items-center gap-2">
                      <span className="text-xs font-semibold text-[#16A34A] uppercase tracking-wider">
@@ -129,6 +149,23 @@
                      )}
                    </button>
                  </div>
+                 <div className="px-5 py-3 border-b border-[#E2E8F0]">
+                   <label className="block text-xs font-semibold text-[#16A34A] uppercase tracking-wider mb-1.5">
+                     記事タイトル
+                   </label>
+                   <input
+                     type="text"
+                     value={article.refinedTitle || article.title}
+                     onChange={e => onRefinedTitleChange?.(e.target.value)}
+                     placeholder="推敲後のタイトル"
+                     className="
+                       w-full px-4 py-2 rounded-lg border border-[#E2E8F0]
+                       text-[#1A1A2E] placeholder-[#CBD5E1] text-sm
+                       focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                       transition-all
+                     "
+                   />
+                 </div>
                  <textarea
                    value={article.refinedContent}
                    onChange={e => onRefinedContentChange(e.target.value)}
@@ -144,30 +181,32 @@
              </div>
            )}
 
-           <div className="flex justify-between pt-2">
-             <Button variant="ghost" size="md" onClick={onBack}>
-               <ArrowLeft size={16} />
-               記事を修正する
-             </Button>
-             <Button
-               variant="primary"
-               size="lg"
-               onClick={onNext}
-               disabled={geminiStatus !== 'success' || !article.refinedContent.trim()}
-             >
-               ③ 内部リンクを設定する
-               <ArrowRight size={18} />
-             </Button>
-           </div>
-         </div>
+        </div>
 
-         {/* 右側の縦ステップインジケーター */}
-         <div className="w-40 flex-shrink-0">
-           <StepIndicator currentStep={2} />
-         </div>
-       </div>
+        {/* 右：StepIndicator（固定幅） */}
+        <div className="flex-shrink-0 w-[140px] pt-2">
+          <StepIndicator currentStep={2} onStepClick={onStepClick} />
+        </div>
+      </div>
 
-       {/* トースト通知 */}
+      {/* 下：ナビゲーションボタン */}
+      <div className="flex justify-between mt-8">
+        <Button variant="ghost" size="md" onClick={onBack}>
+          <ArrowLeft size={16} />
+          記事を修正する
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={onNext}
+          disabled={geminiStatus !== 'success' || !article.refinedContent.trim()}
+        >
+          ③ 画像を生成する
+          <ArrowRight size={18} />
+        </Button>
+      </div>
+
+      {/* トースト通知 */}
        <div
          className={`
            fixed bottom-6 right-6 z-50

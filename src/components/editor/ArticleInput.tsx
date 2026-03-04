@@ -1,6 +1,6 @@
 'use client'
 
-import { ArticleData } from '@/lib/types'
+import { ArticleData, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -12,6 +12,7 @@ interface ArticleInputProps {
   onContentChange: (content: string) => void
   onNext: () => void
   onClear?: () => void
+  onStepClick?: (step: Step) => void
 }
 
 export default function ArticleInput({
@@ -20,6 +21,7 @@ export default function ArticleInput({
   onContentChange,
   onNext,
   onClear,
+  onStepClick,
 }: ArticleInputProps) {
   const isDisabled = !article.title.trim() || !article.originalContent.trim()
   const charCount = article.originalContent.length
@@ -47,9 +49,11 @@ export default function ArticleInput({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-8">
-        <div className="flex-1 space-y-5">
+    <div className="w-full pt-6 pb-12">
+      {/* 2カラム：左＝メインコンテンツ、右＝StepIndicator */}
+      <div className="flex gap-8 items-start">
+        {/* 左：メインコンテンツ（可変幅） */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
           <Card>
             <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-[#64748B]">
@@ -125,8 +129,9 @@ export default function ArticleInput({
           </Card>
         </div>
 
-        <div className="w-40 flex-shrink-0">
-          <StepIndicator currentStep={1} />
+        {/* 右：StepIndicator（固定幅） */}
+        <div className="flex-shrink-0 w-[140px] pt-2">
+          <StepIndicator currentStep={1} onStepClick={onStepClick} />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { ArticleData, ProcessingState } from '@/lib/types'
+import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -12,6 +12,7 @@ interface PublishResultProps {
   onBack: () => void
   onPublish: () => void
   onReset: () => void
+  onStepClick?: (step: Step) => void
 }
 
 export default function PublishResult({
@@ -20,16 +21,18 @@ export default function PublishResult({
   onBack,
   onPublish,
   onReset,
+  onStepClick,
 }: PublishResultProps) {
   const charCount = article.refinedContent.length
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <StepIndicator currentStep={5} />
-
-      {wordpressStatus === 'success' ? (
-        <Card>
-          <div className="flex flex-col items-center gap-5 py-6 text-center">
+    <div className="w-full pt-6 pb-12">
+      <div className="flex gap-8 items-start">
+        {/* 左：メインコンテンツ */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
+          {wordpressStatus === 'success' ? (
+            <Card>
+              <div className="flex flex-col items-center gap-5 py-6 text-center">
             <div className="w-16 h-16 rounded-full bg-[#16A34A]/10 flex items-center justify-center">
               <CheckCircle size={32} className="text-[#16A34A]" />
             </div>
@@ -61,26 +64,19 @@ export default function PublishResult({
               新しい記事を作成する
             </Button>
           </div>
-        </Card>
-      ) : (
-        <>
-          <div className="mb-4">
-            <Button variant="ghost" size="md" onClick={onBack}>
-              <ArrowLeft size={16} />
-              画像生成に戻る
-            </Button>
-          </div>
-          <Card>
-            <h2 className="text-base font-bold text-[#1A1A2E] mb-4">
-              投稿内容の確認
-            </h2>
+            </Card>
+          ) : (
+            <Card>
+              <h2 className="text-base font-bold text-[#1A1A2E] mb-4">
+                投稿内容の確認
+              </h2>
 
             <div className="space-y-3">
               <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F5F7FA]">
                 <Type size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル</p>
-                  <p className="text-sm font-semibold text-[#1A1A2E]">{article.title}</p>
+                  <p className="text-sm font-semibold text-[#1A1A2E]">{article.refinedTitle?.trim() || article.title}</p>
                 </div>
               </div>
 
@@ -105,48 +101,67 @@ export default function PublishResult({
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 pt-5 border-t border-[#E2E8F0]">
-              {wordpressStatus === 'loading' ? (
-                <div className="flex items-center justify-center gap-3 py-3">
-                  <svg
-                    className="animate-spin h-5 w-5 text-[#1B2A4A]"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  <span className="text-sm text-[#1B2A4A] font-medium">
-                    WordPress APIに送信中...
-                  </span>
-                </div>
-              ) : (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={onPublish}
-                  className="w-full justify-center"
-                >
-                  <CheckCircle size={18} />
-                  WordPressに投稿する
-                </Button>
-              )}
-            </div>
           </Card>
-        </>
+          )}
+        </div>
+
+        {/* 右：StepIndicator */}
+        <div className="flex-shrink-0 w-[140px] pt-2">
+          <StepIndicator currentStep={4} onStepClick={onStepClick} />
+        </div>
+      </div>
+
+      {/* 下：ナビゲーションボタン */}
+      {wordpressStatus === 'success' ? (
+        <div className="flex items-center justify-end mt-8">
+          <Button variant="navy" size="lg" onClick={onReset}>
+            新しい記事を作成する
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mt-8">
+          <Button variant="ghost" size="md" onClick={onBack}>
+            <ArrowLeft size={16} />
+            画像生成に戻る
+          </Button>
+          {wordpressStatus === 'loading' ? (
+            <div className="flex items-center justify-center gap-3 py-3 px-4 rounded-lg bg-white border border-[#E2E8F0]">
+              <svg
+                className="animate-spin h-5 w-5 text-[#1B2A4A]"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              <span className="text-sm text-[#1B2A4A] font-medium">
+                WordPress APIに送信中...
+              </span>
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={onPublish}
+              className="justify-center"
+            >
+              <CheckCircle size={18} />
+              WordPressに投稿する
+            </Button>
+          )}
+        </div>
       )}
     </div>
   )

@@ -2,30 +2,45 @@ import { Step } from '@/lib/types'
 
 interface StepIndicatorProps {
   currentStep: Step
+  /** 指定時は各ステップをクリックで切り替え可能 */
+  onStepClick?: (step: Step) => void
 }
 
 const steps = [
   { number: 1 as Step, label: '記事入力' },
   { number: 2 as Step, label: 'Gemini推敲' },
-  { number: 3 as Step, label: '内部リンク' },
-  { number: 4 as Step, label: '画像生成' },
-  { number: 5 as Step, label: '投稿' },
+  { number: 3 as Step, label: '画像生成' },
+  { number: 4 as Step, label: '投稿' },
 ]
 
-export default function StepIndicator({ currentStep }: StepIndicatorProps) {
+export default function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col gap-0">
       {steps.map((step, index) => {
         const isCompleted = currentStep > step.number
         const isActive = currentStep === step.number
+        const isClickable = typeof onStepClick === 'function'
         const isLast = index === steps.length - 1
 
-        return (
-          <div key={step.number} className="flex flex-col items-start">
-            <div className="flex items-center gap-3">
+        const rowClasses = `
+          flex items-center gap-3 px-2 py-2
+          ${isClickable ? 'rounded-lg -mx-1 w-full text-left hover:bg-[#E2E8F0]/70 active:bg-[#E2E8F0] transition-colors' : ''}
+        `
+
+        const labelClasses = `
+          text-xs font-medium whitespace-nowrap
+          ${isActive ? 'text-[#C0392B] font-semibold' : ''}
+          ${isCompleted ? 'text-[#1B2A4A]' : ''}
+          ${!isCompleted && !isActive ? 'text-[#64748B]' : ''}
+        `
+
+        const content = (
+          <>
+            {/* 左: アイコン＋縦線のカラム */}
+            <div className="flex flex-col items-center w-8 flex-shrink-0">
               <div
                 className={`
-                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all
+                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold
                   ${isCompleted ? 'bg-[#1B2A4A] text-white' : ''}
                   ${isActive ? 'bg-[#C0392B] text-white ring-4 ring-[#C0392B]/20' : ''}
                   ${!isCompleted && !isActive ? 'bg-[#E2E8F0] text-[#64748B]' : ''}
@@ -45,24 +60,34 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
                   <span className="font-mono text-xs">{step.number}</span>
                 )}
               </div>
-              <span
-                className={`
-                  text-xs font-medium whitespace-nowrap
-                  ${isActive ? 'text-[#C0392B] font-semibold' : ''}
-                  ${isCompleted ? 'text-[#1B2A4A]' : ''}
-                  ${!isCompleted && !isActive ? 'text-[#64748B]' : ''}
-                `}
-              >
-                {step.label}
-              </span>
+              {!isLast && (
+                <div
+                  className={`
+                    w-[2px] h-10
+                    ${isCompleted ? 'bg-[#1B2A4A]' : 'bg-[#E2E8F0]'}
+                  `}
+                />
+              )}
             </div>
-            {!isLast && (
-              <div
-                className={`
-                  ml-4 w-px h-6 transition-all
-                  ${isCompleted ? 'bg-[#1B2A4A]' : 'bg-[#E2E8F0]'}
-                `}
-              />
+
+            {/* 右: ラベル */}
+            <span className={labelClasses}>{step.label}</span>
+          </>
+        )
+
+        return (
+          <div key={step.number}>
+            {isClickable ? (
+              <button
+                type="button"
+                onClick={() => onStepClick(step.number)}
+                className={rowClasses}
+                aria-label={`${step.label}へ移動`}
+              >
+                {content}
+              </button>
+            ) : (
+              <div className={rowClasses}>{content}</div>
             )}
           </div>
         )

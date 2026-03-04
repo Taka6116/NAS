@@ -1,11 +1,12 @@
 'use client'
 
+import { useRef, ChangeEvent } from 'react'
 import Image from 'next/image'
-import { ArticleData, ProcessingState } from '@/lib/types'
+import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Download, RefreshCw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Download, RefreshCw, Upload } from 'lucide-react'
 
 interface ImageResultProps {
   article: ArticleData
@@ -13,6 +14,9 @@ interface ImageResultProps {
   onBack: () => void
   onNext: () => void
   onRegenerate: () => void
+  /** クライアント画像を選択したときに呼ばれる（imageUrl を上書き） */
+  onImageUpload?: (imageUrl: string) => void
+  onStepClick?: (step: Step) => void
 }
 
 export default function ImageResult({
@@ -21,85 +25,136 @@ export default function ImageResult({
   onBack,
   onNext,
   onRegenerate,
+  onImageUpload,
+  onStepClick,
 }: ImageResultProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const lastObjectUrlRef = useRef<string | null>(null)
+
   const handleDownload = () => {
     const link = document.createElement('a')
     link.href = article.imageUrl
-    link.download = `${article.title || 'generated-image'}.jpg`
+    link.download = `${article.refinedTitle?.trim() || article.title || 'generated-image'}.jpg`
     link.click()
   }
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!onImageUpload) return
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 以前のオブジェクトURLがあれば解放
+    if (lastObjectUrlRef.current) {
+      URL.revokeObjectURL(lastObjectUrlRef.current)
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    lastObjectUrlRef.current = objectUrl
+    onImageUpload(objectUrl)
+  }
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <StepIndicator currentStep={4} />
-
-      {fireflyStatus === 'loading' && (
-        <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
-          <svg
-            className="animate-spin h-5 w-5 text-[#1B2A4A] flex-shrink-0"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          <p className="text-sm text-[#1B2A4A] font-medium">
-            Adobe Firefly APIが画像を生成中です...
-          </p>
-        </div>
-      )}
-
-      {(fireflyStatus === 'success' || fireflyStatus === 'error') && (
-        <Card>
-          <div className="flex flex-col items-center gap-5">
-            {article.imageUrl && (
-              <div className="w-full max-w-[600px] rounded-lg overflow-hidden border border-[#E2E8F0]">
-                <Image
-                  src={article.imageUrl}
-                  alt="生成された記事画像"
-                  width={800}
-                  height={450}
-                  className="w-full h-auto"
-                  unoptimized
-                />
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="md" onClick={handleDownload}>
-                <Download size={15} />
-                画像を保存する
-              </Button>
-              <Button
-                variant="ghost"
-                size="md"
-                onClick={onRegenerate}
-                disabled={fireflyStatus as string === 'loading'}
+    <div className="w-full pt-6 pb-12">
+      {/* 2カラム：左＝メインコンテンツ、右＝StepIndicator */}
+      <div className="flex gap-8 items-start">
+        {/* 左：メインコンテンツ（可変幅） */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
+          {/* ローディング */}
+          {fireflyStatus === 'loading' && (
+            <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
+              <svg
+                className="animate-spin h-5 w-5 text-[#1B2A4A] flex-shrink-0"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
               >
-                <RefreshCw size={15} />
-                別の画像を生成する
-              </Button>
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              <p className="text-sm text-[#1B2A4A] font-medium">
+                Adobe Firefly APIが画像を生成中です...
+              </p>
             </div>
-          </div>
-        </Card>
-      )}
+          )}
 
-      <div className="flex justify-between pt-2">
+          {/* 画像カード */}
+          <Card>
+            <div className="flex flex-col items-center gap-5">
+              {article.imageUrl && (
+                <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
+                  <Image
+                    src={article.imageUrl}
+                    alt="生成された記事画像"
+                    width={800}
+                    height={450}
+                    className="w-full h-auto"
+                    unoptimized
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                {/* アップロード入力（非表示） */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button variant="ghost" size="md" onClick={handleUploadClick}>
+                  <Upload size={15} />
+                  画像をアップロード
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={handleDownload}
+                  disabled={!article.imageUrl}
+                >
+                  <Download size={15} />
+                  画像を保存する
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={onRegenerate}
+                  disabled={fireflyStatus as string === 'loading'}
+                >
+                  <RefreshCw size={15} />
+                  別の画像を生成する
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 右：StepIndicator（固定幅） */}
+        <div className="flex-shrink-0 w-[140px] pt-2">
+          <StepIndicator currentStep={3} onStepClick={onStepClick} />
+        </div>
+      </div>
+
+      {/* 下：ナビゲーションボタン */}
+      <div className="flex items-center justify-between mt-8">
         <Button variant="ghost" size="md" onClick={onBack}>
           <ArrowLeft size={16} />
-          内部リンクに戻る
+          Gemini推敲に戻る
         </Button>
         <Button
           variant="primary"
@@ -107,7 +162,7 @@ export default function ImageResult({
           onClick={onNext}
           disabled={fireflyStatus !== 'success' || !article.imageUrl}
         >
-          ④ 記事を投稿する
+          ④ 投稿する
           <ArrowRight size={18} />
         </Button>
       </div>

@@ -1,4 +1,4 @@
-export type Step = 1 | 2 | 3 | 4 | 5
+export type Step = 1 | 2 | 3 | 4
 
 /** 内部リンク1件（記事内のどの文言にどのURLを張るか） */
 export interface InternalLinkEntry {
@@ -14,6 +14,8 @@ export interface ArticleData {
   title: string
   originalContent: string
   refinedContent: string
+  /** Gemini推敲後のタイトル（未推敲時は空） */
+  refinedTitle: string
   /** 追加する内部リンク（担当者が設定） */
   internalLinks: InternalLinkEntry[]
   imageUrl: string

@@ -1,0 +1,163 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import { Step, ArticleData, ProcessingState } from '@/lib/types'
+import Header from '@/components/layout/Header'
+import ArticleInput from '@/components/editor/ArticleInput'
+import GeminiResult from '@/components/editor/GeminiResult'
+import ImageResult from '@/components/editor/ImageResult'
+import PublishResult from '@/components/editor/PublishResult'
+
+const initialArticle: ArticleData = {
+  title: '',
+  originalContent: '',
+  refinedContent: '',
+  imageUrl: '',
+  wordpressUrl: undefined,
+}
+
+export default function EditorPage() {
+  const [currentStep, setCurrentStep] = useState<Step>(1)
+  const [article, setArticle] = useState<ArticleData>(initialArticle)
+  const [geminiStatus, setGeminiStatus] = useState<ProcessingState>('idle')
+  const [fireflyStatus, setFireflyStatus] = useState<ProcessingState>('idle')
+  const [wordpressStatus, setWordpressStatus] = useState<ProcessingState>('idle')
+
+  const updateArticle = useCallback((updates: Partial<ArticleData>) => {
+    setArticle(prev => ({ ...prev, ...updates }))
+  }, [])
+
+  const handleStep1Next = useCallback(async () => {
+    setCurrentStep(2)
+    setGeminiStatus('loading')
+    try {
+      const res = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: article.originalContent }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      updateArticle({ refinedContent: data.refinedContent })
+      setGeminiStatus('success')
+    } catch {
+      setGeminiStatus('error')
+    }
+  }, [article.originalContent, updateArticle])
+
+  const handleStep2Next = useCallback(async () => {
+    setCurrentStep(3)
+    setFireflyStatus('loading')
+    try {
+      const res = await fetch('/api/firefly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article.title,
+          content: article.refinedContent,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      updateArticle({ imageUrl: data.imageUrl })
+      setFireflyStatus('success')
+    } catch {
+      setFireflyStatus('error')
+    }
+  }, [article.title, article.refinedContent, updateArticle])
+
+  const handleRegenerate = useCallback(async () => {
+    setFireflyStatus('loading')
+    try {
+      const res = await fetch('/api/firefly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article.title,
+          content: article.refinedContent,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      updateArticle({ imageUrl: data.imageUrl })
+      setFireflyStatus('success')
+    } catch {
+      setFireflyStatus('error')
+    }
+  }, [article.title, article.refinedContent, updateArticle])
+
+  const handlePublish = useCallback(async () => {
+    setWordpressStatus('loading')
+    try {
+      const res = await fetch('/api/wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article.title,
+          content: article.refinedContent,
+          imageUrl: article.imageUrl,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      updateArticle({ wordpressUrl: data.wordpressUrl })
+      setWordpressStatus('success')
+    } catch {
+      setWordpressStatus('error')
+    }
+  }, [article.title, article.refinedContent, article.imageUrl, updateArticle])
+
+  const handleReset = useCallback(() => {
+    setCurrentStep(1)
+    setArticle(initialArticle)
+    setGeminiStatus('idle')
+    setFireflyStatus('idle')
+    setWordpressStatus('idle')
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-[#F5F7FA]">
+      <Header currentStep={currentStep} />
+
+      <main className="pb-16">
+        {currentStep === 1 && (
+          <ArticleInput
+            article={article}
+            onTitleChange={title => updateArticle({ title })}
+            onContentChange={content => updateArticle({ originalContent: content })}
+            onNext={handleStep1Next}
+          />
+        )}
+
+        {currentStep === 2 && (
+          <GeminiResult
+            article={article}
+            geminiStatus={geminiStatus}
+            onRefinedContentChange={refinedContent => updateArticle({ refinedContent })}
+            onBack={() => setCurrentStep(1)}
+            onNext={handleStep2Next}
+          />
+        )}
+
+        {currentStep === 3 && (
+          <ImageResult
+            article={article}
+            fireflyStatus={fireflyStatus}
+            onBack={() => setCurrentStep(2)}
+            onNext={() => setCurrentStep(4)}
+            onRegenerate={handleRegenerate}
+          />
+        )}
+
+        {currentStep === 4 && (
+          <PublishResult
+            article={article}
+            wordpressStatus={wordpressStatus}
+            onPublish={handlePublish}
+            onReset={handleReset}
+          />
+        )}
+      </main>
+    </div>
+  )
+}

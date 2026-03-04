@@ -31,7 +31,7 @@ export default function ImageResult({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <StepIndicator currentStep={3} />
+      <StepIndicator currentStep={4} />
 
       {fireflyStatus === 'loading' && (
         <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
@@ -99,7 +99,7 @@ export default function ImageResult({
       <div className="flex justify-between pt-2">
         <Button variant="ghost" size="md" onClick={onBack}>
           <ArrowLeft size={16} />
-          推敲に戻る
+          内部リンクに戻る
         </Button>
         <Button
           variant="primary"

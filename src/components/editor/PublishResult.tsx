@@ -23,7 +23,7 @@ export default function PublishResult({
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <StepIndicator currentStep={4} />
+      <StepIndicator currentStep={5} />
 
       {wordpressStatus === 'success' ? (
         <Card>

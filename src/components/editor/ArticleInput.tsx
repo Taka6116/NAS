@@ -4,7 +4,7 @@ import { ArticleData } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Sparkles } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
@@ -22,11 +22,37 @@ export default function ArticleInput({
   const isDisabled = !article.title.trim() || !article.originalContent.trim()
   const charCount = article.originalContent.length
 
+  const charBadge = () => {
+    if (charCount === 0) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F1F5F9] text-[#94A3B8]">
+          0文字
+        </span>
+      )
+    }
+    if (charCount < 100) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200">
+          {charCount.toLocaleString()}文字 · もう少し入力してください
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+        {charCount.toLocaleString()}文字
+      </span>
+    )
+  }
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
       <StepIndicator currentStep={1} />
 
       <Card>
+        <p className="text-sm text-[#64748B] mb-5">
+          NotebookLMで生成した記事のタイトルと本文を貼り付けてください
+        </p>
+
         <div className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">
@@ -59,13 +85,11 @@ export default function ArticleInput({
                 text-[#1A1A2E] placeholder-[#CBD5E1]
                 focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
                 transition-all text-sm resize-y
-                min-h-[400px]
+                min-h-[500px]
               "
             />
             <div className="flex justify-end mt-1.5">
-              <span className="text-xs font-mono text-[#64748B]">
-                {charCount.toLocaleString()}文字
-              </span>
+              {charBadge()}
             </div>
           </div>
         </div>
@@ -73,12 +97,15 @@ export default function ArticleInput({
         <div className="flex justify-end mt-6 pt-5 border-t border-[#E2E8F0]">
           <Button
             variant="primary"
-            size="lg"
             disabled={isDisabled}
             onClick={onNext}
+            className="py-4 px-8 h-auto"
           >
-            ② Geminiで推敲する
-            <ArrowRight size={18} />
+            <Sparkles size={18} />
+            <span className="flex flex-col items-start leading-tight">
+              <span className="font-bold text-base">② Geminiで推敲する</span>
+              <span className="text-xs font-normal opacity-80">AIが記事の品質・読みやすさ・SEOを自動改善します</span>
+            </span>
           </Button>
         </div>
       </Card>

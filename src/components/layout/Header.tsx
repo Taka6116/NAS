@@ -14,7 +14,7 @@ export default function Header({ currentStep }: HeaderProps) {
       <div className="flex items-center gap-2">
         <span className="text-[#64748B] text-xs font-mono">STEP</span>
         <span className="text-white text-sm font-mono font-medium">
-          {currentStep} <span className="text-[#64748B]">/</span> 4
+          {currentStep} <span className="text-[#64748B]">/</span> 5
         </span>
       </div>
     </header>

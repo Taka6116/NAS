@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArticleData, ProcessingState } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Copy, Check } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ClipboardCopy, Check, CheckCircle } from 'lucide-react'
 
 interface GeminiResultProps {
   article: ArticleData
@@ -27,6 +27,15 @@ export default function GeminiResult({
   onRetry,
 }: GeminiResultProps) {
   const [copied, setCopied] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+
+  useEffect(() => {
+    if (geminiStatus === 'success') {
+      setShowToast(true)
+      const t = setTimeout(() => setShowToast(false), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [geminiStatus])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(article.refinedContent)
@@ -35,9 +44,10 @@ export default function GeminiResult({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
       <StepIndicator currentStep={2} />
 
+      {/* ローディング */}
       {geminiStatus === 'loading' && (
         <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
           <svg
@@ -46,26 +56,14 @@ export default function GeminiResult({
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <p className="text-sm text-[#1B2A4A] font-medium">
-            Gemini APIが記事を改善中です...
-          </p>
+          <p className="text-sm text-[#1B2A4A] font-medium">Gemini APIが記事を改善中です...</p>
         </div>
       )}
 
+      {/* エラー */}
       {geminiStatus === 'error' && geminiError && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-5 py-4 space-y-3">
           <p className="text-sm font-medium text-red-800">推敲できませんでした</p>
@@ -78,44 +76,59 @@ export default function GeminiResult({
         </div>
       )}
 
+      {/* 2カラム */}
       {(geminiStatus === 'success' || geminiStatus === 'error') && (
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono text-[#64748B] uppercase tracking-wider">
-                元の記事
+        <div className="grid grid-cols-2 gap-0 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm">
+          {/* 左: 元の記事 */}
+          <div className="flex flex-col bg-[#F8FAFC]">
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-[#E2E8F0]">
+              <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">元の記事</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E2E8F0] text-[#64748B]">
+                入力済み
               </span>
             </div>
             <textarea
               readOnly
               value={article.originalContent}
               className="
-                w-full h-96 px-3 py-2.5 rounded-lg
-                bg-[#F5F7FA] border border-[#E2E8F0]
-                text-[#1A1A2E] text-sm resize-none
+                flex-1 px-5 py-4
+                bg-[#F8FAFC] text-[#64748B] text-sm resize-none
+                min-h-[500px] max-h-[600px]
                 focus:outline-none
               "
             />
-          </Card>
+          </div>
 
-          <Card>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono text-[#16A34A] uppercase tracking-wider">
-                Gemini改善後
-              </span>
+          {/* 区切り線 */}
+          <div className="col-span-2 hidden" />
+
+          {/* 右: 改善後 */}
+          <div className="flex flex-col bg-white border-l border-[#E2E8F0]">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[#16A34A] uppercase tracking-wider">Gemini 改善後</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  AI推敲済み
+                </span>
+              </div>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#1B2A4A] transition-colors"
+                className="
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                  border border-[#E2E8F0] text-[#1B2A4A]
+                  hover:bg-[#1B2A4A] hover:text-white hover:border-[#1B2A4A]
+                  transition-colors
+                "
               >
                 {copied ? (
                   <>
-                    <Check size={13} className="text-[#16A34A]" />
-                    <span className="text-[#16A34A]">コピー済み</span>
+                    <Check size={13} className="text-green-500" />
+                    コピー済み
                   </>
                 ) : (
                   <>
-                    <Copy size={13} />
-                    コピー
+                    <ClipboardCopy size={13} />
+                    全文コピー
                   </>
                 )}
               </button>
@@ -124,14 +137,14 @@ export default function GeminiResult({
               value={article.refinedContent}
               onChange={e => onRefinedContentChange(e.target.value)}
               className="
-                w-full h-96 px-3 py-2.5 rounded-lg
-                bg-white border border-[#E2E8F0]
-                text-[#1A1A2E] text-sm resize-none
-                focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                flex-1 px-5 py-4
+                bg-white text-[#1A1A2E] text-sm resize-none
+                min-h-[500px] max-h-[600px]
+                focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#1B2A4A]/20
                 transition-all
               "
             />
-          </Card>
+          </div>
         </div>
       )}
 
@@ -146,9 +159,23 @@ export default function GeminiResult({
           onClick={onNext}
           disabled={geminiStatus !== 'success' || !article.refinedContent.trim()}
         >
-          ③ 画像を生成する
+          ③ 内部リンクを設定する
           <ArrowRight size={18} />
         </Button>
+      </div>
+
+      {/* トースト通知 */}
+      <div
+        className={`
+          fixed bottom-6 right-6 z-50
+          flex items-center gap-2 px-4 py-3
+          bg-[#16A34A] text-white text-sm font-medium rounded-xl shadow-lg
+          transition-all duration-300
+          ${showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}
+        `}
+      >
+        <CheckCircle size={16} />
+        Geminiによる推敲が完了しました
       </div>
     </div>
   )

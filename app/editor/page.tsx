@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from 'react'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
+import { applyInternalLinksToHtml } from '@/lib/internalLinks'
 import Header from '@/components/layout/Header'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
+import InternalLinkStep from '@/components/editor/InternalLinkStep'
 import ImageResult from '@/components/editor/ImageResult'
 import PublishResult from '@/components/editor/PublishResult'
 
@@ -12,6 +14,7 @@ const initialArticle: ArticleData = {
   title: '',
   originalContent: '',
   refinedContent: '',
+  internalLinks: [],
   imageUrl: '',
   wordpressUrl: undefined,
 }
@@ -52,8 +55,12 @@ export default function EditorPage() {
     await callGeminiApi()
   }, [callGeminiApi])
 
-  const handleStep2Next = useCallback(async () => {
+  const handleStep2Next = useCallback(() => {
     setCurrentStep(3)
+  }, [])
+
+  const handleStep3Next = useCallback(async () => {
+    setCurrentStep(4)
     setFireflyStatus('loading')
     try {
       const res = await fetch('/api/firefly', {
@@ -72,6 +79,10 @@ export default function EditorPage() {
       setFireflyStatus('error')
     }
   }, [article.title, article.refinedContent, updateArticle])
+
+  const handleStep4Next = useCallback(() => {
+    setCurrentStep(5)
+  }, [])
 
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')
@@ -96,12 +107,16 @@ export default function EditorPage() {
   const handlePublish = useCallback(async () => {
     setWordpressStatus('loading')
     try {
+      const contentWithLinks = applyInternalLinksToHtml(
+        article.refinedContent,
+        article.internalLinks ?? []
+      )
       const res = await fetch('/api/wordpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: article.title,
-          content: article.refinedContent,
+          content: contentWithLinks,
           imageUrl: article.imageUrl,
         }),
       })
@@ -112,7 +127,7 @@ export default function EditorPage() {
     } catch {
       setWordpressStatus('error')
     }
-  }, [article.title, article.refinedContent, article.imageUrl, updateArticle])
+  }, [article.title, article.refinedContent, article.internalLinks, article.imageUrl, updateArticle])
 
   const handleReset = useCallback(() => {
     setCurrentStep(1)
@@ -150,16 +165,25 @@ export default function EditorPage() {
         )}
 
         {currentStep === 3 && (
-          <ImageResult
+          <InternalLinkStep
             article={article}
-            fireflyStatus={fireflyStatus}
+            onInternalLinksChange={internalLinks => updateArticle({ internalLinks })}
             onBack={() => setCurrentStep(2)}
-            onNext={() => setCurrentStep(4)}
-            onRegenerate={handleRegenerate}
+            onNext={handleStep3Next}
           />
         )}
 
         {currentStep === 4 && (
+          <ImageResult
+            article={article}
+            fireflyStatus={fireflyStatus}
+            onBack={() => setCurrentStep(3)}
+            onNext={handleStep4Next}
+            onRegenerate={handleRegenerate}
+          />
+        )}
+
+        {currentStep === 5 && (
           <PublishResult
             article={article}
             wordpressStatus={wordpressStatus}

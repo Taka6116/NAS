@@ -4,11 +4,12 @@ import { ArticleData, ProcessingState } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type } from 'lucide-react'
+import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type } from 'lucide-react'
 
 interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
+  onBack: () => void
   onPublish: () => void
   onReset: () => void
 }
@@ -16,6 +17,7 @@ interface PublishResultProps {
 export default function PublishResult({
   article,
   wordpressStatus,
+  onBack,
   onPublish,
   onReset,
 }: PublishResultProps) {
@@ -62,6 +64,12 @@ export default function PublishResult({
         </Card>
       ) : (
         <>
+          <div className="mb-4">
+            <Button variant="ghost" size="md" onClick={onBack}>
+              <ArrowLeft size={16} />
+              画像生成に戻る
+            </Button>
+          </div>
           <Card>
             <h2 className="text-base font-bold text-[#1A1A2E] mb-4">
               投稿内容の確認

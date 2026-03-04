@@ -4,13 +4,14 @@ import { ArticleData } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles, Trash2 } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
   onTitleChange: (title: string) => void
   onContentChange: (content: string) => void
   onNext: () => void
+  onClear?: () => void
 }
 
 export default function ArticleInput({
@@ -18,6 +19,7 @@ export default function ArticleInput({
   onTitleChange,
   onContentChange,
   onNext,
+  onClear,
 }: ArticleInputProps) {
   const isDisabled = !article.title.trim() || !article.originalContent.trim()
   const charCount = article.originalContent.length
@@ -49,9 +51,21 @@ export default function ArticleInput({
       <StepIndicator currentStep={1} />
 
       <Card>
-        <p className="text-sm text-[#64748B] mb-5">
-          NotebookLMで生成した記事のタイトルと本文を貼り付けてください
-        </p>
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-sm text-[#64748B]">
+            NotebookLMで生成した記事のタイトルと本文を貼り付けてください
+          </p>
+          {(article.title || article.originalContent) && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#DC2626] hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors"
+            >
+              <Trash2 size={13} />
+              入力をクリア
+            </button>
+          )}
+        </div>
 
         <div className="space-y-5">
           <div>

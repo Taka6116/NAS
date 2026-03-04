@@ -27,21 +27,15 @@ export default function RootLayout({
           {/* 左サイドバー */}
           <aside className="w-64 bg-[#0F172A] text-white border-r border-[#1E293B] flex flex-col">
             <div className="px-5 py-4 border-b border-[#1E293B]">
-              <div className="text-lg font-bold tracking-wide">NAS</div>
-              <div className="text-[11px] text-[#94A3B8] font-mono mt-0.5">
+              <div className="text-[23px] font-bold tracking-wide">NAS</div>
+              <div className="text-[14px] text-[#94A3B8] font-mono mt-0.5">
                 NTS Article System
               </div>
             </div>
 
             <nav className="flex-1 px-3 py-4 text-sm space-y-6">
               <div>
-                <p className="px-3 text-[11px] uppercase tracking-wide text-[#64748B] mb-2">
-                  メイン
-                </p>
                 <div className="space-y-1">
-                  <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
-                    ダッシュボード
-                  </div>
                   <Link
                     href="/editor"
                     className="flex items-center px-3 py-2 rounded-lg bg-[#1E293B] text-[13px] font-semibold text-white shadow-sm"
@@ -58,9 +52,6 @@ export default function RootLayout({
               </div>
 
               <div>
-                <p className="px-3 text-[11px] uppercase tracking-wide text-[#64748B] mb-2">
-                  設定
-                </p>
                 <div className="space-y-1">
                   <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
                     設定

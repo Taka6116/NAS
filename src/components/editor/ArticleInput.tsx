@@ -47,11 +47,11 @@ export default function ArticleInput({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
-      <StepIndicator currentStep={1} />
-
-      <Card>
-        <div className="flex items-center justify-between mb-5">
+    <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="flex items-center gap-8">
+        <div className="flex-1 space-y-5">
+          <Card>
+            <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-[#64748B]">
             NotebookLMで生成した記事のタイトルと本文を貼り付けてください
           </p>
@@ -65,9 +65,9 @@ export default function ArticleInput({
               入力をクリア
             </button>
           )}
-        </div>
+            </div>
 
-        <div className="space-y-5">
+            <div className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">
               記事タイトル
@@ -99,16 +99,16 @@ export default function ArticleInput({
                 text-[#1A1A2E] placeholder-[#CBD5E1]
                 focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
                 transition-all text-sm resize-y
-                min-h-[500px]
+                min-h-[380px]
               "
             />
             <div className="flex justify-end mt-1.5">
               {charBadge()}
             </div>
           </div>
-        </div>
+            </div>
 
-        <div className="flex justify-end mt-6 pt-5 border-t border-[#E2E8F0]">
+            <div className="flex justify-end mt-6 pt-5 border-t border-[#E2E8F0]">
           <Button
             variant="primary"
             disabled={isDisabled}
@@ -121,8 +121,14 @@ export default function ArticleInput({
               <span className="text-xs font-normal opacity-80">AIが記事の品質・読みやすさ・SEOを自動改善します</span>
             </span>
           </Button>
+            </div>
+          </Card>
         </div>
-      </Card>
+
+        <div className="w-40 flex-shrink-0">
+          <StepIndicator currentStep={1} />
+        </div>
+      </div>
     </div>
   )
 }

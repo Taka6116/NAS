@@ -14,15 +14,15 @@ const steps = [
 
 export default function StepIndicator({ currentStep }: StepIndicatorProps) {
   return (
-    <div className="flex items-center w-full">
+    <div className="flex flex-col items-start gap-2">
       {steps.map((step, index) => {
         const isCompleted = currentStep > step.number
         const isActive = currentStep === step.number
         const isLast = index === steps.length - 1
 
         return (
-          <div key={step.number} className="flex items-center flex-1">
-            <div className="flex flex-col items-center gap-1.5">
+          <div key={step.number} className="flex flex-col items-start">
+            <div className="flex items-center gap-3">
               <div
                 className={`
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all
@@ -56,11 +56,10 @@ export default function StepIndicator({ currentStep }: StepIndicatorProps) {
                 {step.label}
               </span>
             </div>
-
             {!isLast && (
               <div
                 className={`
-                  flex-1 h-0.5 mx-2 mb-5 transition-all
+                  ml-4 w-px h-6 transition-all
                   ${isCompleted ? 'bg-[#1B2A4A]' : 'bg-[#E2E8F0]'}
                 `}
               />

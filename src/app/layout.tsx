@@ -72,7 +72,7 @@ export default function RootLayout({
 
           {/* メインエリア：サイドバーの右側全体 */}
           <div className="ml-[220px] flex-1 flex flex-col min-h-screen bg-[#F5F7FA]">
-            <main className="flex-1 flex justify-center px-6 pb-12">
+            <main className="flex-1 flex items-center justify-center px-6 py-8">
               <div className="w-full max-w-[1000px]">
                 {children}
               </div>

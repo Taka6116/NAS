@@ -59,9 +59,12 @@ export default function RootLayout({
                   >
                     過去投稿済み記事一覧
                   </Link>
-                  <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
+                  <Link
+                    href="/schedule"
+                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                  >
                     投稿スケジュール
-                  </div>
+                  </Link>
                 </div>
               </div>
 

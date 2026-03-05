@@ -23,6 +23,23 @@ export interface ArticleData {
   wordpressUrl?: string
 }
 
+export type ArticleStatus = 'draft' | 'ready' | 'published'
+
+export interface SavedArticle {
+  id: string
+  title: string
+  refinedTitle: string
+  targetKeyword: string
+  originalContent: string
+  refinedContent: string
+  imageUrl: string
+  wordpressUrl?: string
+  status: ArticleStatus
+  createdAt: string
+  scheduledDate?: string
+  wordCount: number
+}
+
 export type ProcessingState = 'idle' | 'loading' | 'success' | 'error'
 
 export interface StepState {

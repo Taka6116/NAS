@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToHtml } from '@/lib/internalLinks'
+import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
@@ -52,7 +54,9 @@ function clearState() {
 }
 
 export default function EditorPage() {
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState<Step>(1)
+  const [currentArticleId, setCurrentArticleId] = useState<string | null>(null)
   const [article, setArticle] = useState<ArticleData>(initialArticle)
   const [geminiStatus, setGeminiStatus] = useState<ProcessingState>('idle')
   const [geminiError, setGeminiError] = useState<string | null>(null)
@@ -61,6 +65,34 @@ export default function EditorPage() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    const articleId = searchParams.get('articleId')
+    const stepParam = searchParams.get('step')
+
+    if (articleId) {
+      const savedArticle = getArticleById(articleId)
+      if (savedArticle) {
+        setArticle({
+          title: savedArticle.title,
+          refinedTitle: savedArticle.refinedTitle,
+          targetKeyword: savedArticle.targetKeyword,
+          originalContent: savedArticle.originalContent,
+          refinedContent: savedArticle.refinedContent,
+          imageUrl: savedArticle.imageUrl,
+          internalLinks: [],
+          wordpressUrl: savedArticle.wordpressUrl,
+        })
+        setCurrentArticleId(savedArticle.id)
+        const parsedStep = Number(stepParam)
+        if ([1, 2, 3, 4].includes(parsedStep)) {
+          setCurrentStep(parsedStep as Step)
+        }
+        setGeminiStatus(savedArticle.refinedContent ? 'success' : 'idle')
+        setFireflyStatus(savedArticle.imageUrl ? 'success' : 'idle')
+        setMounted(true)
+        return
+      }
+    }
+
     const saved = loadState()
     if (saved) {
       setArticle(saved.article)
@@ -72,7 +104,7 @@ export default function EditorPage() {
       setFireflyStatus(saved.fireflyStatus === 'loading' ? 'idle' : saved.fireflyStatus)
     }
     setMounted(true)
-  }, [])
+  }, [searchParams])
 
   useEffect(() => {
     if (!mounted) return
@@ -163,6 +195,29 @@ export default function EditorPage() {
 
   const handleStep3NextComplete = useCallback(() => setCurrentStep(4), [])
 
+  const handleSaveDraft = useCallback(() => {
+    const id = currentArticleId ?? String(Date.now())
+    setCurrentArticleId(id)
+
+    const existing = getArticleById(id)
+    saveArticle({
+      id,
+      title: article.title,
+      refinedTitle: article.refinedTitle ?? article.title,
+      targetKeyword: article.targetKeyword ?? '',
+      originalContent: article.originalContent,
+      refinedContent: article.refinedContent,
+      imageUrl: article.imageUrl,
+      wordpressUrl: article.wordpressUrl,
+      status: article.imageUrl ? 'ready' : 'draft',
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      scheduledDate: existing?.scheduledDate,
+      wordCount: article.refinedContent.length,
+    })
+
+    alert('下書きを保存しました')
+  }, [article, currentArticleId])
+
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')
     updateArticle({ imageUrl: '' })
@@ -201,11 +256,40 @@ export default function EditorPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       updateArticle({ wordpressUrl: data.wordpressUrl })
+      if (currentArticleId) {
+        updateArticleStatus(currentArticleId, 'published', data.wordpressUrl)
+      } else {
+        const newId = String(Date.now())
+        setCurrentArticleId(newId)
+        saveArticle({
+          id: newId,
+          title: article.title,
+          refinedTitle: article.refinedTitle ?? article.title,
+          targetKeyword: article.targetKeyword ?? '',
+          originalContent: article.originalContent,
+          refinedContent: article.refinedContent,
+          imageUrl: article.imageUrl,
+          wordpressUrl: data.wordpressUrl,
+          status: 'published',
+          createdAt: new Date().toISOString(),
+          wordCount: article.refinedContent.length,
+        })
+      }
       setWordpressStatus('success')
     } catch {
       setWordpressStatus('error')
     }
-  }, [article.title, article.refinedContent, article.internalLinks, article.imageUrl, updateArticle])
+  }, [
+    article.title,
+    article.refinedTitle,
+    article.targetKeyword,
+    article.originalContent,
+    article.refinedContent,
+    article.internalLinks,
+    article.imageUrl,
+    currentArticleId,
+    updateArticle,
+  ])
 
   const handleReset = useCallback(() => {
     clearState()
@@ -262,6 +346,7 @@ export default function EditorPage() {
           article={article}
           fireflyStatus={fireflyStatus}
           onBack={() => setCurrentStep(2)}
+          onSaveDraft={handleSaveDraft}
           onNext={handleStep3NextComplete}
           onRegenerate={handleRegenerate}
           onImageUpload={handleImageUpload}

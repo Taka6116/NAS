@@ -12,6 +12,7 @@ interface ImageResultProps {
   article: ArticleData
   fireflyStatus: ProcessingState
   onBack: () => void
+  onSaveDraft: () => void
   onNext: () => void
   onRegenerate: () => void
   /** クライアント画像を選択したときに呼ばれる（imageUrl を上書き） */
@@ -23,6 +24,7 @@ export default function ImageResult({
   article,
   fireflyStatus,
   onBack,
+  onSaveDraft,
   onNext,
   onRegenerate,
   onImageUpload,
@@ -156,15 +158,24 @@ export default function ImageResult({
           <ArrowLeft size={16} />
           Gemini推敲に戻る
         </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={onNext}
-          disabled={fireflyStatus !== 'success' || !article.imageUrl}
-        >
-          ④ 投稿する
-          <ArrowRight size={18} />
-        </Button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onSaveDraft}
+            className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
+            style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
+          >
+            💾 下書きに保存
+          </button>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={onNext}
+            disabled={fireflyStatus !== 'success' || !article.imageUrl}
+          >
+            ④ 投稿する
+            <ArrowRight size={18} />
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -47,9 +47,18 @@ export default function RootLayout({
                   >
                     記事を作成
                   </Link>
-                  <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
-                    過去記事一覧
-                  </div>
+                  <Link
+                    href="/articles"
+                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                  >
+                    保存済み記事一覧
+                  </Link>
+                  <Link
+                    href="/published"
+                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                  >
+                    過去投稿済み記事一覧
+                  </Link>
                   <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
                     投稿スケジュール
                   </div>

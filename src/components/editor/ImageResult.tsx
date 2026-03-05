@@ -102,8 +102,8 @@ export default function ImageResult({
                   <Image
                     src={article.imageUrl}
                     alt="生成された記事画像"
-                    width={800}
-                    height={450}
+                    width={1000}
+                    height={525}
                     className="w-full h-auto"
                     unoptimized
                   />

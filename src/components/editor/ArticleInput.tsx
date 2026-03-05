@@ -4,11 +4,12 @@ import { ArticleData, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowRight, Trash2 } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
   onTitleChange: (title: string) => void
+  onTargetKeywordChange: (kw: string) => void
   onContentChange: (content: string) => void
   onNext: () => void
   onClear?: () => void
@@ -18,6 +19,7 @@ interface ArticleInputProps {
 export default function ArticleInput({
   article,
   onTitleChange,
+  onTargetKeywordChange,
   onContentChange,
   onNext,
   onClear,
@@ -90,6 +92,37 @@ export default function ArticleInput({
             />
           </div>
 
+          {/* ターゲットキーワード */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold" style={{ color: '#1A1A2E' }}>
+                ターゲットキーワード
+              </label>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: '#F0F4FF',
+                  color: '#1B2A4A',
+                  border: '1px solid #C7D7FF',
+                  fontFamily: 'DM Mono',
+                }}
+              >
+                SEO・Gemini推敲に使用
+              </span>
+            </div>
+            <input
+              type="text"
+              value={article.targetKeyword ?? ''}
+              onChange={e => onTargetKeywordChange(e.target.value)}
+              placeholder="例：事業承継 相談"
+              className="w-full px-4 py-3 rounded-lg text-sm border transition-all"
+              style={{ border: '1.5px solid #E2E8F0', color: '#1A1A2E', background: '#FAFBFC' }}
+            />
+            <p className="text-xs mt-1.5" style={{ color: '#94A3B8' }}>
+              Ahrefsで選定したキーワードを入力してください。Geminiが推敲時にSEO最適化します。
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">
               記事本文
@@ -113,18 +146,14 @@ export default function ArticleInput({
             </div>
 
             <div className="flex justify-end mt-6 pt-5 border-t border-[#E2E8F0]">
-          <Button
-            variant="primary"
-            disabled={isDisabled}
-            onClick={onNext}
-            className="py-4 px-8 h-auto"
-          >
-            <Sparkles size={18} />
-            <span className="flex flex-col items-start leading-tight">
-              <span className="font-bold text-base">② Geminiで推敲する</span>
-              <span className="text-xs font-normal opacity-80">AIが記事の品質・読みやすさ・SEOを自動改善します</span>
-            </span>
-          </Button>
+              <Button
+                variant="primary"
+                disabled={isDisabled}
+                onClick={onNext}
+                className="py-4 px-8 h-auto"
+              >
+                <span className="font-bold text-base">Geminiで推敲する</span>
+              </Button>
             </div>
           </Card>
         </div>

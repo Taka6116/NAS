@@ -9,6 +9,7 @@ import { ArrowRight } from 'lucide-react'
 interface ArticleInputProps {
   article: ArticleData
   onTitleChange: (title: string) => void
+  onTargetKeywordChange: (kw: string) => void
   onContentChange: (content: string) => void
   onNext: () => void
 }
@@ -16,6 +17,7 @@ interface ArticleInputProps {
 export default function ArticleInput({
   article,
   onTitleChange,
+  onTargetKeywordChange,
   onContentChange,
   onNext,
 }: ArticleInputProps) {
@@ -44,6 +46,37 @@ export default function ArticleInput({
                 transition-all text-sm
               "
             />
+          </div>
+
+          {/* ターゲットキーワード */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold" style={{ color: '#1A1A2E' }}>
+                ターゲットキーワード
+              </label>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: '#F0F4FF',
+                  color: '#1B2A4A',
+                  border: '1px solid #C7D7FF',
+                  fontFamily: 'DM Mono',
+                }}
+              >
+                SEO・Gemini推敲に使用
+              </span>
+            </div>
+            <input
+              type="text"
+              value={article.targetKeyword ?? ''}
+              onChange={e => onTargetKeywordChange(e.target.value)}
+              placeholder="例：事業承継 相談"
+              className="w-full px-4 py-3 rounded-lg text-sm border transition-all"
+              style={{ border: '1.5px solid #E2E8F0', color: '#1A1A2E', background: '#FAFBFC' }}
+            />
+            <p className="text-xs mt-1.5" style={{ color: '#94A3B8' }}>
+              Ahrefsで選定したキーワードを入力してください。Geminiが推敲時にSEO最適化します。
+            </p>
           </div>
 
           <div>

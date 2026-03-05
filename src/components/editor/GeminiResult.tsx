@@ -32,6 +32,7 @@
  }: GeminiResultProps) {
    const [copied, setCopied] = useState(false)
    const [showToast, setShowToast] = useState(false)
+ const refinedContent = typeof article.refinedContent === 'string' ? article.refinedContent : ''
 
    useEffect(() => {
      if (geminiStatus === 'success') {
@@ -41,11 +42,11 @@
      }
    }, [geminiStatus])
 
-   const handleCopy = async () => {
-     await navigator.clipboard.writeText(article.refinedContent)
-     setCopied(true)
-     setTimeout(() => setCopied(false), 2000)
-   }
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(refinedContent)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="w-full pt-6 pb-12">
@@ -167,7 +168,7 @@
                    />
                  </div>
                  <textarea
-                   value={article.refinedContent}
+                   value={refinedContent}
                    onChange={e => onRefinedContentChange(e.target.value)}
                    className="
                      flex-1 px-5 py-4
@@ -199,7 +200,7 @@
           variant="primary"
           size="lg"
           onClick={onNext}
-          disabled={geminiStatus !== 'success' || !article.refinedContent.trim()}
+          disabled={geminiStatus !== 'success' || !refinedContent.trim()}
         >
           ③ 画像を生成する
           <ArrowRight size={18} />

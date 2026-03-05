@@ -15,6 +15,7 @@ const initialArticle: ArticleData = {
   originalContent: '',
   refinedContent: '',
   refinedTitle: '',
+  targetKeyword: '',
   internalLinks: [],
   imageUrl: '',
   wordpressUrl: undefined,
@@ -92,29 +93,32 @@ export default function EditorPage() {
         body: JSON.stringify({
           title: article.title,
           content: article.originalContent,
+          targetKeyword: article.targetKeyword ?? '',
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '推敲に失敗しました')
-      updateArticle({
-        refinedTitle: data.refinedTitle ?? '',
-        refinedContent: data.refinedContent,
-      })
+      const refinedTitle =
+        typeof data.refinedTitle === 'string' && data.refinedTitle.trim().length > 0
+          ? data.refinedTitle
+          : article.title
+      const refinedContent =
+        typeof data.refinedContent === 'string' ? data.refinedContent.trim() : ''
+      if (!refinedContent) {
+        throw new Error('Geminiの推敲結果が空です。再度お試しください。')
+      }
+      updateArticle({ refinedTitle, refinedContent })
       setGeminiStatus('success')
     } catch (e) {
       setGeminiStatus('error')
       setGeminiError(e instanceof Error ? e.message : '推敲に失敗しました')
     }
-  }, [article.title, article.originalContent, updateArticle])
+  }, [article.title, article.originalContent, article.targetKeyword, updateArticle])
 
   const handleStep1Next = useCallback(async () => {
     setCurrentStep(2)
-    if (!article.refinedContent.trim()) {
-      await callGeminiApi()
-    } else {
-      setGeminiStatus('success')
-    }
-  }, [article.refinedContent, callGeminiApi])
+    await callGeminiApi()
+  }, [callGeminiApi])
 
   const handleStep2Next = useCallback(() => setCurrentStep(3), [])
 
@@ -234,6 +238,7 @@ export default function EditorPage() {
           article={article}
           onTitleChange={title => updateArticle({ title })}
           onContentChange={content => updateArticle({ originalContent: content })}
+          onTargetKeywordChange={kw => updateArticle({ targetKeyword: kw })}
           onNext={handleStep1Next}
           onClear={handleClearArticle}
           onStepClick={setCurrentStep}

@@ -16,6 +16,7 @@ export interface ArticleData {
   refinedContent: string
   /** Gemini推敲後のタイトル（未推敲時は空） */
   refinedTitle: string
+  targetKeyword?: string
   /** 追加する内部リンク（担当者が設定） */
   internalLinks: InternalLinkEntry[]
   imageUrl: string

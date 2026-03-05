@@ -1,7 +1,115 @@
-// TODO: Gemini APIキーを環境変数 GEMINI_API_KEY に設定すること
-export async function refineArticleWithGemini(content: string): Promise<string> {
-  // TODO: 実装予定
-  // Gemini APIを呼び出し、記事を改善して返す
-  await new Promise(resolve => setTimeout(resolve, 2000)) // ダミーの待機
-  return content + '\n\n（Geminiによる改善済み — APIを実装してください）'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+const TITLE_MARKER = '<<<TITLE>>>'
+const BODY_MARKER = '<<<BODY>>>'
+
+const SUPERVISOR_BLOCK = `監修者
+株式会社日本提携支援 代表取締役
+大野 聡介
+過去1,000件超のM&A相談、50件超のアドバイザリー契約、15組超のM&A成約組数を担当。(株)日本M&Aセンターにて、年間最多アドバイザリー契約受賞経験あり。新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。`
+
+const FOOTER = `導入事例はこちらから
+https://nihon-teikei.co.jp/news/casestudy/`
+
+export interface RefinedArticle {
+  refinedTitle: string
+  refinedContent: string
+}
+
+export async function refineArticleWithGemini(
+  title: string,
+  content: string,
+  targetKeyword?: string
+): Promise<RefinedArticle> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY が設定されていません')
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+  const kwInstruction = targetKeyword
+    ? `ターゲットキーワード：「${targetKeyword}」
+- タイトルにターゲットキーワードを自然に含めること
+- 本文冒頭200文字以内にターゲットキーワードを自然に含めること
+- 本文中に2〜4回、文脈に合う形でターゲットキーワードを使用すること`
+    : `- タイトルはSEOを意識した具体的で検索されやすい表現にすること`
+
+  const prompt = `あなたはM&A・事業承継専門のSEOライター兼編集者です。
+以下の記事のタイトルと本文を改善してください。
+
+【出力形式】
+${TITLE_MARKER}
+（改善後のタイトル1行のみ）
+${BODY_MARKER}
+（改善後の本文）
+
+上記フォーマット以外の文字は一切出力しないこと。
+
+【タイトルのルール】
+- 1行のみ
+${kwInstruction}
+- 数字・具体性・読者の疑問を含めると効果的
+
+【本文のルール — 順番通りに出力すること】
+
+1. 監修者ブロック（以下をそのまま出力）：
+${SUPERVISOR_BLOCK}
+
+2. 本文
+
+3. フッター（以下をそのまま出力）：
+${FOOTER}
+
+【推敲の指示】
+- 元の構成・見出し・事実・数字を変えないこと
+- 元記事にない情報を追加しないこと
+- 文字数は元の±20%以内に収めること
+- 各見出しセクションの冒頭1文は「読者の疑問に直接答える」文にすること
+  例：「事業承継の相談先は〇〇と〇〇の2種類に大別されます」
+- 文末表現を統一しすぎず、リズムに変化をつけること
+- 専門用語は初出時のみ括弧内で短く補足すること
+
+【LLMO対応の指示】
+- 記事内のサービス・制度・固有名詞は正式名称で表記すること
+- 数字・実績・固有の事例は省略せず正確に残すこと
+- 「〜とは」で始まる定義文を各セクションに含めること
+
+【禁止事項】
+- アスタリスク（* **）の使用禁止
+- Markdown記法（# ## ### - など）の使用禁止
+- 「推敲しました」などの説明文の出力禁止
+
+【元のタイトル】
+${title}
+
+【元の本文】
+${content}`
+
+  const result = await model.generateContent(prompt)
+  const raw = result.response.text()
+
+  const text = raw
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+
+  const titleIdx = text.indexOf(TITLE_MARKER)
+  const bodyIdx = text.indexOf(BODY_MARKER)
+
+  if (titleIdx === -1 || bodyIdx === -1 || bodyIdx <= titleIdx) {
+    throw new Error('推敲結果の形式が不正です。再度お試しください。')
+  }
+
+  const refinedTitle = text
+    .slice(titleIdx + TITLE_MARKER.length, bodyIdx)
+    .trim()
+    .split('\n')[0]
+    .trim()
+
+  const refinedContent = text.slice(bodyIdx + BODY_MARKER.length).trim()
+
+  return {
+    refinedTitle: refinedTitle || title,
+    refinedContent: refinedContent || content,
+  }
 }

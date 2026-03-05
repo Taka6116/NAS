@@ -3,7 +3,9 @@ import { refineArticleWithGemini } from '@/lib/api/gemini'
 
 export async function POST(request: NextRequest) {
   try {
-    const { content } = await request.json()
+    const { title, content, targetKeyword } = await request.json()
+    const titleStr = typeof title === 'string' ? title : ''
+    const targetKeywordStr = typeof targetKeyword === 'string' ? targetKeyword : undefined
 
     if (!content || typeof content !== 'string') {
       return NextResponse.json(
@@ -12,8 +14,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const refinedContent = await refineArticleWithGemini(content)
-    return NextResponse.json({ refinedContent })
+    const { refinedTitle, refinedContent } = await refineArticleWithGemini(
+      titleStr,
+      content,
+      targetKeywordStr
+    )
+    return NextResponse.json({ refinedTitle, refinedContent })
   } catch (error) {
     console.error('Gemini API error:', error)
     const message =

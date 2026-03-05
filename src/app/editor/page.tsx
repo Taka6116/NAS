@@ -58,6 +58,7 @@ export default function EditorPage() {
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [currentArticleId, setCurrentArticleId] = useState<string | null>(null)
   const [article, setArticle] = useState<ArticleData>(initialArticle)
+  const [geminiToastShown, setGeminiToastShown] = useState(false)
   const [geminiStatus, setGeminiStatus] = useState<ProcessingState>('idle')
   const [geminiError, setGeminiError] = useState<string | null>(null)
   const [fireflyStatus, setFireflyStatus] = useState<ProcessingState>('idle')
@@ -88,6 +89,7 @@ export default function EditorPage() {
         }
         setGeminiStatus(savedArticle.refinedContent ? 'success' : 'idle')
         setFireflyStatus(savedArticle.imageUrl ? 'success' : 'idle')
+        setGeminiToastShown(Boolean(savedArticle.refinedContent))
         setMounted(true)
         return
       }
@@ -102,6 +104,7 @@ export default function EditorPage() {
       setCurrentStep(mappedStep as Step)
       setGeminiStatus(saved.geminiStatus === 'loading' ? 'idle' : saved.geminiStatus)
       setFireflyStatus(saved.fireflyStatus === 'loading' ? 'idle' : saved.fireflyStatus)
+      setGeminiToastShown(Boolean(saved.article?.refinedContent))
     }
     setMounted(true)
   }, [searchParams])
@@ -296,6 +299,7 @@ export default function EditorPage() {
     setCurrentStep(1)
     setArticle(initialArticle)
     setGeminiStatus('idle')
+    setGeminiToastShown(false)
     setGeminiError(null)
     setFireflyStatus('idle')
     setWordpressStatus('idle')
@@ -304,6 +308,7 @@ export default function EditorPage() {
   const handleClearArticle = useCallback(() => {
     setArticle(initialArticle)
     setGeminiStatus('idle')
+    setGeminiToastShown(false)
     setGeminiError(null)
     setFireflyStatus('idle')
     setWordpressStatus('idle')
@@ -334,6 +339,8 @@ export default function EditorPage() {
             article={article}
             geminiStatus={geminiStatus}
             geminiError={geminiError}
+          showCompletionToast={!geminiToastShown}
+          onCompletionToastShown={() => setGeminiToastShown(true)}
             onRefinedTitleChange={refinedTitle => updateArticle({ refinedTitle })}
             onRefinedContentChange={refinedContent => updateArticle({ refinedContent })}
             onBack={() => setCurrentStep(1)}
@@ -359,6 +366,7 @@ export default function EditorPage() {
             article={article}
             wordpressStatus={wordpressStatus}
             onBack={() => setCurrentStep(3)}
+          onSaveDraft={handleSaveDraft}
             onPublish={handlePublish}
             onReset={handleReset}
             onStepClick={setCurrentStep}

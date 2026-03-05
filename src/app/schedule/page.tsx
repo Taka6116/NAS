@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SavedArticle } from '@/lib/types'
-import { getAllArticles, saveArticle, deleteArticle } from '@/lib/articleStorage'
+import { getAllArticles, saveArticle } from '@/lib/articleStorage'
 import { ChevronLeft, ChevronRight, Send, Pencil, FileText, CalendarDays, Trash2 } from 'lucide-react'
 
 function getDaysInMonth(year: number, month: number) {
@@ -80,7 +80,12 @@ export default function SchedulePage() {
 
   const handleDeleteConfirmed = () => {
     if (!deleteTargetId) return
-    deleteArticle(deleteTargetId)
+    const all = getAllArticles()
+    const target = all.find(x => x.id === deleteTargetId)
+    if (target) {
+      target.scheduledDate = undefined
+      saveArticle(target)
+    }
     setArticles(getAllArticles())
     setDeleteTargetId(null)
   }
@@ -100,18 +105,18 @@ export default function SchedulePage() {
             </p>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setDeleteTargetId(null)}
-                className="px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}
-              >
-                いいえ
-              </button>
-              <button
                 onClick={handleDeleteConfirmed}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
                 style={{ background: '#DC2626' }}
               >
                 はい
+              </button>
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}
+              >
+                いいえ
               </button>
             </div>
           </div>

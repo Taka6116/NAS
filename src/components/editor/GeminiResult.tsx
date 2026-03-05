@@ -11,6 +11,8 @@
    article: ArticleData
    geminiStatus: ProcessingState
    geminiError?: string | null
+  showCompletionToast?: boolean
+  onCompletionToastShown?: () => void
    onRefinedTitleChange?: (title: string) => void
    onRefinedContentChange: (content: string) => void
    onBack: () => void
@@ -23,6 +25,8 @@
    article,
    geminiStatus,
    geminiError,
+  showCompletionToast,
+  onCompletionToastShown,
    onRefinedTitleChange,
    onRefinedContentChange,
    onBack,
@@ -35,12 +39,13 @@
  const refinedContent = typeof article.refinedContent === 'string' ? article.refinedContent : ''
 
    useEffect(() => {
-     if (geminiStatus === 'success') {
+    if (geminiStatus === 'success' && showCompletionToast) {
        setShowToast(true)
+      onCompletionToastShown?.()
        const t = setTimeout(() => setShowToast(false), 2500)
        return () => clearTimeout(t)
      }
-   }, [geminiStatus])
+  }, [geminiStatus, showCompletionToast, onCompletionToastShown])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(refinedContent)

@@ -9,6 +9,7 @@ import { CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type } from 'l
 interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
+  onSaveDraft: () => void
   onPublish: () => void
   onReset: () => void
 }
@@ -16,6 +17,7 @@ interface PublishResultProps {
 export default function PublishResult({
   article,
   wordpressStatus,
+  onSaveDraft,
   onPublish,
   onReset,
 }: PublishResultProps) {
@@ -126,15 +128,24 @@ export default function PublishResult({
                   </span>
                 </div>
               ) : (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={onPublish}
-                  className="w-full justify-center"
-                >
-                  <CheckCircle size={18} />
-                  WordPressに投稿する
-                </Button>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={onSaveDraft}
+                    className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
+                    style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
+                  >
+                    💾 下書きに保存
+                  </button>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={onPublish}
+                    className="justify-center"
+                  >
+                    <CheckCircle size={18} />
+                    WordPressに投稿する
+                  </Button>
+                </div>
               )}
             </div>
           </Card>

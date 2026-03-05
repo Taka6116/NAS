@@ -43,25 +43,25 @@ export default function RootLayout({
                 <div className="space-y-1">
                   <Link
                     href="/editor"
-                    className="flex items-center px-3 py-2 rounded-lg bg-[#1E293B] text-[13px] font-semibold text白 shadow-sm"
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E293B] transition-all"
                   >
                     記事を作成
                   </Link>
                   <Link
                     href="/articles"
-                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E293B] transition-all"
                   >
                     保存済み記事一覧
                   </Link>
                   <Link
                     href="/published"
-                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E293B] transition-all"
                   >
                     過去投稿済み記事一覧
                   </Link>
                   <Link
                     href="/schedule"
-                    className="flex items-center px-3 py-2 rounded-lg text-[13px] text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#1E293B] transition-all"
                   >
                     投稿スケジュール
                   </Link>
@@ -70,7 +70,7 @@ export default function RootLayout({
 
               <div>
                 <div className="space-y-1">
-                  <div className="px-3 py-2 rounded-lg text-[#64748B] cursor-not-allowed select-none">
+                  <div className="px-3 py-2 text-[16px] font-semibold text-[#E2E8F0]">
                     設定
                   </div>
                 </div>

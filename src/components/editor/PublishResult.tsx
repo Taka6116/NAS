@@ -10,6 +10,7 @@ interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
   onBack: () => void
+  onSaveDraft: () => void
   onPublish: () => void
   onReset: () => void
   onStepClick?: (step: Step) => void
@@ -19,11 +20,16 @@ export default function PublishResult({
   article,
   wordpressStatus,
   onBack,
+  onSaveDraft,
   onPublish,
   onReset,
   onStepClick,
 }: PublishResultProps) {
-  const charCount = article.refinedContent.length
+  const finalTitle = article.refinedTitle?.trim() || article.title
+  const finalContent = article.refinedContent || ''
+  const charCount = finalContent.length
+  const previewExcerpt =
+    finalContent.replace(/\s+/g, ' ').trim().slice(0, 120) + (finalContent.length > 120 ? '…' : '')
 
   return (
     <div className="w-full pt-6 pb-12">
@@ -68,40 +74,71 @@ export default function PublishResult({
           ) : (
             <Card>
               <h2 className="text-base font-bold text-[#1A1A2E] mb-4">
-                投稿内容の確認
+                投稿前プレビュー
               </h2>
 
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F5F7FA]">
-                <Type size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル</p>
-                  <p className="text-sm font-semibold text-[#1A1A2E]">{article.refinedTitle?.trim() || article.title}</p>
+              <div className="space-y-4">
+                <div className="rounded-xl overflow-hidden border border-[#E2E8F0] bg-white">
+                  {article.imageUrl ? (
+                    <img
+                      src={article.imageUrl}
+                      alt="投稿イメージ"
+                      className="w-full h-[220px] object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-[220px] bg-[#F1F5F9] flex items-center justify-center text-[#94A3B8] text-sm">
+                      画像未設定
+                    </div>
+                  )}
+                  <div className="px-4 py-3">
+                    <p className="text-xs font-mono text-[#16A34A] mb-1">投稿プレビュー</p>
+                    <h3 className="text-lg font-bold text-[#1A1A2E] leading-snug">{finalTitle}</h3>
+                    <p className="text-sm text-[#64748B] mt-2">{previewExcerpt}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F5F7FA]">
-                <FileText size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-mono text-[#64748B] mb-0.5">文字数</p>
-                  <p className="text-sm font-semibold text-[#1A1A2E]">
-                    {charCount.toLocaleString()}文字
-                  </p>
-                </div>
-              </div>
+                <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Type size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル（最終確認）</p>
+                      <p className="text-sm font-semibold text-[#1A1A2E]">{finalTitle}</p>
+                    </div>
+                  </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-[#F5F7FA]">
-                <ImageIcon size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-mono text-[#64748B] mb-0.5">画像</p>
-                  <p className="text-sm font-semibold text-[#16A34A] flex items-center gap-1">
-                    <CheckCircle size={13} />
-                    生成済み
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <FileText size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
+                    <div className="w-full">
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">本文（最終確認）</p>
+                      <div className="w-full rounded-lg border border-[#E2E8F0] bg-white p-3 max-h-[280px] overflow-y-auto">
+                        <p className="text-sm text-[#1A1A2E] whitespace-pre-wrap leading-relaxed">
+                          {finalContent}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <ImageIcon size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">画像</p>
+                      <p className="text-sm font-semibold text-[#16A34A] flex items-center gap-1">
+                        <CheckCircle size={13} />
+                        {article.imageUrl ? '設定済み' : '未設定'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <FileText size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">文字数</p>
+                      <p className="text-sm font-semibold text-[#1A1A2E]">{charCount.toLocaleString()}文字</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
           )}
         </div>
 
@@ -151,15 +188,24 @@ export default function PublishResult({
               </span>
             </div>
           ) : (
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={onPublish}
-              className="justify-center"
-            >
-              <CheckCircle size={18} />
-              WordPressに投稿する
-            </Button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onSaveDraft}
+                className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
+                style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
+              >
+                💾 下書きに保存
+              </button>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={onPublish}
+                className="justify-center"
+              >
+                <CheckCircle size={18} />
+                WordPressに投稿する
+              </Button>
+            </div>
           )}
         </div>
       )}

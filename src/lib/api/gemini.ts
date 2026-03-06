@@ -27,6 +27,8 @@ export async function refineArticleWithGemini(
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
+  const currentYear = new Date().getFullYear()
+
   const kwInstruction = targetKeyword
     ? `ターゲットキーワード：「${targetKeyword}」
 - タイトルにターゲットキーワードを自然に含めること
@@ -49,6 +51,7 @@ ${BODY_MARKER}
 - 1行のみ
 ${kwInstruction}
 - 数字・具体性・読者の疑問を含めると効果的
+- 元のタイトルにすでに「〇〇年」「最新版」など年・時期が含まれている場合のみ、その年を**${currentYear}年**に修正すること。元タイトルに年が含まれていない記事に、安易に「${currentYear}年最新版」などを追加しないこと（毎日のように「最新版」が出ると読者の不信感やSEO上の問題につながる）
 
 【本文のルール — 順番通りに出力すること】
 

@@ -171,21 +171,21 @@ export default function PreviewPage() {
           position: 'sticky',
           top: 56,
           zIndex: 998,
+          flexWrap: 'nowrap',
+          gap: 16,
         }}
       >
-        {/* 左：ロゴ（アイコン上、その下に NTS 日本提携支援） */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
-          <svg width="36" height="18" viewBox="0 0 36 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', marginBottom: 2 }}>
-            <path d="M18 1L1 17h34L18 1z" fill="#0e357f" />
-            <path d="M6 17L18 7l12 10H6z" fill="#0e357f" fillOpacity="0.85" />
-          </svg>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#0e357f', letterSpacing: '0.02em' }}>NTS</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#1a4a8e' }}>日本提携支援</span>
-          </div>
+        {/* 左：NTSロゴ（API経由でSVGを配信） */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/api/nts-logo"
+            alt="NTS 日本提携支援"
+            style={{ height: 36, width: 'auto', display: 'block' }}
+          />
         </div>
 
-        {/* 中央：ナビゲーション */}
+        {/* 中央：ナビゲーション・改行なし */}
         <nav
           style={{
             display: 'flex',
@@ -193,6 +193,8 @@ export default function PreviewPage() {
             fontSize: 13,
             color: '#333',
             fontWeight: 500,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
           }}
         >
           {[
@@ -209,8 +211,8 @@ export default function PreviewPage() {
           ))}
         </nav>
 
-        {/* 右：電話 + お問い合わせボタン */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        {/* 右：電話 + お問い合わせボタン・1行で表示 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0, whiteSpace: 'nowrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -234,6 +236,7 @@ export default function PreviewPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
+              whiteSpace: 'nowrap',
             }}
           >
             お問い合わせ
@@ -420,7 +423,7 @@ export default function PreviewPage() {
             padding: '0 40px',
           }}
         >
-          <h2 style={{ marginBottom: 40 }}>
+          <h2 style={{ marginBottom: 24 }}>
             <span
               style={{
                 display: 'block',
@@ -434,6 +437,18 @@ export default function PreviewPage() {
             </span>
             <span style={{ fontSize: 14, color: '#666' }}>最新ニュース</span>
           </h2>
+          {/* CATEGORY・TAG（見た目のみ） */}
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#222', display: 'block', marginBottom: 8 }}>CATEGORY</span>
+              <span style={{ fontSize: 14, color: '#333' }}>
+                すべて　インターン　導入事例　お役立ち情報　お知らせ
+              </span>
+            </div>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#222', display: 'block' }}>TAG</span>
+            </div>
+          </div>
           <div
             style={{
               display: 'grid',
@@ -512,13 +527,36 @@ export default function PreviewPage() {
                   opacity: 0.6,
                 }}
               >
+                {/* 実際のサイト同様：白地＋NTSロゴ＋NIHON TEIKEI SHIEN */}
                 <div
                   style={{
                     width: '100%',
                     aspectRatio: '16/9',
-                    backgroundColor: '#ddd',
+                    backgroundColor: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 24,
+                    borderBottom: '1px solid #f0f0f0',
                   }}
-                />
+                >
+                  <img
+                    src="/api/nts-logo"
+                    alt="NTS"
+                    style={{ height: 28, width: 'auto', display: 'block', marginBottom: 6 }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: '#0e357f',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    NIHON TEIKEI SHIEN
+                  </span>
+                </div>
                 <div style={{ padding: 16 }}>
                   <div
                     style={{

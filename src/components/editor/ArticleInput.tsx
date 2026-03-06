@@ -246,11 +246,11 @@ export default function ArticleInput({
                 className="py-3 px-6 h-auto"
               >
                 {generating ? (
-                  <span className="font-bold text-base">生成中...</span>
+                  <span className="font-bold text-base">精査/推敲中...</span>
                 ) : (
                   <>
                     <Sparkles size={18} className="mr-2" />
-                    <span className="font-bold text-base">文章を生成する</span>
+                    <span className="font-bold text-base">文章を精査/推敲する</span>
                   </>
                 )}
               </Button>

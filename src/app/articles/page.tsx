@@ -85,8 +85,8 @@ export default function ArticlesPage() {
           </div>
           <button
             onClick={() => router.push('/editor')}
-            className="mt-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white"
-            style={{ background: '#1B2A4A' }}
+            className="mt-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--color-client)' }}
           >
             最初の記事を作成する
           </button>

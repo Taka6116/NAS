@@ -10,7 +10,8 @@ const steps = [
   { number: 1 as Step, label: '記事入力' },
   { number: 2 as Step, label: 'Gemini推敲' },
   { number: 3 as Step, label: '画像生成' },
-  { number: 4 as Step, label: '投稿' },
+  { number: 4 as Step, label: 'プレビュー' },
+  { number: 5 as Step, label: '投稿' },
 ]
 
 export default function StepIndicator({ currentStep, onStepClick }: StepIndicatorProps) {
@@ -29,8 +30,8 @@ export default function StepIndicator({ currentStep, onStepClick }: StepIndicato
 
         const labelClasses = `
           text-xs font-medium whitespace-nowrap
-          ${isActive ? 'text-[#C0392B] font-semibold' : ''}
-          ${isCompleted ? 'text-[#1B2A4A]' : ''}
+          ${isActive ? 'text-[#002C93] font-semibold' : ''}
+          ${isCompleted ? 'text-[#002C93]' : ''}
           ${!isCompleted && !isActive ? 'text-[#64748B]' : ''}
         `
 
@@ -41,8 +42,8 @@ export default function StepIndicator({ currentStep, onStepClick }: StepIndicato
               <div
                 className={`
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold
-                  ${isCompleted ? 'bg-[#1B2A4A] text-white' : ''}
-                  ${isActive ? 'bg-[#C0392B] text-white ring-4 ring-[#C0392B]/20' : ''}
+                  ${isCompleted ? 'bg-[#002C93] text-white' : ''}
+                  ${isActive ? 'bg-[#002C93] text-white ring-4 ring-[#002C93]/20' : ''}
                   ${!isCompleted && !isActive ? 'bg-[#E2E8F0] text-[#64748B]' : ''}
                 `}
               >
@@ -64,7 +65,7 @@ export default function StepIndicator({ currentStep, onStepClick }: StepIndicato
                 <div
                   className={`
                     w-[2px] h-10
-                    ${isCompleted ? 'bg-[#1B2A4A]' : 'bg-[#E2E8F0]'}
+                    ${isCompleted ? 'bg-[#002C93]' : 'bg-[#E2E8F0]'}
                   `}
                 />
               )}

@@ -345,7 +345,7 @@ export default function SchedulePage() {
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       {article.status !== 'published' && (
                         <button
-                          onClick={() => router.push(`/editor?articleId=${article.id}&step=4`)}
+                          onClick={() => router.push(`/editor?articleId=${article.id}&step=5`)}
                           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white"
                           style={{ background: '#C0392B', boxShadow: '0 2px 6px rgba(192,57,43,0.2)' }}
                         >

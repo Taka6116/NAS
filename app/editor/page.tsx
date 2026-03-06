@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToHtml } from '@/lib/internalLinks'
 import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
@@ -55,6 +55,7 @@ function clearState() {
 
 export default function EditorPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [currentArticleId, setCurrentArticleId] = useState<string | null>(null)
   const [article, setArticle] = useState<ArticleData>(initialArticle)
@@ -84,7 +85,21 @@ export default function EditorPage() {
         })
         setCurrentArticleId(savedArticle.id)
         const parsedStep = Number(stepParam)
-        if ([1, 2, 3, 4].includes(parsedStep)) {
+        if (parsedStep === 4) {
+          const content = savedArticle.refinedContent || savedArticle.originalContent || ''
+          sessionStorage.setItem('preview_content', content)
+          const params = new URLSearchParams({
+            title: (savedArticle.refinedTitle || savedArticle.title || '').trim(),
+            imageUrl: savedArticle.imageUrl || '',
+            category: 'お役立ち情報',
+            date: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.'),
+          })
+          params.set('articleId', savedArticle.id)
+          router.replace(`/preview?${params.toString()}`)
+          setMounted(true)
+          return
+        }
+        if ([1, 2, 3, 5].includes(parsedStep)) {
           setCurrentStep(parsedStep as Step)
         }
         setGeminiStatus(savedArticle.refinedContent ? 'success' : 'idle')
@@ -98,9 +113,9 @@ export default function EditorPage() {
     const saved = loadState()
     if (saved) {
       setArticle(saved.article)
-      // 旧5ステップの保存値は4ステップにマッピング（内部リンク削除済み）
+      // 旧4ステップの「投稿」は新ステップ5にマッピング
       const step = saved.currentStep as number
-      const mappedStep = step === 5 ? 4 : step === 4 ? 3 : step
+      const mappedStep = step === 4 ? 5 : step
       setCurrentStep(mappedStep as Step)
       setGeminiStatus(saved.geminiStatus === 'loading' ? 'idle' : saved.geminiStatus)
       setFireflyStatus(saved.fireflyStatus === 'loading' ? 'idle' : saved.fireflyStatus)
@@ -196,7 +211,27 @@ export default function EditorPage() {
     }
   }, [mounted, currentStep, article.imageUrl, fireflyStatus, triggerFirefly])
 
-  const handleStep3NextComplete = useCallback(() => setCurrentStep(4), [])
+  const handleStep3NextComplete = useCallback(() => setCurrentStep(5), [])
+
+  const handleStepClick = useCallback(
+    (step: Step) => {
+      if (step === 4) {
+        const content = article.refinedContent || article.originalContent || ''
+        sessionStorage.setItem('preview_content', content)
+        const params = new URLSearchParams({
+          title: (article.refinedTitle || article.title || '').trim(),
+          imageUrl: article.imageUrl || '',
+          category: 'お役立ち情報',
+          date: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.'),
+        })
+        if (currentArticleId) params.set('articleId', currentArticleId)
+        router.push(`/preview?${params.toString()}`)
+      } else {
+        setCurrentStep(step)
+      }
+    },
+    [article, currentArticleId, router]
+  )
 
   const handleSaveDraft = useCallback(() => {
     const id = currentArticleId ?? String(Date.now())
@@ -330,7 +365,7 @@ export default function EditorPage() {
           onTargetKeywordChange={kw => updateArticle({ targetKeyword: kw })}
           onNext={handleStep1Next}
           onClear={handleClearArticle}
-          onStepClick={setCurrentStep}
+            onStepClick={handleStepClick}
         />
       )}
       {currentStep === 2 && (
@@ -345,7 +380,7 @@ export default function EditorPage() {
           onBack={() => setCurrentStep(1)}
           onNext={handleStep2Next}
           onRetry={callGeminiApi}
-          onStepClick={setCurrentStep}
+            onStepClick={handleStepClick}
         />
       )}
       {currentStep === 3 && (
@@ -357,10 +392,11 @@ export default function EditorPage() {
           onNext={handleStep3NextComplete}
           onRegenerate={handleRegenerate}
           onImageUpload={handleImageUpload}
-          onStepClick={setCurrentStep}
+            onStepClick={handleStepClick}
+          articleId={currentArticleId}
         />
       )}
-      {currentStep === 4 && (
+      {currentStep === 5 && (
         <PublishResult
           article={article}
           wordpressStatus={wordpressStatus}
@@ -368,7 +404,7 @@ export default function EditorPage() {
           onSaveDraft={handleSaveDraft}
           onPublish={handlePublish}
           onReset={handleReset}
-          onStepClick={setCurrentStep}
+          onStepClick={handleStepClick}
         />
       )}
     </>

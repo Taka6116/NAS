@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, ChangeEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
@@ -18,6 +19,8 @@ interface ImageResultProps {
   /** クライアント画像を選択したときに呼ばれる（imageUrl を上書き） */
   onImageUpload?: (imageUrl: string) => void
   onStepClick?: (step: Step) => void
+  /** プレビュー遷移時に「このまま投稿する」でSTEP4へ戻るために使用 */
+  articleId?: string | null
 }
 
 export default function ImageResult({
@@ -29,9 +32,28 @@ export default function ImageResult({
   onRegenerate,
   onImageUpload,
   onStepClick,
+  articleId = null,
 }: ImageResultProps) {
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const lastObjectUrlRef = useRef<string | null>(null)
+
+  const handlePreview = () => {
+    const content = article.refinedContent || article.originalContent || ''
+    sessionStorage.setItem('preview_content', content)
+    const params = new URLSearchParams({
+      title: article.refinedTitle?.trim() || article.title || '',
+      imageUrl: article.imageUrl || '',
+      category: 'お役立ち情報',
+      date: new Date().toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      }).replace(/\//g, '.'),
+    })
+    if (articleId) params.set('articleId', articleId)
+    router.push(`/preview?${params.toString()}`)
+  }
 
   const handleDownload = () => {
     const link = document.createElement('a')
@@ -94,7 +116,7 @@ export default function ImageResult({
             </div>
           )}
 
-          {/* 画像カード */}
+          {/* 画像カード（画像の箱）：下書きに保存・プレビューへはカード内左右に配置 */}
           <Card>
             <div className="flex flex-col items-center gap-5">
               {article.imageUrl && (
@@ -142,6 +164,28 @@ export default function ImageResult({
                   別の画像を生成する
                 </Button>
               </div>
+
+              {/* 画像の箱内：下書きに保存（左）・プレビューへ（右） */}
+              <div className="w-full max-w-[640px] flex items-center justify-between gap-4 pt-2 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={onSaveDraft}
+                  className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium flex-shrink-0"
+                  style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
+                >
+                  💾 下書きに保存
+                </button>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={handlePreview}
+                  disabled={fireflyStatus !== 'success' || !article.imageUrl}
+                  className="flex-shrink-0"
+                >
+                  プレビューへ
+                  <ArrowRight size={18} />
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
@@ -152,30 +196,12 @@ export default function ImageResult({
         </div>
       </div>
 
-      {/* 下：ナビゲーションボタン */}
+      {/* 下：戻るのみ（ナビはカード内に移動済み） */}
       <div className="flex items-center justify-between mt-8">
         <Button variant="ghost" size="md" onClick={onBack}>
           <ArrowLeft size={16} />
           Gemini推敲に戻る
         </Button>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onSaveDraft}
-            className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
-            style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
-          >
-            💾 下書きに保存
-          </button>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={onNext}
-            disabled={fireflyStatus !== 'success' || !article.imageUrl}
-          >
-            ④ 投稿する
-            <ArrowRight size={18} />
-          </Button>
-        </div>
       </div>
     </div>
   )

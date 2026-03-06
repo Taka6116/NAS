@@ -74,7 +74,7 @@ export default function PublishResult({
           ) : (
             <Card>
               <h2 className="text-base font-bold text-[#1A1A2E] mb-4">
-                投稿前プレビュー
+                最終確認ページ
               </h2>
 
               <div className="space-y-4">
@@ -144,7 +144,7 @@ export default function PublishResult({
 
         {/* 右：StepIndicator */}
         <div className="flex-shrink-0 w-[140px] pt-2">
-          <StepIndicator currentStep={4} onStepClick={onStepClick} />
+          <StepIndicator currentStep={5} onStepClick={onStepClick} />
         </div>
       </div>
 

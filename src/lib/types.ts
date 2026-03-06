@@ -1,4 +1,4 @@
-export type Step = 1 | 2 | 3 | 4
+export type Step = 1 | 2 | 3 | 4 | 5
 
 /** 内部リンク1件（記事内のどの文言にどのURLを張るか） */
 export interface InternalLinkEntry {

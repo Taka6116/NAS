@@ -43,7 +43,7 @@ export default function ArticlesPage() {
   }
 
   const handlePublish = (article: SavedArticle) => {
-    router.push(`/editor?articleId=${article.id}&step=4`)
+    router.push(`/editor?articleId=${article.id}&step=5`)
   }
 
   if (!mounted) return null

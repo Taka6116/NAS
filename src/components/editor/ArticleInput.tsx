@@ -136,7 +136,7 @@ export default function ArticleInput({
                 text-[#1A1A2E] placeholder-[#CBD5E1]
                 focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
                 transition-all text-sm resize-y
-                min-h-[380px]
+                min-h-[520px]
               "
             />
             <div className="flex justify-end mt-1.5">

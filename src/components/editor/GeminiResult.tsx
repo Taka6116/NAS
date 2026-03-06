@@ -60,7 +60,7 @@
         <div className="flex-1 min-w-0 flex flex-col gap-5">
            {/* ローディング（戻るボタンは下の「記事を修正する」でいつでも前のステップに戻れます） */}
            {geminiStatus === 'loading' && (
-             <div className="max-w-2xl space-y-3">
+             <div className="w-full max-w-4xl space-y-3">
                <GeminiLoadingCard />
                <p className="text-xs text-[#64748B]">
                  推敲中です。キャンセルする場合は下の「記事を修正する」で戻れます。
@@ -85,8 +85,7 @@
           {(geminiStatus === 'success' || geminiStatus === 'error') && (
             <div
               className="
-                grid grid-cols-2 gap-0 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm
-                divide-x divide-[#E2E8F0]
+                grid grid-cols-2 gap-6 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm
               "
             >
                {/* 左: 元の記事 */}
@@ -116,7 +115,7 @@
                    className="
                      flex-1 px-5 py-4
                      bg-[#F8FAFC] text-[#64748B] text-sm resize-none
-                     min-h-[500px] max-h-[600px]
+                     min-h-[560px] max-h-[72vh]
                      focus:outline-none
                    "
                  />
@@ -178,7 +177,7 @@
                    className="
                      flex-1 px-5 py-4
                      bg-white text-[#1A1A2E] text-sm resize-none
-                     min-h-[500px] max-h-[600px]
+                     min-h-[560px] max-h-[72vh]
                      focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#1B2A4A]/20
                      transition-all
                    "

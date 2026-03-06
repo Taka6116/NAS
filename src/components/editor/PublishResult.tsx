@@ -14,6 +14,8 @@ interface PublishResultProps {
   onPublish: () => void
   onReset: () => void
   onStepClick?: (step: Step) => void
+  onRefinedTitleChange?: (title: string) => void
+  onRefinedContentChange?: (content: string) => void
 }
 
 export default function PublishResult({
@@ -24,6 +26,8 @@ export default function PublishResult({
   onPublish,
   onReset,
   onStepClick,
+  onRefinedTitleChange,
+  onRefinedContentChange,
 }: PublishResultProps) {
   const finalTitle = article.refinedTitle?.trim() || article.title
   const finalContent = article.refinedContent || ''
@@ -100,21 +104,39 @@ export default function PublishResult({
                 <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <Type size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル（最終確認）</p>
-                      <p className="text-sm font-semibold text-[#1A1A2E]">{finalTitle}</p>
+                    <div className="w-full">
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル（最終確認・編集可）</p>
+                      <input
+                        type="text"
+                        value={finalTitle}
+                        onChange={e => onRefinedTitleChange?.(e.target.value)}
+                        className="
+                          w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
+                          text-sm font-semibold text-[#1A1A2E]
+                          focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                          transition-all
+                        "
+                        placeholder="記事タイトル"
+                      />
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
                     <FileText size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
                     <div className="w-full">
-                      <p className="text-xs font-mono text-[#64748B] mb-0.5">本文（最終確認）</p>
-                      <div className="w-full rounded-lg border border-[#E2E8F0] bg-white p-3 max-h-[280px] overflow-y-auto">
-                        <p className="text-sm text-[#1A1A2E] whitespace-pre-wrap leading-relaxed">
-                          {finalContent}
-                        </p>
-                      </div>
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">本文（最終確認・編集可）</p>
+                      <textarea
+                        value={finalContent}
+                        onChange={e => onRefinedContentChange?.(e.target.value)}
+                        className="
+                          w-full rounded-lg border border-[#E2E8F0] bg-white p-3
+                          text-sm text-[#1A1A2E] leading-relaxed resize-y
+                          min-h-[200px] max-h-[400px]
+                          focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                          transition-all
+                        "
+                        placeholder="記事本文"
+                      />
                     </div>
                   </div>
 

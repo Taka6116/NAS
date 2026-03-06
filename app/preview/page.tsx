@@ -78,12 +78,15 @@ export default function PreviewPage() {
 
   const handleStepClick = useCallback(
     (step: Step) => {
-      if (step === 3) {
-        if (articleId) {
-          router.push(`/editor?articleId=${articleId}&step=3`)
-        } else {
-          router.back()
-        }
+      const base = articleId ? `/editor?articleId=${articleId}&step=` : '/editor?step='
+      if (step === 1) {
+        router.push(`${base}1`)
+      } else if (step === 2) {
+        router.push(`${base}2`)
+      } else if (step === 3) {
+        router.push(`${base}3`)
+      } else if (step === 4) {
+        // 現在プレビュー画面のためそのまま（必要なら同一URLでリロードしない限り何もしない）
       } else if (step === 5) {
         handlePublish()
       }
@@ -122,7 +125,7 @@ export default function PreviewPage() {
         <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={() => (articleId ? router.push(`/editor?articleId=${articleId}&step=3`) : router.back())}
+            onClick={() => (articleId ? router.push(`/editor?articleId=${articleId}&step=3`) : router.push('/editor?step=3'))}
             style={{
               background: 'transparent',
               border: '1px solid rgba(255,255,255,0.5)',
@@ -134,7 +137,7 @@ export default function PreviewPage() {
               fontSize: 14,
             }}
           >
-            ← 編集に戻る
+            ← 戻る
           </button>
           <button
             type="button"

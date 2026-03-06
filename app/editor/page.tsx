@@ -121,6 +121,11 @@ export default function EditorPage() {
       setFireflyStatus(saved.fireflyStatus === 'loading' ? 'idle' : saved.fireflyStatus)
       setGeminiToastShown(Boolean(saved.article?.refinedContent))
     }
+    // プレビューから「投稿画面へ」で飛んできたときなど、URLの step を優先する
+    const parsedStepFromUrl = Number(stepParam)
+    if (stepParam != null && stepParam !== '' && !Number.isNaN(parsedStepFromUrl) && [1, 2, 3, 5].includes(parsedStepFromUrl)) {
+      setCurrentStep(parsedStepFromUrl as Step)
+    }
     setMounted(true)
   }, [searchParams])
 
@@ -405,6 +410,8 @@ export default function EditorPage() {
           onPublish={handlePublish}
           onReset={handleReset}
           onStepClick={handleStepClick}
+          onRefinedTitleChange={title => updateArticle({ refinedTitle: title })}
+          onRefinedContentChange={content => updateArticle({ refinedContent: content })}
         />
       )}
     </>

@@ -16,6 +16,93 @@ export interface RefinedArticle {
   refinedContent: string
 }
 
+export interface FirstDraftResult {
+  title: string
+  content: string
+}
+
+/** プロンプトと参照データから一次執筆（タイトル＋本文）を生成する */
+export async function generateFirstDraftFromPrompt(
+  userPrompt: string,
+  targetKeyword?: string,
+  dataContext?: string
+): Promise<FirstDraftResult> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY が設定されていません')
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+  const kwHint = targetKeyword
+    ? `\nターゲットキーワードを意識すること：「${targetKeyword}」`
+    : ''
+
+  const dataSection = dataContext?.trim()
+    ? `
+
+【参照データ（データページでアップロードした資料）】以下を参照し、この内容を踏まえて記事を作成すること。
+---
+${dataContext}
+---`
+    : ''
+
+  const prompt = `あなたはM&A・事業承継・経営支援を専門とする記事ライターです。
+ユーザーからの指示（プロンプト）に従い、記事のタイトルと本文を**1本分**作成してください。${dataSection}
+
+【出力形式】以下の2つのマーカーのみを使い、必ずこの順で出力すること。
+${TITLE_MARKER}
+（記事タイトル・1行のみ）
+${BODY_MARKER}
+（記事本文）
+
+上記フォーマット以外の文字（説明文など）は一切出力しないこと。
+
+【本文の構成 — 順番通りに出力すること】
+1. 監修者ブロック（以下をそのまま1行目から出力）：
+${SUPERVISOR_BLOCK}
+
+2. 本文（見出しは「1. 〇〇」「2. 〇〇」のように番号付き。■や●で小見出しも可。事実に基づいた内容にすること。参照データがある場合はその内容を要約・活用すること）
+
+3. フッター（以下をそのまま出力）：
+${FOOTER}
+
+【ルール】
+- タイトルはSEOを意識した具体的な1行にすること。${kwHint}
+- 本文は読者（経営者・事業承継検討者など）に役立つ実用的な内容にすること
+- 専門用語は初出時のみ括弧で補足すること
+- アスタリスク（* **）・Markdown記法（# ## - など）は使わないこと。プレーンテキストで書くこと
+
+【ユーザーからの指示（プロンプト）】
+${userPrompt}`
+
+  const result = await model.generateContent(prompt)
+  const raw = result.response.text()
+
+  const text = raw
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+
+  const titleIdx = text.indexOf(TITLE_MARKER)
+  const bodyIdx = text.indexOf(BODY_MARKER)
+
+  if (titleIdx === -1 || bodyIdx === -1 || bodyIdx <= titleIdx) {
+    throw new Error('生成結果の形式が不正です。再度お試しください。')
+  }
+
+  const title = text
+    .slice(titleIdx + TITLE_MARKER.length, bodyIdx)
+    .trim()
+    .split('\n')[0]
+    .trim()
+  const content = text.slice(bodyIdx + BODY_MARKER.length).trim()
+
+  return {
+    title: title || '（タイトルなし）',
+    content: content || '',
+  }
+}
+
 export async function refineArticleWithGemini(
   title: string,
   content: string,

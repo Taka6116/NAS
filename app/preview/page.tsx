@@ -724,7 +724,7 @@ export default function PreviewPage() {
         </p>
       </footer>
         </div>
-        {/* 右：プロセス表示（記事入力→…→プレビュー→投稿） */}
+        {/* 右：プロセス表示（一次執筆→…→プレビュー→投稿） */}
         <div style={{ flexShrink: 0, width: 140, position: 'sticky', top: 72, paddingTop: 8 }}>
           <StepIndicator currentStep={4} onStepClick={handleStepClick} />
         </div>

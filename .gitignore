@@ -50,3 +50,6 @@ next-env.d.ts
 
 # local backup
 NAS_backup_*.zip
+
+# データページのアップロード保存先（ユーザーがアップロードしたファイル）
+data/uploads/

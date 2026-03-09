@@ -54,11 +54,30 @@ function PreviewContent() {
   const title = searchParams.get('title') || '（タイトルなし）'
   const contentFromUrl = searchParams.get('content') || ''
   const [storageContent, setStorageContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   useEffect(() => {
-    setStorageContent(typeof window !== 'undefined' ? sessionStorage.getItem('preview_content') || '' : '')
-  }, [])
+    if (typeof window !== 'undefined') {
+      setStorageContent(sessionStorage.getItem('preview_content') || '')
+      // articleIdがある場合はローカルストレージから最新の画像を引っ張る
+      const id = searchParams.get('articleId')
+      if (id) {
+        try {
+          const raw = localStorage.getItem('nas_articles')
+          if (raw) {
+            const articles = JSON.parse(raw)
+            const match = articles.find((a: any) => a.id === id)
+            if (match && match.imageUrl) {
+              setImageUrl(match.imageUrl)
+              return
+            }
+          }
+        } catch {}
+      }
+      setImageUrl(searchParams.get('imageUrl') || '')
+    }
+  }, [searchParams])
+  
   const content = contentFromUrl || storageContent
-  const imageUrl = searchParams.get('imageUrl') || ''
   const category = searchParams.get('category') || 'お役立ち情報'
   const date = searchParams.get('date') || new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.')
   const articleId = searchParams.get('articleId') || ''

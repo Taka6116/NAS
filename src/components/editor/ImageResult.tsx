@@ -39,6 +39,9 @@ export default function ImageResult({
   const lastObjectUrlRef = useRef<string | null>(null)
 
   const handlePreview = () => {
+    // プレビュー前に最新の画像を保存させる
+    onSaveDraft()
+    
     const content = article.refinedContent || article.originalContent || ''
     sessionStorage.setItem('preview_content', content)
     const params = new URLSearchParams({

@@ -65,7 +65,8 @@ export default function ImageResult({
   const handleDownload = () => {
     const link = document.createElement('a')
     link.href = article.imageUrl
-    link.download = `${article.refinedTitle?.trim() || article.title || 'generated-image'}.jpg`
+    const ext = article.imageUrl.startsWith('data:image/png') ? 'png' : 'jpg'
+    link.download = `${article.refinedTitle?.trim() || article.title || 'generated-image'}.${ext}`
     link.click()
   }
 
@@ -116,7 +117,7 @@ export default function ImageResult({
                 />
               </svg>
               <p className="text-sm text-[#1B2A4A] font-medium">
-                Adobe Firefly APIが画像を生成中です...
+                Gemini Imagen 3が画像を生成中です...（10〜20秒ほどかかります）
               </p>
             </div>
           )}

@@ -11,9 +11,20 @@ export async function POST(request: Request) {
     )
   }
 
+  let imageBase64;
+  let imageBase64MimeType;
+
+  if (imageUrl?.startsWith('data:')) {
+    const matches = imageUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+    if (matches && matches.length === 3) {
+      imageBase64MimeType = matches[1];
+      imageBase64 = matches[2];
+    }
+  }
+
   try {
     const result = await postToWordPress(
-      { title, content, targetKeyword, imageUrl, slug },
+      { title, content, targetKeyword, imageUrl, imageBase64, imageBase64MimeType, slug },
       status ?? 'draft'    // デフォルトは下書き
     )
 

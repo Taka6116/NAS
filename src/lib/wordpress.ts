@@ -2,7 +2,9 @@ export interface WordPressPostPayload {
   title: string;
   content: string;          // 推敲済み本文（プレーンテキスト）
   targetKeyword?: string;
-  imageUrl?: string;        // アイキャッチ画像URL
+  imageUrl?: string;        // アイキャッチ画像URL (互換性維持のため残す)
+  imageBase64?: string;     // Base64形式の画像データ
+  imageBase64MimeType?: string; // 例：'image/png'
   category?: string;        // カテゴリ名（任意）
   slug?: string;            // URLスラッグ（任意・空の場合はWPが自動生成）
 }
@@ -15,37 +17,34 @@ export interface WordPressPostResult {
 }
 
 /**
- * 画像URLをWordPressメディアライブラリにアップロードし、メディアIDを返す
+ * Base64画像をWordPressメディアライブラリにアップロードしてメディアIDを返す
  */
-export async function uploadImageToWordPress(imageUrl: string): Promise<number> {
-  const wpUrl = process.env.WORDPRESS_URL!;
-  const username = process.env.WORDPRESS_USERNAME!;
-  const appPassword = process.env.WORDPRESS_APP_PASSWORD!;
-  const credentials = Buffer.from(`${username}:${appPassword}`).toString('base64');
+async function uploadBase64ImageToWordPress(
+  base64: string,
+  mimeType: string,
+  credentials: string,
+  wpUrl: string
+): Promise<number> {
+  const buffer = Buffer.from(base64, 'base64');
+  const ext = mimeType.split('/')[1] ?? 'png';
+  const fileName = `nas-image-${Date.now()}.${ext}`;
 
-  // 画像をバイナリで取得
-  const imageRes = await fetch(imageUrl);
-  const imageBuffer = await imageRes.arrayBuffer();
-  const contentType = imageRes.headers.get('content-type') ?? 'image/jpeg';
-  const fileName = `nas-image-${Date.now()}.jpg`;
-
-  // WordPressメディアAPIにアップロード
-  const uploadRes = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
+  const res = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${credentials}`,
       'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Content-Type': contentType,
+      'Content-Type': mimeType,
     },
-    body: imageBuffer,
+    body: buffer,
   });
 
-  if (!uploadRes.ok) {
-    throw new Error(`画像アップロード失敗: ${uploadRes.status}`);
+  if (!res.ok) {
+    throw new Error(`メディアアップロード失敗: ${res.status}`);
   }
 
-  const media = await uploadRes.json();
-  return media.id;  // featured_media パラメータに使用
+  const media = await res.json();
+  return media.id;
 }
 
 /**
@@ -249,12 +248,19 @@ export async function postToWordPress(
   // 投稿コンテンツ構築
   const postContent = buildPostContent(payload);
 
+  // アイキャッチ画像をBase64からWordPressメディアへアップロード
   let mediaId: number | undefined;
-  if (payload.imageUrl) {
+
+  if (payload.imageBase64) {
     try {
-      mediaId = await uploadImageToWordPress(payload.imageUrl);
-    } catch (e) {
-      console.warn('画像アップロードに失敗しましたが、投稿は継続します', e);
+      mediaId = await uploadBase64ImageToWordPress(
+        payload.imageBase64,
+        payload.imageBase64MimeType ?? 'image/png',
+        credentials,
+        wpUrl
+      );
+    } catch (err) {
+      console.error('アイキャッチ画像のアップロードに失敗しました（投稿は続行）:', err);
     }
   }
 

@@ -266,19 +266,23 @@ function EditorContent() {
     setFireflyStatus('loading')
     updateArticle({ imageUrl: '' })
     try {
-      const res = await fetch('/api/firefly', {
+      const res = await fetch('/api/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: article.title, content: article.refinedContent }),
+        body: JSON.stringify({ 
+          title: article.title, 
+          content: article.refinedContent,
+          targetKeyword: article.targetKeyword
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      updateArticle({ imageUrl: data.imageUrl })
+      updateArticle({ imageUrl: `data:${data.mimeType};base64,${data.imageBase64}` })
       setFireflyStatus('success')
     } catch {
       setFireflyStatus('error')
     }
-  }, [article.title, article.refinedContent, updateArticle])
+  }, [article.title, article.refinedContent, article.targetKeyword, updateArticle])
 
   const handlePublish = useCallback(async () => {
     setWordpressStatus('loading')

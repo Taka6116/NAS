@@ -223,9 +223,13 @@ function EditorContent() {
       if (step === 4) {
         const content = article.refinedContent || article.originalContent || ''
         sessionStorage.setItem('preview_content', content)
+        if (article.imageUrl) {
+          sessionStorage.setItem('preview_image', article.imageUrl)
+        } else {
+          sessionStorage.removeItem('preview_image')
+        }
         const params = new URLSearchParams({
           title: (article.refinedTitle || article.title || '').trim(),
-          imageUrl: article.imageUrl || '',
           category: 'お役立ち情報',
           date: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.'),
         })

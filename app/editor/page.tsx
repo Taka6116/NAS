@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToHtml } from '@/lib/internalLinks'
@@ -53,7 +53,7 @@ function clearState() {
   } catch {}
 }
 
-export default function EditorPage() {
+function EditorContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState<Step>(1)
@@ -415,5 +415,13 @@ export default function EditorPage() {
         />
       )}
     </>
+  )
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">読み込み中...</div>}>
+      <EditorContent />
+    </Suspense>
   )
 }

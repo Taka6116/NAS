@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import '../styles/globals.css'
+import '@/styles/globals.css'
 import MainContentWidth from './MainContentWidth'
 
 export const metadata: Metadata = {

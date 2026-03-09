@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState, useEffect } from 'react'
+import { useCallback, useMemo, useState, useEffect, Suspense } from 'react'
 import StepIndicator from '@/components/editor/StepIndicator'
 import type { Step } from '@/lib/types'
 
@@ -47,7 +47,7 @@ function formatContent(content: string, imageUrl: string): string {
   return imageHtml + bodyHtml
 }
 
-export default function PreviewPage() {
+function PreviewContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -730,5 +730,13 @@ export default function PreviewPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PreviewPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>読み込み中...</div>}>
+      <PreviewContent />
+    </Suspense>
   )
 }

@@ -67,6 +67,12 @@ export default function RootLayout({
                   >
                     投稿スケジュール
                   </Link>
+                  <Link
+                    href="/prompts"
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
+                  >
+                    プロンプト
+                  </Link>
                 </div>
               </div>
 

@@ -1,23 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { publishToWordPress } from '@/lib/api/wordpress'
+import { postToWordPress } from '@/lib/wordpress'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
+  const body = await request.json()
+  const { title, content, targetKeyword, imageUrl, slug, status } = body
+
+  if (!title?.trim() || !content?.trim()) {
+    return Response.json(
+      { error: 'タイトルと本文は必須です' },
+      { status: 400 }
+    )
+  }
+
   try {
-    const { title, content, imageUrl } = await request.json()
+    const result = await postToWordPress(
+      { title, content, targetKeyword, imageUrl, slug },
+      status ?? 'draft'    // デフォルトは下書き
+    )
 
-    if (!title || !content) {
-      return NextResponse.json(
-        { error: 'タイトルと本文が必要です' },
-        { status: 400 }
-      )
-    }
+    return Response.json({
+      success: true,
+      postId: result.id,
+      postUrl: result.link,
+      editUrl: result.editLink,
+      status: result.status,
+    })
 
-    const wordpressUrl = await publishToWordPress(title, content, imageUrl || '')
-    return NextResponse.json({ wordpressUrl })
-  } catch (error) {
-    console.error('WordPress API error:', error)
-    return NextResponse.json(
-      { error: 'WordPress APIの呼び出しに失敗しました' },
+  } catch (error: any) {
+    console.error('WordPress post error:', error)
+    return Response.json(
+      { error: error.message || 'WordPress投稿に失敗しました' },
       { status: 500 }
     )
   }

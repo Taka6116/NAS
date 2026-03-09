@@ -18,17 +18,19 @@ export default function GeminiLoadingCard() {
   useEffect(() => {
     const stepTimer = setInterval(() => {
       setActiveStep(prev => (prev < STEPS.length - 1 ? prev + 1 : prev))
-    }, 2200)
+    }, 4000) // 2200から4000に延長して、最後のステップ到達を遅らせる
     return () => clearInterval(stepTimer)
   }, [])
 
   useEffect(() => {
     const progressTimer = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 95) return 95
-        return prev + 1.2
+        if (prev >= 98) return 98
+        // 98%に向けて徐々に遅くなるように進行させる
+        const remaining = 98 - prev
+        return prev + Math.max(0.1, remaining * 0.05)
       })
-    }, 120)
+    }, 200)
     return () => clearInterval(progressTimer)
   }, [])
 

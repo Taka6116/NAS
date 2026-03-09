@@ -1,24 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArticleData, Step } from '@/lib/types'
+import { SavedPrompt, getAllPrompts } from '@/lib/promptStorage'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Trash2, Sparkles, FileText } from 'lucide-react'
-
-interface DataFileItem {
-  id: string
-  originalName: string
-  mimeType: string
-  size: number
-  uploadedAt: string
-}
-
-const REFERENCABLE_MIMES = ['text/plain', 'text/csv', 'text/html', 'text/markdown', 'application/json']
-function isReferencable(mime: string): boolean {
-  return REFERENCABLE_MIMES.includes(mime) || mime.startsWith('text/')
-}
+import { ArrowRight, Trash2, Sparkles, ChevronDown } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
@@ -41,32 +29,33 @@ export default function ArticleInput({
 }: ArticleInputProps) {
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [generatingStep, setGeneratingStep] = useState<string>('loading')
   const [draftError, setDraftError] = useState<string | null>(null)
-  const [dataFiles, setDataFiles] = useState<DataFileItem[]>([])
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([])
+  const [showPromptDropdown, setShowPromptDropdown] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const fetchDataFiles = useCallback(async () => {
-    try {
-      const res = await fetch('/api/data/files')
-      const data = await res.json()
-      const list = Array.isArray(data.files) ? data.files : []
-      setDataFiles(list.filter((f: DataFileItem) => isReferencable(f.mimeType)))
-    } catch {
-      setDataFiles([])
-    }
+  useEffect(() => {
+    setSavedPrompts(getAllPrompts())
   }, [])
 
   useEffect(() => {
-    fetchDataFiles()
-  }, [fetchDataFiles])
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowPromptDropdown(false)
+      }
+    }
+    if (showPromptDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPromptDropdown])
 
-  const toggleDataFile = (id: string) => {
-    setSelectedFileIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const handleSelectPrompt = (p: SavedPrompt) => {
+    setPrompt(p.content)
+    setShowPromptDropdown(false)
   }
 
   const hasDraft = Boolean(article.title.trim() || article.originalContent.trim())
@@ -100,25 +89,33 @@ export default function ArticleInput({
     if (!trimmed || generating) return
     setDraftError(null)
     setGenerating(true)
+    setGeneratingStep('loading')
     try {
+      // 資料読み込み（今回は即時切り替えでもよいが少し見せるため待機）
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      setGeneratingStep('writing')
       const res = await fetch('/api/gemini/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: trimmed,
           targetKeyword: article.targetKeyword ?? '',
-          fileIds: Array.from(selectedFileIds),
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '一次執筆の生成に失敗しました')
+      
+      setGeneratingStep('done')
+      await new Promise(resolve => setTimeout(resolve, 600))
+      
       const title = typeof data.title === 'string' ? data.title.trim() : ''
       const content = typeof data.content === 'string' ? data.content : ''
       if (title) onTitleChange(title)
       if (content) onContentChange(content)
+      setGenerating(false)
     } catch (e) {
       setDraftError(e instanceof Error ? e.message : '一次執筆の生成に失敗しました')
-    } finally {
       setGenerating(false)
     }
   }
@@ -135,12 +132,15 @@ export default function ArticleInput({
     <div className="w-full pt-6 pb-12">
       <div className="flex gap-8 items-start">
         <div className="flex-1 min-w-0 flex flex-col gap-5">
-          <Card>
+          <Card className="relative overflow-hidden">
+            {/* 生成中のローディングオーバーレイ */}
+            {generating && <GeneratingLoader step={generatingStep} />}
+
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-base font-bold text-[#1A1A2E] mb-0.5">一次執筆</h2>
                 <p className="text-sm text-[#64748B]">
-                  データページでアップロードした資料 × プロンプトで指示を出し、Geminiが記事のタイトル・本文を生成します。
+                  プロンプトで指示を出し、Geminiが記事のタイトル・本文を生成します。
                 </p>
               </div>
               {hasDraft && onClear && (
@@ -155,49 +155,39 @@ export default function ArticleInput({
               )}
             </div>
 
-            {/* 参照するデータ ＋ プロンプト */}
+            {/* プロンプト */}
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">
-                  参照するデータ（データページでアップロードした資料）
-                </label>
-                <p className="text-xs text-[#64748B] mb-2">
-                  選択した資料の内容を参照して記事を作成します。テキスト形式（.txt など）のファイルのみ選択できます。
-                </p>
-                {dataFiles.length === 0 ? (
-                  <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm text-[#64748B]">
-                    データがありません。「データ」ページで資料をアップロードしてください。
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-[#E2E8F0] bg-white max-h-[160px] overflow-y-auto">
-                    <ul className="divide-y divide-[#E2E8F0]">
-                      {dataFiles.map(f => (
-                        <li key={f.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <input
-                            type="checkbox"
-                            id={`data-${f.id}`}
-                            checked={selectedFileIds.has(f.id)}
-                            onChange={() => toggleDataFile(f.id)}
-                            className="rounded border-[#E2E8F0] text-[#1B2A4A] focus:ring-[#1B2A4A]/30"
-                          />
-                          <label
-                            htmlFor={`data-${f.id}`}
-                            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-sm text-[#1A1A2E]"
-                          >
-                            <FileText size={16} className="text-[#64748B] flex-shrink-0" />
-                            <span className="truncate">{f.originalName}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[#1A1A2E] mb-1.5">
-                  プロンプト（指示）
-                </label>
+                <div className="flex items-center justify-between mb-1.5 relative">
+                  <label className="block text-sm font-semibold text-[#1A1A2E]">
+                    プロンプト（指示）
+                  </label>
+                  {savedPrompts.length > 0 && (
+                    <div className="relative" ref={dropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowPromptDropdown(!showPromptDropdown)}
+                        className="text-xs text-[#002C93] font-medium hover:underline flex items-center gap-1"
+                      >
+                        保存済みプロンプトから入力 <ChevronDown size={14} />
+                      </button>
+                      {showPromptDropdown && (
+                        <div className="absolute right-0 top-full mt-2 w-[320px] bg-white border border-[#E2E8F0] shadow-lg rounded-lg z-10 max-h-[300px] overflow-y-auto">
+                          {savedPrompts.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => handleSelectPrompt(p)}
+                              className="w-full text-left px-4 py-3 border-b border-[#E2E8F0] last:border-0 hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <div className="font-bold text-sm text-[#1A1A2E] mb-1">{p.title}</div>
+                              <div className="text-xs text-[#64748B] line-clamp-2">{p.content}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <textarea
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
@@ -239,21 +229,23 @@ export default function ArticleInput({
                 />
               </div>
 
-              <Button
-                variant="primary"
-                disabled={!prompt.trim() || generating}
-                onClick={handleGenerate}
-                className="py-3 px-6 h-auto"
-              >
-                {generating ? (
-                  <span className="font-bold text-base">精査/推敲中...</span>
-                ) : (
-                  <>
-                    <Sparkles size={18} className="mr-2" />
-                    <span className="font-bold text-base">文章を精査/推敲する</span>
-                  </>
-                )}
-              </Button>
+              <div className="flex justify-start">
+                <Button
+                  variant="primary"
+                  disabled={!prompt.trim() || generating}
+                  onClick={handleGenerate}
+                  className="py-3 px-6 h-auto"
+                >
+                  {generating ? (
+                    <span className="font-bold text-base">記事を作成中...</span>
+                  ) : (
+                    <>
+                      <Sparkles size={18} className="mr-2" />
+                      <span className="font-bold text-base">記事作成</span>
+                    </>
+                  )}
+                </Button>
+              </div>
 
               {draftError && (
                 <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
@@ -325,3 +317,141 @@ export default function ArticleInput({
     </div>
   )
 }
+
+function GeneratingLoader({ step }: { step: string }) {
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (step === 'loading') {
+      setProgress(10)
+    } else if (step === 'writing') {
+      let currentProgress = 10
+      timer = setInterval(() => {
+        currentProgress += (95 - currentProgress) * 0.05
+        setProgress(Math.floor(currentProgress))
+      }, 500)
+    } else if (step === 'done') {
+      setProgress(100)
+    }
+    return () => clearInterval(timer)
+  }, [step])
+
+  const steps = [
+    { key: 'loading', label: '資料を読み込んでいます' },
+    { key: 'writing', label: 'Geminiが執筆しています' },
+    { key: 'done', label: '完了' },
+  ]
+
+  const currentIndex = steps.findIndex(s => s.key === step)
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        border: '1px solid #e5e7eb',
+        borderRadius: 16,
+        padding: '40px 48px',
+        textAlign: 'center',
+        maxWidth: 360,
+        width: '100%',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+      }}>
+        {/* アイコン */}
+        <div style={{
+          width: 56, height: 56,
+          backgroundColor: '#f0fdf4',
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px',
+          fontSize: 24,
+        }}>
+          ✦
+        </div>
+
+        {/* メインテキスト */}
+        <div style={{
+          fontSize: 16, fontWeight: 600, color: '#111827',
+          marginBottom: 6,
+        }}>
+          {steps[currentIndex]?.label ?? '処理中'}
+        </div>
+        <div style={{
+          fontSize: 13, color: '#9ca3af',
+          marginBottom: 20,
+        }}>
+          しばらくお待ちください
+        </div>
+
+        {/* プログレスバー */}
+        <div style={{ marginBottom: 28, textAlign: 'left' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#111827', fontWeight: 600, marginBottom: 6 }}>
+            <span>進行状況</span>
+            <span>{progress}%</span>
+          </div>
+          <div style={{ width: '100%', height: 6, backgroundColor: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ 
+              width: `${progress}%`, 
+              height: '100%', 
+              backgroundColor: '#059669', 
+              transition: 'width 0.5s ease-out' 
+            }} />
+          </div>
+        </div>
+
+        {/* ステップインジケーター */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+          {steps.slice(0, -1).map((s, i) => {
+            const isDone = i < currentIndex
+            const isActive = i === currentIndex
+            return (
+              <div key={s.key} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700,
+                  backgroundColor: isDone ? '#059669' : isActive ? '#111827' : '#f3f4f6',
+                  color: isDone || isActive ? 'white' : '#9ca3af',
+                  transition: 'all 0.3s',
+                }}>
+                  {isDone ? '✓' : i + 1}
+                </div>
+                <span style={{
+                  fontSize: 13,
+                  color: isDone ? '#059669' : isActive ? '#111827' : '#9ca3af',
+                  fontWeight: isActive ? 600 : 400,
+                }}>
+                  {s.label}
+                </span>
+                {isActive && (
+                  <span style={{
+                    marginLeft: 'auto',
+                    width: 16, height: 16,
+                    border: '2px solid #e5e7eb',
+                    borderTopColor: '#111827',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'spin 0.8s linear infinite',
+                    flexShrink: 0,
+                  }} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+

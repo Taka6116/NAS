@@ -73,7 +73,9 @@ function PreviewContent() {
           }
         } catch {}
       }
-      setImageUrl(searchParams.get('imageUrl') || '')
+      // フォールバックとして sessionStorage と URL から画像を取得
+      const sessionImage = sessionStorage.getItem('preview_image')
+      setImageUrl(sessionImage || searchParams.get('imageUrl') || '')
     }
   }, [searchParams])
   

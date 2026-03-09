@@ -13,7 +13,7 @@ interface ImageResultProps {
   article: ArticleData
   fireflyStatus: ProcessingState
   onBack: () => void
-  onSaveDraft: () => void
+  onSaveDraft: () => string | void
   onNext: () => void
   onRegenerate: () => void
   /** クライアント画像を選択したときに呼ばれる（imageUrl を上書き） */
@@ -36,17 +36,21 @@ export default function ImageResult({
 }: ImageResultProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const lastObjectUrlRef = useRef<string | null>(null)
 
   const handlePreview = () => {
     // プレビュー前に最新の画像を保存させる
-    onSaveDraft()
+    const savedId = onSaveDraft()
+    const finalArticleId = savedId || articleId
     
     const content = article.refinedContent || article.originalContent || ''
     sessionStorage.setItem('preview_content', content)
+    if (article.imageUrl) {
+      sessionStorage.setItem('preview_image', article.imageUrl)
+    } else {
+      sessionStorage.removeItem('preview_image')
+    }
     const params = new URLSearchParams({
       title: article.refinedTitle?.trim() || article.title || '',
-      imageUrl: article.imageUrl || '',
       category: 'お役立ち情報',
       date: new Date().toLocaleDateString('ja-JP', {
         year: 'numeric',
@@ -54,7 +58,7 @@ export default function ImageResult({
         day: 'numeric',
       }).replace(/\//g, '.'),
     })
-    if (articleId) params.set('articleId', articleId)
+    if (finalArticleId) params.set('articleId', finalArticleId)
     router.push(`/preview?${params.toString()}`)
   }
 
@@ -74,14 +78,12 @@ export default function ImageResult({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 以前のオブジェクトURLがあれば解放
-    if (lastObjectUrlRef.current) {
-      URL.revokeObjectURL(lastObjectUrlRef.current)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      onImageUpload(base64)
     }
-
-    const objectUrl = URL.createObjectURL(file)
-    lastObjectUrlRef.current = objectUrl
-    onImageUpload(objectUrl)
+    reader.readAsDataURL(file)
   }
 
   return (

@@ -259,6 +259,7 @@ function EditorContent() {
     })
 
     alert('下書きを保存しました')
+    return id
   }, [article, currentArticleId])
 
   const handleRegenerate = useCallback(async () => {

@@ -63,6 +63,7 @@ function EditorContent() {
   const [geminiStatus, setGeminiStatus] = useState<ProcessingState>('idle')
   const [geminiError, setGeminiError] = useState<string | null>(null)
   const [fireflyStatus, setFireflyStatus] = useState<ProcessingState>('idle')
+  const [fireflyError, setFireflyError] = useState<string | null>(null)
   const [wordpressStatus, setWordpressStatus] = useState<ProcessingState>('idle')
   const [mounted, setMounted] = useState(false)
 
@@ -179,6 +180,7 @@ function EditorContent() {
 
   const triggerFirefly = useCallback(async () => {
     setFireflyStatus('loading')
+    setFireflyError(null)
     try {
       const res = await fetch('/api/firefly', {
         method: 'POST',
@@ -189,10 +191,15 @@ function EditorContent() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) {
+        setFireflyError(data.error ?? '画像生成に失敗しました')
+        setFireflyStatus('error')
+        return
+      }
       updateArticle({ imageUrl: data.imageUrl })
       setFireflyStatus('success')
-    } catch {
+    } catch (e) {
+      setFireflyError(e instanceof Error ? e.message : '画像生成に失敗しました')
       setFireflyStatus('error')
     }
   }, [article.title, article.refinedTitle, article.refinedContent, updateArticle])
@@ -268,6 +275,7 @@ function EditorContent() {
 
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')
+    setFireflyError(null)
     updateArticle({ imageUrl: '' })
     try {
       const res = await fetch('/api/image', {
@@ -280,10 +288,15 @@ function EditorContent() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) {
+        setFireflyError(data.error ?? '画像生成に失敗しました')
+        setFireflyStatus('error')
+        return
+      }
       updateArticle({ imageUrl: `data:${data.mimeType};base64,${data.imageBase64}` })
       setFireflyStatus('success')
-    } catch {
+    } catch (e) {
+      setFireflyError(e instanceof Error ? e.message : '画像生成に失敗しました')
       setFireflyStatus('error')
     }
   }, [article.title, article.refinedContent, article.targetKeyword, updateArticle])
@@ -401,12 +414,13 @@ function EditorContent() {
         <ImageResult
           article={article}
           fireflyStatus={fireflyStatus}
+          fireflyError={fireflyError}
           onBack={() => setCurrentStep(2)}
           onSaveDraft={handleSaveDraft}
           onNext={handleStep3NextComplete}
           onRegenerate={handleRegenerate}
           onImageUpload={handleImageUpload}
-            onStepClick={handleStepClick}
+          onStepClick={handleStepClick}
           articleId={currentArticleId}
         />
       )}

@@ -1,17 +1,26 @@
 'use client'
 
-import { useRef, ChangeEvent } from 'react'
+import { useRef, ChangeEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Download, RefreshCw, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Download, ImagePlus, RefreshCw, Upload } from 'lucide-react'
+
+interface SavedFileMeta {
+  id: string
+  originalName: string
+  mimeType: string
+  downloadUrl: string
+}
 
 interface ImageResultProps {
   article: ArticleData
   fireflyStatus: ProcessingState
+  /** 画像生成失敗時に表示するAPIエラーメッセージ */
+  fireflyError?: string | null
   onBack: () => void
   onSaveDraft: () => string | void
   onNext: () => void
@@ -26,6 +35,7 @@ interface ImageResultProps {
 export default function ImageResult({
   article,
   fireflyStatus,
+  fireflyError = null,
   onBack,
   onSaveDraft,
   onNext,
@@ -36,6 +46,27 @@ export default function ImageResult({
 }: ImageResultProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const stockFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [showSavedPanel, setShowSavedPanel] = useState(false)
+  const [savedImages, setSavedImages] = useState<SavedFileMeta[]>([])
+  const [savedImagesLoading, setSavedImagesLoading] = useState(false)
+
+  useEffect(() => {
+    if (!showSavedPanel) return
+    setSavedImagesLoading(true)
+    fetch('/api/data/files')
+      .then(res => res.ok ? res.json() : { files: [] })
+      .then((data: { files?: Array<{ id: string; originalName: string; mimeType: string }> }) => {
+        const files = data.files ?? []
+        const imageFiles = files.filter(f => f.mimeType.startsWith('image/'))
+        setSavedImages(imageFiles.map(f => ({
+          ...f,
+          downloadUrl: `/api/data/files/${encodeURIComponent(f.id)}/download`,
+        })))
+      })
+      .catch(() => setSavedImages([]))
+      .finally(() => setSavedImagesLoading(false))
+  }, [showSavedPanel])
 
   const handlePreview = () => {
     // プレビュー前に最新の画像を保存させる
@@ -85,6 +116,48 @@ export default function ImageResult({
       onImageUpload(base64)
     }
     reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handleSelectSavedImage = async (downloadUrl: string, mimeType: string) => {
+    if (!onImageUpload) return
+    try {
+      const res = await fetch(downloadUrl)
+      if (!res.ok) throw new Error('画像の取得に失敗しました')
+      const blob = await res.blob()
+      const reader = new FileReader()
+      reader.onload = () => onImageUpload(reader.result as string)
+      reader.readAsDataURL(blob)
+    } catch {
+      // エラー時は何もしない（またはトースト）
+    }
+  }
+
+  const handleAddToStockClick = () => {
+    stockFileInputRef.current?.click()
+  }
+
+  const handleStockFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) {
+      e.target.value = ''
+      return
+    }
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch('/api/data/upload', { method: 'POST', body: formData })
+      if (!res.ok) return
+      const listRes = await fetch('/api/data/files')
+      const listData = await listRes.json().catch(() => ({ files: [] }))
+      const imageFiles = (listData.files ?? []).filter((f: { mimeType: string }) => f.mimeType.startsWith('image/'))
+      setSavedImages(imageFiles.map((f: { id: string; originalName: string; mimeType: string }) => ({
+        ...f,
+        downloadUrl: `/api/data/files/${encodeURIComponent(f.id)}/download`,
+      })))
+    } finally {
+      e.target.value = ''
+    }
   }
 
   return (
@@ -93,6 +166,13 @@ export default function ImageResult({
       <div className="flex gap-8 items-start">
         {/* 左：メインコンテンツ（可変幅） */}
         <div className="flex-1 min-w-0 flex flex-col gap-5">
+          {/* エラー表示 */}
+          {fireflyStatus === 'error' && fireflyError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <p className="font-medium">画像生成できませんでした</p>
+              <p className="mt-1 break-all">{fireflyError}</p>
+            </div>
+          )}
           {/* ローディング */}
           {fireflyStatus === 'loading' && (
             <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
@@ -122,6 +202,54 @@ export default function ImageResult({
             </div>
           )}
 
+          {/* 保存済みから選択：画像グリッド（ボタンで開閉） */}
+          {showSavedPanel && (
+            <Card>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[#64748B]">
+                    アプリに保存した画像から選べます。AIのリクエスト上限時にも使えます。
+                  </p>
+                  <input
+                    ref={stockFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleStockFileChange}
+                  />
+                  <Button variant="ghost" size="md" onClick={handleAddToStockClick}>
+                    <ImagePlus size={15} />
+                    ストックに画像を追加
+                  </Button>
+                </div>
+                {savedImagesLoading ? (
+                  <p className="text-sm text-[#64748B] py-4">読み込み中...</p>
+                ) : savedImages.length === 0 ? (
+                  <p className="text-sm text-[#64748B] py-4">
+                    保存済み画像がありません。「ストックに画像を追加」でアップロードするか、メニューの「データ」から画像をアップロードしてください。
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[280px] overflow-y-auto">
+                    {savedImages.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleSelectSavedImage(f.downloadUrl, f.mimeType)}
+                        className="relative aspect-video rounded-lg overflow-hidden border-2 border-[#E2E8F0] hover:border-[#1B2A4A] focus:border-[#1B2A4A] focus:outline-none transition-colors"
+                      >
+                        <img
+                          src={f.downloadUrl}
+                          alt={f.originalName}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* 画像カード（画像の箱）：下書きに保存・プレビューへはカード内左右に配置 */}
           <Card>
             <div className="flex flex-col items-center gap-5">
@@ -138,8 +266,7 @@ export default function ImageResult({
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                {/* アップロード入力（非表示） */}
+              <div className="flex items-center gap-3 flex-wrap justify-center">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -168,6 +295,14 @@ export default function ImageResult({
                 >
                   <RefreshCw size={15} />
                   別の画像を生成する
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setShowSavedPanel(prev => !prev)}
+                >
+                  <ImagePlus size={15} />
+                  保存済みから選択
                 </Button>
               </div>
 

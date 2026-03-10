@@ -23,7 +23,8 @@ export async function middleware(request: NextRequest) {
 
   const secret = process.env.AUTH_SECRET
   if (!secret || secret.length < 16) {
-    return NextResponse.next()
+    const loginUrl = new URL(LOGIN_PATH, request.url)
+    return NextResponse.redirect(loginUrl)
   }
 
   const cookie = request.cookies.get(getAuthCookieName())?.value

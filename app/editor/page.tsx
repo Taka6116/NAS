@@ -9,6 +9,7 @@ import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
 import PublishResult from '@/components/editor/PublishResult'
+import { Plus } from 'lucide-react'
 
 const STORAGE_KEY = 'nas_editor_state'
 
@@ -384,13 +385,40 @@ function EditorContent() {
     setCurrentStep(1)
   }, [])
 
+  /** どのステップからでも一次執筆のまっさらな状態で始める */
+  const handleNewArticle = useCallback(() => {
+    clearState()
+    setCurrentArticleId(null)
+    setArticle(initialArticle)
+    setGeminiStatus('idle')
+    setGeminiToastShown(false)
+    setGeminiError(null)
+    setFireflyStatus('idle')
+    setFireflyError(null)
+    setWordpressStatus('idle')
+    setCurrentStep(1)
+    router.replace('/editor')
+  }, [router])
+
   // サーバー・クライアントとも初回は null で一致させ、マウント後に描画（ハイドレーション回避）
   if (!mounted) {
     return null
   }
 
   return (
-    <>
+    <div className="w-full">
+      {/* 全ステップ共通：新規作成ボタン */}
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={handleNewArticle}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
+          style={{ background: '#1B2A4A', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+        >
+          <Plus size={16} />
+          新規作成
+        </button>
+      </div>
       {currentStep === 1 && (
         <ArticleInput
           article={article}
@@ -444,7 +472,7 @@ function EditorContent() {
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
         />
       )}
-    </>
+    </div>
   )
 }
 

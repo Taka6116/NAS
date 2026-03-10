@@ -201,6 +201,7 @@ export async function refineArticleWithGemini(
 実績：過去1,000件超のM&A相談、50件超のアドバイザリー契約、15組超のM&A成約組数を担当。
       (株)日本M&Aセンターにて、年間最多アドバイザリー契約受賞経験あり。
 末尾CTA：導入事例はこちらから https://nihon-teikei.co.jp/news/casestudy/
+待っているだけでオファーが届くM&Aオファーはこちら https://nihon-teikei.com/ma-offer
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【元記事】
@@ -239,11 +240,13 @@ ${targetKeyword?.trim() ? `ターゲットキーワード：${targetKeyword}` : 
 □ 冗長な表現・繰り返しを削除する
 □ 文末表現のバリエーションを増やす（〜です・〜ますの連続を避ける）
 □ 専門用語の解説が抜けていれば追加する
-□ アスタリスク（* や **）を使用したマークダウン記法は絶対に使用しないこと（箇条書きに「* 」を使うのも禁止）
+□ アスタリスク（*）は一切使用禁止。箇条書きは必ず「・」を使うこと（* で始める箇条書きは不可。出力に * が1つも含まれないようにすること）
 
 【E. 末尾CTA】
 □ NTSへの相談を促す自然な文章があるか
 □ 「導入事例はこちらから https://nihon-teikei.co.jp/news/casestudy/」で締めているか
+  → なければ追加する
+□ その下に「待っているだけでオファーが届くM&Aオファーはこちら https://nihon-teikei.com/ma-offer」を追加しているか
   → なければ追加する
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -260,11 +263,14 @@ ${targetKeyword?.trim() ? `ターゲットキーワード：${targetKeyword}` : 
 ※「---」の下の本文には、タイトルを再度含めないでください。必ず上記の監修者情報から記述を始めてください。`.trim()
 
   const result = await model.generateContent(prompt)
-  const raw = result.response.text()
-
-  const text = raw
+  let text = result.response.text()
+  // 太字・斜体を除去したうえで、* は一切残さず ・ に統一（箇条書きは必ず ・）
+  text = text
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^\s*\*\s+/gm, '・ ')
+    .replace(/\*\s+/g, '・ ')
+    .replace(/\*/g, '・')
     .replace(/^#{1,6}\s+/gm, '')
 
   const titleMatch = text.match(/タイトル：(.+)/)

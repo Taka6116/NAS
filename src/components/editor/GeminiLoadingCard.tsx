@@ -26,11 +26,21 @@ export default function GeminiLoadingCard() {
     const progressTimer = setInterval(() => {
       setProgress(prev => {
         if (prev >= 98) return 98
-        // 98%に向けて徐々に遅くなるように進行させる
         const remaining = 98 - prev
-        return prev + Math.max(0.1, remaining * 0.05)
+        // 50%以降はスピードを落とし、98%で長く止まらないようにする
+        let step: number
+        if (prev >= 80) {
+          step = Math.max(0.03, remaining * 0.008)
+        } else if (prev >= 60) {
+          step = Math.max(0.06, remaining * 0.02)
+        } else if (prev >= 40) {
+          step = Math.max(0.1, remaining * 0.03)
+        } else {
+          step = Math.max(0.15, remaining * 0.05)
+        }
+        return prev + step
       })
-    }, 200)
+    }, 220)
     return () => clearInterval(progressTimer)
   }, [])
 

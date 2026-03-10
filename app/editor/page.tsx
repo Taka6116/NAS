@@ -250,28 +250,35 @@ function EditorContent() {
   )
 
   const handleSaveDraft = useCallback(() => {
-    const id = currentArticleId ?? String(Date.now())
+    // 保存済み一覧→投稿する→画像ページから保存する場合、URL の articleId をフォールバックで使う
+    const idFromUrl = searchParams.get('articleId')
+    const id = currentArticleId ?? idFromUrl ?? String(Date.now())
     setCurrentArticleId(id)
 
     const existing = getArticleById(id)
-    saveArticle({
-      id,
-      title: article.title,
-      refinedTitle: article.refinedTitle ?? article.title,
-      targetKeyword: article.targetKeyword ?? '',
-      originalContent: article.originalContent,
-      refinedContent: article.refinedContent,
-      imageUrl: article.imageUrl,
-      wordpressUrl: article.wordpressUrl,
-      status: article.imageUrl ? 'ready' : 'draft',
-      createdAt: existing?.createdAt ?? new Date().toISOString(),
-      scheduledDate: existing?.scheduledDate,
-      wordCount: article.refinedContent.length,
-    })
+    try {
+      saveArticle({
+        id,
+        title: article.title,
+        refinedTitle: article.refinedTitle ?? article.title,
+        targetKeyword: article.targetKeyword ?? '',
+        originalContent: article.originalContent,
+        refinedContent: article.refinedContent,
+        imageUrl: article.imageUrl,
+        wordpressUrl: article.wordpressUrl,
+        status: article.imageUrl ? 'ready' : 'draft',
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
+        scheduledDate: existing?.scheduledDate,
+        wordCount: article.refinedContent.length,
+      })
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '下書きの保存に失敗しました')
+      return
+    }
 
     alert('下書きを保存しました')
     return id
-  }, [article, currentArticleId])
+  }, [article, currentArticleId, searchParams])
 
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')

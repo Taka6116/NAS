@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SavedArticle } from '@/lib/types'
 import { getAllArticles, deleteArticle, saveArticle } from '@/lib/articleStorage'
-import { FileText, Trash2, Send, Calendar, ExternalLink, Plus } from 'lucide-react'
+import { FileText, Trash2, Calendar, ExternalLink, Plus } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   draft: { label: '下書き', color: '#F59E0B', bg: '#FFFBEB' },
@@ -195,11 +195,10 @@ export default function ArticlesPage() {
                   {article.status !== 'published' && (
                     <button
                       onClick={() => handlePublish(article)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
                       style={{ background: '#C0392B' }}
                     >
-                      <Send size={11} />
-                      投稿する
+                      修正する
                     </button>
                   )}
                   <button

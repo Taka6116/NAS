@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
@@ -29,7 +30,19 @@ export default function PublishResult({
   onRefinedTitleChange,
   onRefinedContentChange,
 }: PublishResultProps) {
-  const finalTitle = article.refinedTitle?.trim() || article.title
+  // Ctrl+A で全選択→削除が効くよう、タイトルをローカル state で保持して即反映する
+  const [localTitle, setLocalTitle] = useState(() => article.refinedTitle ?? article.title)
+  // 別記事を開いたときだけ親から同期（article.title が変わる＝記事の差し替え）
+  useEffect(() => {
+    setLocalTitle(article.refinedTitle ?? article.title)
+  }, [article.title])
+
+  const handleTitleChange = (value: string) => {
+    setLocalTitle(value)
+    onRefinedTitleChange?.(value)
+  }
+
+  const finalTitle = localTitle.trim() || article.title
   const finalContent = article.refinedContent || ''
   const charCount = finalContent.length
   const previewExcerpt =
@@ -108,8 +121,8 @@ export default function PublishResult({
                       <p className="text-xs font-mono text-[#64748B] mb-0.5">タイトル（最終確認・編集可）</p>
                       <input
                         type="text"
-                        value={finalTitle}
-                        onChange={e => onRefinedTitleChange?.(e.target.value)}
+                        value={localTitle}
+                        onChange={e => handleTitleChange(e.target.value)}
                         className="
                           w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
                           text-sm font-semibold text-[#1A1A2E]

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1006.0",
     "@aws-sdk/client-s3": "^3.1003.0",
     "@google/generative-ai": "^0.24.1",
     "lucide-react": "^0.576.0",

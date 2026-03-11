@@ -128,7 +128,7 @@ export default function ImageResult({
                 />
               </svg>
               <p className="text-sm text-[#1B2A4A] font-medium">
-                Gemini Imagen 3が画像を生成中です...（10〜20秒ほどかかります）
+                画像生成中です（30秒～1分ほどかかります）
               </p>
             </div>
           )}

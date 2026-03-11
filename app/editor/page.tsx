@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, Suspense } from 'react'
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToHtml } from '@/lib/internalLinks'
@@ -67,6 +67,7 @@ function EditorContent() {
   const [fireflyError, setFireflyError] = useState<string | null>(null)
   const [wordpressStatus, setWordpressStatus] = useState<ProcessingState>('idle')
   const [mounted, setMounted] = useState(false)
+  const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
     const articleId = searchParams.get('articleId')
@@ -217,11 +218,24 @@ function EditorContent() {
   )
 
   useEffect(() => {
-    if (!mounted || currentStep !== 3) return
-    if (article.imageUrl) {
-      setFireflyStatus('success')
+    if (currentStep !== 3) {
+      prevStepRef.current = currentStep
       return
     }
+    if (!mounted) return
+    if (article.imageUrl) {
+      setFireflyStatus('success')
+      prevStepRef.current = 3
+      return
+    }
+    const justArrived = prevStepRef.current !== 3
+    if (justArrived && fireflyStatus === 'error') {
+      setFireflyStatus('idle')
+      setFireflyError(null)
+      prevStepRef.current = 3
+      return
+    }
+    prevStepRef.current = 3
     if (fireflyStatus === 'idle') {
       triggerFirefly()
     }
@@ -293,7 +307,7 @@ function EditorContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          title: article.title, 
+          title: article.refinedTitle?.trim() || article.title, 
           content: article.refinedContent,
           targetKeyword: article.targetKeyword
         }),
@@ -310,7 +324,7 @@ function EditorContent() {
       setFireflyError(e instanceof Error ? e.message : '画像生成に失敗しました')
       setFireflyStatus('error')
     }
-  }, [article.title, article.refinedContent, article.targetKeyword, updateArticle])
+  }, [article.title, article.refinedTitle, article.refinedContent, article.targetKeyword, updateArticle])
 
   const handlePublish = useCallback(async () => {
     setWordpressStatus('loading')

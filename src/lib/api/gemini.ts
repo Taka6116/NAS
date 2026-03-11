@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 /** 429/クォータ超過時に順に試すモデル（モデルごとに別枠のことがある） */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash'] as const
+const GEMINI_MODELS = ['gemini-2.5-flash'] as const
 
 /**
  * 指定プロンプトで generateContent を実行し、429 の場合は別モデルでリトライする

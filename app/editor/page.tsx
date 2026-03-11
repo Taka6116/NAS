@@ -195,7 +195,9 @@ function EditorContent() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setFireflyError(data.error ?? '画像生成に失敗しました')
+        setFireflyError(
+          [data.error ?? '画像生成に失敗しました', data.debug].filter(Boolean).join('\n')
+        )
         setFireflyStatus('error')
         return
       }
@@ -314,7 +316,9 @@ function EditorContent() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setFireflyError(data.error ?? '画像生成に失敗しました')
+        setFireflyError(
+          [data.error ?? '画像生成に失敗しました', data.debug].filter(Boolean).join('\n')
+        )
         setFireflyStatus('error')
         return
       }

@@ -8,10 +8,10 @@ const BEDROCK_IMAGE_REGION = 'us-west-2'
 
 function getBedrockClient(): BedrockRuntimeClient {
   return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION?.trim() || BEDROCK_IMAGE_REGION,
+    region: process.env.BEDROCK_REGION ?? BEDROCK_IMAGE_REGION,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
     },
   })
 }

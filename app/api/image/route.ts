@@ -66,8 +66,16 @@ export async function POST(request: NextRequest) {
 
   const requestBody = {
     prompt,
-    negative_prompt:
-      'text, typography, watermark, logo, low quality, blurry, cartoon, anime, nsfw',
+    negative_prompt: [
+      'portrait, headshot, close-up face, selfie',
+      'revealing clothing, cleavage, exposed skin',
+      'western faces, caucasian, blonde',
+      'text, typography, watermark, logo',
+      'cartoon, anime, illustration, painting',
+      'low quality, blurry, distorted, deformed',
+      'bright neon colors, colorful',
+      'nsfw, inappropriate',
+    ].join(', '),
     mode: 'text-to-image',
     aspect_ratio: '16:9',
     output_format: 'jpeg',
@@ -134,37 +142,44 @@ export async function POST(request: NextRequest) {
 
 function buildPrompt(title: string, targetKeyword?: string): string {
   const text = title + (targetKeyword ?? '')
-  const isMA = /M&A|事業承継|買収|合併|仲介/.test(text)
-  const isConsulting = /相談|コンサル|アドバイザー|支援/.test(text)
-  const isFinance = /補助金|税制|融資|資金|節税/.test(text)
-  const isPMI = /PMI|統合|引継ぎ/.test(text)
-  const isSuccession = /後継者|承継|引継/.test(text)
 
-  let theme = 'professional Japanese business environment, modern office'
+  const isContract = /契約|NDA|秘密保持|意向表明/.test(text)
+  const isFinance = /補助金|税制|融資|資金|節税|バリュエーション|企業価値/.test(text)
+  const isPMI = /PMI|統合|経営統合/.test(text)
+  const isSuccession = /後継者|引継|承継/.test(text)
+  const isMA = /M&A|買収|合併|仲介|売却/.test(text)
 
-  if (isMA) {
+  let theme = ''
+
+  if (isContract) {
     theme =
-      'two senior Japanese business executives shaking hands, successful M&A agreement, modern corporate office'
-  } else if (isPMI) {
-    theme =
-      'Japanese business team collaborating on integration project, modern office, positive atmosphere'
-  } else if (isSuccession) {
-    theme =
-      'senior Japanese business owner passing documents to successor, professional office, business succession'
-  } else if (isConsulting) {
-    theme =
-      'professional consultant presenting strategy to Japanese executive, conference room, trustworthy'
+      'overhead flat-lay of business contract documents and fountain pen on white desk, professional corporate photography'
   } else if (isFinance) {
     theme =
-      'Japanese business professional reviewing financial documents, clean modern office'
+      'overhead view of financial charts, graphs and business reports spread on conference table with hands pointing, no faces visible'
+  } else if (isPMI) {
+    theme =
+      'wide shot of modern Japanese conference room, business team seen from behind gathered around table with documents, integration meeting'
+  } else if (isSuccession) {
+    theme =
+      'mid shot of two pairs of hands exchanging business documents across a desk, warm office lighting, succession symbolism, no faces'
+  } else if (isMA) {
+    theme =
+      'wide shot of corporate meeting room with business professionals in suits seen from behind, documents and laptops on table, M&A negotiation setting'
+  } else {
+    theme =
+      'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style'
   }
 
   return [
     theme,
-    'Professional corporate photography',
-    'High quality photorealistic',
-    'Soft natural lighting',
-    'No text no typography no watermark',
-    'Horizontal 16:9 composition',
+    'professional Japanese corporate photography',
+    'photorealistic high quality',
+    'navy blue white grey color palette',
+    'soft natural window lighting',
+    'NO faces NO close-up portraits NO headshots',
+    'NO text NO watermark NO logo',
+    'horizontal 16:9 composition',
+    'wide or overhead shot',
   ].join(', ')
 }

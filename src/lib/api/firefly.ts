@@ -33,8 +33,16 @@ export async function generateImageWithFirefly(
 
   const requestBody = {
     prompt,
-    negative_prompt:
-      'text, typography, watermark, logo, low quality, blurry, cartoon, anime, nsfw',
+    negative_prompt: [
+      'portrait, headshot, close-up face, selfie',
+      'revealing clothing, cleavage, exposed skin',
+      'western faces, caucasian, blonde',
+      'text, typography, watermark, logo',
+      'cartoon, anime, illustration, painting',
+      'low quality, blurry, distorted, deformed',
+      'bright neon colors, colorful',
+      'nsfw, inappropriate',
+    ].join(', '),
     mode: 'text-to-image',
     aspect_ratio: '16:9',
     output_format: 'jpeg',
@@ -89,40 +97,47 @@ export async function generateImageWithFirefly(
  * SD 3.5は英語プロンプトの方が品質が高い
  */
 export function buildPrompt(title: string, content: string): string {
-  const isMA = /M&A|事業承継|買収|合併|仲介/.test(title)
-  const isConsulting = /相談|コンサル|アドバイザー|支援/.test(title)
-  const isFinance = /補助金|税制|融資|資金|節税/.test(title)
-  const isPMI = /PMI|統合|引継ぎ/.test(title)
-  const isSuccession = /後継者|承継|引継/.test(title)
+  const text = title + content.slice(0, 200)
 
-  let theme =
-    'professional Japanese business environment, modern office with natural light'
+  const isContract = /契約|NDA|秘密保持|意向表明/.test(text)
+  const isFinance = /補助金|税制|融資|資金|節税|バリュエーション|企業価値/.test(text)
+  const isPMI = /PMI|統合|経営統合/.test(text)
+  const isSuccession = /後継者|引継|承継/.test(text)
+  const isMA = /M&A|買収|合併|仲介|売却/.test(text)
 
-  if (isMA) {
+  // 全テーマ共通：顔アップ禁止・引き画・手元・書類メイン
+  let theme = ''
+
+  if (isContract) {
     theme =
-      'two senior Japanese business executives shaking hands across a conference table, symbolizing successful business partnership and M&A agreement, modern Japanese corporate office'
-  } else if (isPMI) {
-    theme =
-      'Japanese business team collaborating in a modern office, diverse professionals working together on integration project, positive corporate atmosphere'
-  } else if (isSuccession) {
-    theme =
-      'senior Japanese business owner passing documents to younger successor, warm professional office setting, symbolizing business succession and legacy'
-  } else if (isConsulting) {
-    theme =
-      'professional Japanese business consultant presenting strategy charts to senior executive, conference room with city view, trustworthy atmosphere'
+      'overhead flat-lay of business contract documents and fountain pen on white desk, professional corporate photography'
   } else if (isFinance) {
     theme =
-      'Japanese business professional reviewing financial documents and graphs, clean modern office desk, professional corporate photography'
+      'overhead view of financial charts, graphs and business reports spread on conference table with hands pointing, no faces visible'
+  } else if (isPMI) {
+    theme =
+      'wide shot of modern Japanese conference room, business team seen from behind gathered around table with documents, integration meeting'
+  } else if (isSuccession) {
+    theme =
+      'mid shot of two pairs of hands exchanging business documents across a desk, warm office lighting, succession symbolism, no faces'
+  } else if (isMA) {
+    theme =
+      'wide shot of corporate meeting room with business professionals in suits seen from behind, documents and laptops on table, M&A negotiation setting'
+  } else {
+    theme =
+      'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style'
   }
 
   return [
     theme,
-    'Professional corporate photography style',
-    'High quality photorealistic',
-    'Soft natural lighting',
-    'Clean and trustworthy atmosphere',
-    'Suitable for business article thumbnail',
-    'No text no typography no watermark',
-    'Horizontal composition',
+    'professional Japanese corporate photography',
+    'photorealistic high quality',
+    'navy blue white grey color palette',
+    'soft natural window lighting',
+    'NO faces NO close-up portraits NO headshots',
+    'NO text NO watermark NO logo',
+    'NO revealing clothing NO casual wear',
+    'horizontal 16:9 composition',
+    'wide or overhead shot',
   ].join(', ')
 }

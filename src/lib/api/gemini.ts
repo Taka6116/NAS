@@ -336,15 +336,24 @@ export async function generateImagePromptFromArticle(
   if (!apiKey?.trim()) throw new Error('GEMINI_API_KEY が設定されていません')
 
   const contentSnippet = content.trim().slice(0, 1800)
-  const prompt = `You are an expert at writing image generation prompts for professional business article thumbnails.
+  const prompt = `You are an expert at writing image generation prompts for professional Japanese business article thumbnails.
 
-Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English that describes a single photorealistic image suitable as the article's thumbnail.
+Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English describing a photorealistic business image.
 
-Rules:
-- Output ONLY the image description sentence. No explanation, no prefix, no quotes.
-- The image must be: professional, business style, photorealistic, 16:9 horizontal, no text or typography in the image.
-- Reflect the article's actual topic and mood (e.g. consulting, M&A, succession, finance, PMI, office work). Vary the scene: not always handshakes; use meetings, documents, graphs, desks, conference rooms, etc. as appropriate.
-- Keep it under 25 words.
+STRICT COMPOSITION RULES (follow all of them):
+- NO close-up faces. NO portraits. NO headshots.
+- Camera must be WIDE or MID shot: show the full room, full desk, or at least the upper body from a distance.
+- Preferred subjects (choose the most relevant ONE):
+  * Wide shot of a conference room with people seen from behind or side, documents on table
+  * Overhead flat-lay of business documents, contracts, graphs, pens on a desk
+  * Mid-shot of hands signing or pointing at documents or charts
+  * Wide shot of modern Japanese office interior, empty or with blurred people in background
+  * Close-up of documents, financial graphs, laptop screen showing data — no people
+- People may appear but only from behind, from the side, or as small figures in a wide shot
+- Style: photorealistic, professional, navy/grey/white tones, soft natural lighting, 16:9 horizontal
+- NO text, NO watermark, NO typography in the image
+
+OUTPUT: ONE English sentence only. No explanation. No quotes. Under 30 words.
 
 TITLE:
 ${title.trim()}

@@ -4,13 +4,18 @@ import {
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime'
 
-const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.BEDROCK_REGION ?? 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
-  },
-})
+/** Stable Diffusion 3.5 は us-west-2 でのみ利用可能 */
+const BEDROCK_IMAGE_REGION = 'us-west-2'
+
+function getBedrockClient(): BedrockRuntimeClient {
+  return new BedrockRuntimeClient({
+    region: BEDROCK_IMAGE_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
+    },
+  })
+}
 
 export async function POST(request: NextRequest) {
   const { title, content, targetKeyword } = await request.json()
@@ -55,7 +60,8 @@ export async function POST(request: NextRequest) {
       body: bodyBytes,
     })
 
-    const response = await bedrockClient.send(command)
+    const client = getBedrockClient()
+    const response = await client.send(command)
     const responseBody = JSON.parse(
       new TextDecoder().decode(response.body)
     ) as { images?: string[]; finish_reasons?: (string | null)[] }
@@ -84,7 +90,7 @@ export async function POST(request: NextRequest) {
       message = error.name === 'AccessDeniedException'
         ? 'Bedrock の利用権限がありません。IAM に bedrock:InvokeModel を追加してください。'
         : error.name === 'ResourceNotFoundException'
-          ? '指定したモデル（stability.sd3-5-large-v1:0）が見つかりません。BEDROCK_REGION=us-east-1 を確認してください。'
+          ? '指定したモデル（stability.sd3-5-large-v1:0）が見つかりません。BEDROCK_REGION=us-west-2 を確認してください。'
           : error.message
     }
     return NextResponse.json({ error: message }, { status: 500 })

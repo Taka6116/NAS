@@ -26,24 +26,15 @@ export function saveArticle(article: SavedArticle): void {
     all.unshift(article)
   }
 
-  for (;;) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
-      return
-    } catch (e) {
-      if (!isQuotaExceeded(e)) throw e
-      // 現在保存したい記事以外で、最も古いものを1件削除して再試行
-      const others = all.filter(a => a.id !== article.id).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
+  } catch (e) {
+    if (isQuotaExceeded(e)) {
+      throw new Error(
+        'ストレージの容量不足です。画像が大きい可能性があります。不要な記事を一覧から削除してから再度保存してください。'
       )
-      if (others.length === 0) {
-        throw new Error(
-          'ストレージの容量不足です。画像が大きい可能性があります。不要な下書きを削除するか、画像を差し替えてから再度保存してください。'
-        )
-      }
-      const oldestId = others[0].id
-      all.splice(all.findIndex(a => a.id === oldestId), 1)
     }
+    throw e
   }
 }
 

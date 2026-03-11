@@ -3,6 +3,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime'
+import { generateImagePromptFromArticle } from '@/lib/api/gemini'
 
 /** Stable Diffusion 3.5 は us-west-2 でのみ利用可能 */
 const BEDROCK_IMAGE_REGION = 'us-west-2'
@@ -19,10 +20,12 @@ function getBedrockClient(): BedrockRuntimeClient {
 
 export async function POST(request: NextRequest) {
   let title: string | undefined
+  let content: string | undefined
   let targetKeyword: string | undefined
   try {
     const body = await request.json()
     title = body?.title
+    content = typeof body?.content === 'string' ? body.content : undefined
     targetKeyword = body?.targetKeyword
   } catch {
     return NextResponse.json(
@@ -47,10 +50,19 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const prompt = buildPrompt(
-    title,
-    typeof targetKeyword === 'string' ? targetKeyword : undefined
-  )
+  let prompt: string
+  const trimmedContent = content?.trim()
+  if (title.trim() && trimmedContent) {
+    try {
+      prompt = await generateImagePromptFromArticle(title.trim(), trimmedContent)
+      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9'].join(', ')
+    } catch (e) {
+      console.warn('Gemini image prompt failed, using fallback:', (e as Error)?.message)
+      prompt = buildPrompt(title, typeof targetKeyword === 'string' ? targetKeyword : undefined)
+    }
+  } else {
+    prompt = buildPrompt(title, typeof targetKeyword === 'string' ? targetKeyword : undefined)
+  }
 
   const requestBody = {
     prompt,

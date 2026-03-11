@@ -56,7 +56,7 @@ export default function ArticlesPage() {
             保存済み記事一覧
           </h1>
           <p className="text-sm mt-1" style={{ color: '#64748B' }}>
-            作成済みの記事（画像・文字数）を管理し、投稿できます
+            作成済みの記事を管理し、投稿できます。保存した記事は削除するまで一覧に残ります。
           </p>
         </div>
         <button

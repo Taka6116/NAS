@@ -326,3 +326,35 @@ ${targetKeyword?.trim() ? `ターゲットキーワード：${targetKeyword}` : 
     refinedContent: refinedContent || content,
   }
 }
+
+/** 記事タイトル・本文から画像生成用の英文プロンプトを1文で生成する（Stable Diffusion用） */
+export async function generateImagePromptFromArticle(
+  title: string,
+  content: string
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey?.trim()) throw new Error('GEMINI_API_KEY が設定されていません')
+
+  const contentSnippet = content.trim().slice(0, 1800)
+  const prompt = `You are an expert at writing image generation prompts for professional business article thumbnails.
+
+Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English that describes a single photorealistic image suitable as the article's thumbnail.
+
+Rules:
+- Output ONLY the image description sentence. No explanation, no prefix, no quotes.
+- The image must be: professional, business style, photorealistic, 16:9 horizontal, no text or typography in the image.
+- Reflect the article's actual topic and mood (e.g. consulting, M&A, succession, finance, PMI, office work). Vary the scene: not always handshakes; use meetings, documents, graphs, desks, conference rooms, etc. as appropriate.
+- Keep it under 25 words.
+
+TITLE:
+${title.trim()}
+
+CONTENT (excerpt):
+${contentSnippet}
+
+Your single English sentence:`
+
+  const raw = await generateContentWithFallback(apiKey, prompt)
+  const sentence = raw.trim().replace(/^["']|["']$/g, '').trim()
+  return sentence || 'professional Japanese business environment, modern office, photorealistic, 16:9'
+}

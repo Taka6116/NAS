@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { generateFirstDraftFromPrompt } from '@/lib/api/gemini'
 import { findFileById, getFilePath } from '@/lib/dataStorage'
+import { getS3ObjectAsText } from '@/lib/s3Reference'
 
 const TEXT_MIMES = new Set([
   'text/plain',
@@ -23,10 +24,11 @@ async function readFileContentAsText(fileId: string): Promise<{ name: string; co
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, targetKeyword, fileIds } = await request.json()
+    const { prompt, targetKeyword, fileIds, s3Keys } = await request.json()
     const promptStr = typeof prompt === 'string' ? prompt.trim() : ''
     const targetKeywordStr = typeof targetKeyword === 'string' ? targetKeyword.trim() || undefined : undefined
     const ids = Array.isArray(fileIds) ? fileIds.filter((id): id is string => typeof id === 'string') : []
+    const keys = Array.isArray(s3Keys) ? s3Keys.filter((k): k is string => typeof k === 'string') : []
 
     if (!promptStr) {
       return NextResponse.json(
@@ -35,17 +37,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    let dataContext = ''
+    const parts: string[] = []
+
     if (ids.length > 0) {
-      const parts: string[] = []
       for (const id of ids) {
         const result = await readFileContentAsText(id)
         if (result) {
-          parts.push(`--- 資料：${result.name} ---\n${result.content}`)
+          parts.push(`--- 資料（アップロード）：${result.name} ---\n${result.content}`)
         }
       }
-      dataContext = parts.join('\n\n')
     }
+
+    if (keys.length > 0) {
+      for (const key of keys) {
+        const result = await getS3ObjectAsText(key)
+        if (result) {
+          const name = key.split('/').pop() ?? key
+          parts.push(`--- 資料（S3）：${name} ---\n${result.content}`)
+        }
+      }
+    }
+
+    const dataContext = parts.join('\n\n')
 
     const { title, content } = await generateFirstDraftFromPrompt(
       promptStr,

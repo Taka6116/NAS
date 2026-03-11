@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ArticleData, Step } from '@/lib/types'
 import { SavedPrompt, getAllPrompts } from '@/lib/promptStorage'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Trash2, Sparkles, ChevronDown, FileText, Cloud, X } from 'lucide-react'
+import { ArrowRight, Trash2, Sparkles, ChevronDown } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
@@ -34,64 +34,9 @@ export default function ArticleInput({
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([])
   const [showPromptDropdown, setShowPromptDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([])
-  const [selectedS3Keys, setSelectedS3Keys] = useState<string[]>([])
-  const [localFiles, setLocalFiles] = useState<{ id: string; originalName: string }[]>([])
-  const [s3Files, setS3Files] = useState<{ key: string; size: number }[]>([])
-  const [showLocalPicker, setShowLocalPicker] = useState(false)
-  const [showS3Picker, setShowS3Picker] = useState(false)
-  const localPickerRef = useRef<HTMLDivElement>(null)
-  const s3PickerRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     setSavedPrompts(getAllPrompts())
   }, [])
-
-  const fetchLocalFiles = useCallback(async () => {
-    try {
-      const res = await fetch('/api/data/files')
-      const data = await res.json()
-      if (res.ok && Array.isArray(data.files)) {
-        setLocalFiles(data.files.map((f: { id: string; originalName: string }) => ({ id: f.id, originalName: f.originalName })))
-      }
-    } catch {
-      setLocalFiles([])
-    }
-  }, [])
-
-  const fetchS3Files = useCallback(async () => {
-    try {
-      const res = await fetch('/api/data/s3-files')
-      const data = await res.json()
-      if (res.ok && Array.isArray(data.files)) {
-        setS3Files(data.files.map((f: { key: string; size: number }) => ({ key: f.key, size: f.size })))
-      }
-    } catch {
-      setS3Files([])
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchLocalFiles()
-  }, [fetchLocalFiles])
-
-  useEffect(() => {
-    if (showLocalPicker) fetchLocalFiles()
-  }, [showLocalPicker, fetchLocalFiles])
-
-  useEffect(() => {
-    if (showS3Picker) fetchS3Files()
-  }, [showS3Picker, fetchS3Files])
-
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      const t = e.target as Node
-      if (showLocalPicker && localPickerRef.current && !localPickerRef.current.contains(t)) setShowLocalPicker(false)
-      if (showS3Picker && s3PickerRef.current && !s3PickerRef.current.contains(t)) setShowS3Picker(false)
-    }
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [showLocalPicker, showS3Picker])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -155,8 +100,6 @@ export default function ArticleInput({
         body: JSON.stringify({
           prompt: trimmed,
           targetKeyword: article.targetKeyword ?? '',
-          fileIds: selectedFileIds.length > 0 ? selectedFileIds : undefined,
-          s3Keys: selectedS3Keys.length > 0 ? selectedS3Keys : undefined,
         }),
       })
       const data = await res.json()
@@ -178,8 +121,6 @@ export default function ArticleInput({
 
   const handleClear = () => {
     setPrompt('')
-    setSelectedFileIds([])
-    setSelectedS3Keys([])
     setDraftError(null)
     onTitleChange('')
     onContentChange('')
@@ -285,132 +226,6 @@ export default function ArticleInput({
                   placeholder="例：事業承継 相談"
                   className="w-full px-4 py-3 rounded-lg text-sm border border-[#E2E8F0] text-[#1A1A2E] bg-[#FAFBFC] focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30"
                 />
-              </div>
-
-              {/* 参照資料（独自性アップ） */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-[#1A1A2E]">
-                    参照資料（独自性アップ）
-                  </label>
-                  <span className="text-xs text-[#64748B]">記事に反映する資料を選べます</span>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedFileIds.map(id => {
-                    const name = localFiles.find(f => f.id === id)?.originalName ?? id
-                    return (
-                      <span
-                        key={`file-${id}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#F0F4FF] text-[#1B2A4A] border border-[#C7D7FF]"
-                      >
-                        <FileText size={12} />
-                        {name}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFileIds(prev => prev.filter(x => x !== id))}
-                          className="p-0.5 rounded hover:bg-[#C7D7FF]/50"
-                          aria-label="削除"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    )
-                  })}
-                  {selectedS3Keys.map(key => {
-                    const name = key.split('/').pop() ?? key
-                    return (
-                      <span
-                        key={`s3-${key}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]"
-                      >
-                        <Cloud size={12} />
-                        {name}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedS3Keys(prev => prev.filter(x => x !== key))}
-                          className="p-0.5 rounded hover:bg-[#A7F3D0]/50"
-                          aria-label="削除"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    )
-                  })}
-                </div>
-                <div className="flex gap-2 relative">
-                  <div className="relative" ref={localPickerRef}>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="py-2 px-3 text-sm h-auto"
-                      onClick={() => setShowLocalPicker(prev => !prev)}
-                    >
-                      <FileText size={14} className="mr-1.5" />
-                      アップロード済みから選ぶ
-                    </Button>
-                    {showLocalPicker && (
-                      <div className="absolute left-0 top-full mt-1 z-20 min-w-[220px] max-h-[200px] overflow-y-auto rounded-lg border border-[#E2E8F0] bg-white shadow-lg py-1">
-                        {localFiles.length === 0 ? (
-                          <p className="px-3 py-2 text-xs text-[#64748B]">読み込み中…</p>
-                        ) : (
-                          localFiles.map(f => (
-                            <label
-                              key={f.id}
-                              className="flex items-center gap-2 px-3 py-2 hover:bg-[#F8FAFC] cursor-pointer text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedFileIds.includes(f.id)}
-                                onChange={e => {
-                                  if (e.target.checked) setSelectedFileIds(prev => [...prev, f.id])
-                                  else setSelectedFileIds(prev => prev.filter(x => x !== f.id))
-                                }}
-                                className="rounded border-[#E2E8F0]"
-                              />
-                              <span className="truncate">{f.originalName}</span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative" ref={s3PickerRef}>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="py-2 px-3 text-sm h-auto"
-                      onClick={() => setShowS3Picker(prev => !prev)}
-                    >
-                      <Cloud size={14} className="mr-1.5" />
-                      S3から選ぶ
-                    </Button>
-                    {showS3Picker && (
-                      <div className="absolute left-0 top-full mt-1 z-20 min-w-[220px] max-h-[200px] overflow-y-auto rounded-lg border border-[#E2E8F0] bg-white shadow-lg py-1">
-                        {s3Files.length === 0 ? (
-                          <p className="px-3 py-2 text-xs text-[#64748B]">読み込み中…</p>
-                        ) : (
-                          s3Files.map(f => (
-                            <label
-                              key={f.key}
-                              className="flex items-center gap-2 px-3 py-2 hover:bg-[#F8FAFC] cursor-pointer text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedS3Keys.includes(f.key)}
-                                onChange={e => {
-                                  if (e.target.checked) setSelectedS3Keys(prev => [...prev, f.key])
-                                  else setSelectedS3Keys(prev => prev.filter(x => x !== f.key))
-                                }}
-                                className="rounded border-[#E2E8F0]"
-                              />
-                              <span className="truncate" title={f.key}>{f.key.split('/').pop() ?? f.key}</span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div className="flex justify-start">

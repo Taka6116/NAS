@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { generateFirstDraftFromPrompt } from '@/lib/api/gemini'
 import { findFileById, getFilePath } from '@/lib/dataStorage'
-import { getS3ObjectAsText } from '@/lib/s3Reference'
+import { getS3ObjectAsText, listS3Objects } from '@/lib/s3Reference'
 
 const TEXT_MIMES = new Set([
   'text/plain',
@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
     const promptStr = typeof prompt === 'string' ? prompt.trim() : ''
     const targetKeywordStr = typeof targetKeyword === 'string' ? targetKeyword.trim() || undefined : undefined
     const ids = Array.isArray(fileIds) ? fileIds.filter((id): id is string => typeof id === 'string') : []
-    const keys = Array.isArray(s3Keys) ? s3Keys.filter((k): k is string => typeof k === 'string') : []
+    const explicitS3Keys = Array.isArray(s3Keys) ? s3Keys.filter((k): k is string => typeof k === 'string') : []
+    // s3Keys が無い or 空 → S3の全オブジェクトを参照。指定があればそのキーのみ。
+    const keys = explicitS3Keys.length > 0 ? explicitS3Keys : (await listS3Objects()).map(o => o.key)
 
     if (!promptStr) {
       return NextResponse.json(

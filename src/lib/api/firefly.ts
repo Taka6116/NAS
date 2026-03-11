@@ -18,7 +18,7 @@ function getBedrockClient(): BedrockRuntimeClient {
 
 /**
  * AWS Bedrock Stable Diffusion 3.5 Large で画像を生成する
- * 戻り値：data:image/png;base64,... 形式のURL
+ * 戻り値：data:image/jpeg;base64,... 形式のURL（容量削減のため JPEG 出力）
  */
 export async function generateImageWithFirefly(
   title: string,
@@ -37,7 +37,7 @@ export async function generateImageWithFirefly(
       'text, typography, watermark, logo, low quality, blurry, cartoon, anime, nsfw',
     mode: 'text-to-image',
     aspect_ratio: '16:9',
-    output_format: 'png',
+    output_format: 'jpeg',
   }
 
   const bodyBytes = new TextEncoder().encode(JSON.stringify(requestBody))
@@ -68,7 +68,7 @@ export async function generateImageWithFirefly(
       throw new Error('画像データが返ってきませんでした')
     }
 
-    return `data:image/png;base64,${base64Image}`
+    return `data:image/jpeg;base64,${base64Image}`
   } catch (error) {
     console.error('Bedrock Stable Diffusion error:', error)
     let message = 'Stable Diffusion による画像生成に失敗しました'

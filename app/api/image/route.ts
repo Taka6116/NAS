@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       'text, typography, watermark, logo, low quality, blurry, cartoon, anime, nsfw',
     mode: 'text-to-image',
     aspect_ratio: '16:9',
-    output_format: 'png',
+    output_format: 'jpeg',
   }
 
   const bodyBytes = new TextEncoder().encode(JSON.stringify(requestBody))
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       imageBase64: base64Image,
-      mimeType: 'image/png',
+      mimeType: 'image/jpeg',
       prompt,
     })
   } catch (error) {

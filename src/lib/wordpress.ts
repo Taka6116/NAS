@@ -16,6 +16,11 @@ export interface WordPressPostResult {
   status: 'draft' | 'publish';
 }
 
+// 監修者画像（大野 駿介さん）のURL。環境変数で上書き可能。
+const SUPERVISOR_IMAGE_URL =
+  process.env.WORDPRESS_SUPERVISOR_IMAGE_URL ??
+  'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
+
 /**
  * Base64画像をWordPressメディアライブラリにアップロードしてメディアIDを返す
  */
@@ -213,6 +218,31 @@ export function buildPostContent(payload: WordPressPostPayload): string {
   // 1. 本文をHTMLに変換
   const htmlBody = convertToHtml(payload.content);
 
+  // 1-2. 監修者ブロック（本文の最上部に挿入）
+  const supervisorBlock = SUPERVISOR_IMAGE_URL
+    ? `
+<!-- Supervisor Block -->
+<div style="text-align:center;margin:32px auto 40px;max-width:780px;">
+  <div style="display:inline-block;text-align:left;background:#f8fafc;border-radius:16px;padding:24px 24px 20px;border:1px solid #e2e8f0;">
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <img src="${SUPERVISOR_IMAGE_URL}"
+           alt="株式会社日本提携支援 代表取締役 大野 駿介"
+           style="width:96px;height:96px;border-radius:999px;object-fit:cover;flex-shrink:0;"/>
+      <div style="font-size:14px;line-height:1.6;color:#1e293b;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px;color:#0f172a;">監修者</div>
+        <div style="font-weight:700;">株式会社日本提携支援 代表取締役<br/>大野 駿介</div>
+        <div style="margin-top:6px;font-size:13px;color:#475569;">
+          過去1,000件超のM&A相談、50件超のアドバイザリー契約、15組超のM&A成約組数を担当。(株)日本M&amp;Aセンターにて、年間最多アドバイザリー契約受賞経験あり。新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`.trim()
+    : '';
+
+  const fullBody = supervisorBlock ? `${supervisorBlock}\n\n${htmlBody}` : htmlBody;
+
   // 2. FAQを抽出
   const faqs = extractFaqs(payload.content);
 
@@ -223,7 +253,7 @@ export function buildPostContent(payload: WordPressPostPayload): string {
   // 4. 結合（本文 → Article Schema → FAQ Schema）
   const parts = [
     `<!-- NAS Generated Content -->`,
-    htmlBody,
+    fullBody,
     articleSchema,
     faqSchema,
   ].filter(Boolean);

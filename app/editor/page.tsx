@@ -183,12 +183,13 @@ function EditorContent() {
     setFireflyStatus('loading')
     setFireflyError(null)
     try {
-      const res = await fetch('/api/firefly', {
+      const res = await fetch('/api/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: article.refinedTitle?.trim() || article.title,
           content: article.refinedContent,
+          targetKeyword: article.targetKeyword,
         }),
       })
       const data = await res.json()
@@ -197,13 +198,15 @@ function EditorContent() {
         setFireflyStatus('error')
         return
       }
-      updateArticle({ imageUrl: data.imageUrl })
+      updateArticle({
+        imageUrl: `data:${data.mimeType ?? 'image/png'};base64,${data.imageBase64}`,
+      })
       setFireflyStatus('success')
     } catch (e) {
       setFireflyError(e instanceof Error ? e.message : '画像生成に失敗しました')
       setFireflyStatus('error')
     }
-  }, [article.title, article.refinedTitle, article.refinedContent, updateArticle])
+  }, [article.title, article.refinedTitle, article.refinedContent, article.targetKeyword, updateArticle])
 
   const handleImageUpload = useCallback(
     (imageUrl: string) => {

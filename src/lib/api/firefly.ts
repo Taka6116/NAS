@@ -1,43 +1,59 @@
+const IMAGEN_MODELS = ['imagen-3.0-generate-002', 'imagen-3.0-generate-001'] as const
+const IMAGEN_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+
 export async function generateImageWithFirefly(
   title: string,
   content: string
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY が設定されていません');
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY が設定されていません')
 
-  const prompt = buildPrompt(title, content);
+  const prompt = buildPrompt(title, content)
+  const body = {
+    instances: [{ prompt }],
+    parameters: {
+      sampleCount: 1,
+      aspectRatio: '16:9',
+      safetyFilterLevel: 'block_medium_and_above',
+      personGeneration: 'allow_adult',
+    },
+  }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '16:9',
-          safetyFilterLevel: 'block_medium_and_above',
-          personGeneration: 'allow_adult',
-        },
-      }),
+  let lastError = ''
+  for (const model of IMAGEN_MODELS) {
+    try {
+      const response = await fetch(
+        `${IMAGEN_BASE}/${model}:predict?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      )
+      const rawText = await response.text()
+      let data: Record<string, unknown> = {}
+      try {
+        data = rawText ? JSON.parse(rawText) : {}
+      } catch {
+        lastError = `モデル ${model}: レスポンスがJSONではありません (${response.status})`
+        continue
+      }
+      if (!response.ok) {
+        const errMsg = (data as { error?: { message?: string } }).error?.message ?? JSON.stringify(data)
+        lastError = `モデル ${model}: ${response.status} - ${errMsg}`
+        continue
+      }
+      const base64 = (data.predictions as Array<{ bytesBase64Encoded?: string }>)?.[0]?.bytesBase64Encoded
+      if (!base64) {
+        lastError = `モデル ${model}: 画像データなし`
+        continue
+      }
+      return `data:image/png;base64,${base64}`
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
     }
-  );
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(`Imagen API error: ${response.status} - ${JSON.stringify(err)}`);
   }
-
-  const data = await response.json();
-  const base64 = data.predictions?.[0]?.bytesBase64Encoded;
-
-  if (!base64) {
-    throw new Error('画像データが返ってきませんでした（安全フィルターでブロックされた可能性があります）');
-  }
-
-  // Base64をdata URIとして返す
-  return `data:image/png;base64,${base64}`;
+  throw new Error(lastError || '画像生成に失敗しました。すべてのモデルでエラーになりました。')
 }
 
 export function buildPrompt(title: string, content: string): string {

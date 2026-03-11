@@ -5,19 +5,20 @@ export async function POST(request: NextRequest) {
   try {
     const { title, content } = await request.json()
 
-    if (!title || !content) {
+    if (!title?.trim()) {
       return NextResponse.json(
-        { error: 'タイトルと本文が必要です' },
+        { error: 'タイトルが必要です' },
         { status: 400 }
       )
     }
 
-    const imageUrl = await generateImageWithFirefly(title, content)
+    const imageUrl = await generateImageWithFirefly(title, content ?? '')
     return NextResponse.json({ imageUrl })
   } catch (error) {
-    console.error('Firefly API error:', error)
+    console.error('Imagen API error:', error)
+    const message = error instanceof Error ? error.message : '画像生成に失敗しました'
     return NextResponse.json(
-      { error: 'Firefly APIの呼び出しに失敗しました' },
+      { error: message },
       { status: 500 }
     )
   }

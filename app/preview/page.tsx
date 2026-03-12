@@ -21,7 +21,7 @@ const DUMMY_ARTICLES = [
 /** 監修者ブロック＝S3の大野様画像をそのままの形で0.85倍に縮小表示。/api/supervisor-image 経由で取得。 */
 function getSupervisorBlockHtml(): string {
   const imgUrl = '/api/supervisor-image'
-  return `<img src="${imgUrl}" alt="大野駿介" style="width:85%;height:auto;margin:32px auto 40px;display:block;" />`
+  return `<img src="${imgUrl}" alt="大野駿介" style="width:85%;height:auto;margin:48px auto 56px;display:block;" />`
 }
 
 function formatContent(content: string, imageUrl: string): string {

@@ -336,22 +336,24 @@ export async function generateImagePromptFromArticle(
   if (!apiKey?.trim()) throw new Error('GEMINI_API_KEY が設定されていません')
 
   const contentSnippet = content.trim().slice(0, 1800)
-  const prompt = `You are an expert at writing image generation prompts for professional Japanese business article thumbnails.
+  const prompt = `You are an expert at writing image generation prompts for professional Japanese business article thumbnails. The target style is Adobe Stock–like M&A / corporate imagery: clean, symbolic, trustworthy.
 
 Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English describing a photorealistic business image.
 
-STRICT COMPOSITION RULES (follow all of them):
-- NO close-up faces. NO portraits. NO headshots.
-- Camera must be WIDE or MID shot: show the full room, full desk, or at least the upper body from a distance.
-- Preferred subjects (choose the most relevant ONE):
-  * Wide shot of a conference room with people seen from behind or side, documents on table
-  * Overhead flat-lay of business documents, contracts, graphs, pens on a desk
-  * Mid-shot of hands signing or pointing at documents or charts
-  * Wide shot of modern Japanese office interior, empty or with blurred people in background
-  * Close-up of documents, financial graphs, laptop screen showing data — no people
-- People may appear but only from behind, from the side, or as small figures in a wide shot
-- Style: photorealistic, professional, navy/grey/white tones, soft natural lighting, 16:9 horizontal
-- NO text, NO watermark, NO typography in the image
+STYLE REFERENCE (M&A / corporate articles) — choose ONE of these; vary across articles so different patterns appear:
+- Option A (handshake): professional handshake between business people in dark suits (navy, grey), clean white or very light grey minimalist background, symbolic of deal or partnership. Upper bodies or hands and suit sleeves visible.
+- Option B (flat-lay): overhead flat-lay of M&A-themed objects on white — wooden or cardboard blocks spelling "M" "&" "A", business documents, laptop, calculator, pen, spread on clean white desk; no people in frame.
+- Option C (stacked blocks): wooden blocks stacked vertically with "M" "&" "A" on each, placed on business documents or reports with graphs and charts, clean light grey or white background, shallow depth of field, professional stock photography.
+- Option D (conceptual hand): businessman hand in dark suit sleeve, palm or hand over business documents and charts, symbolic of M&A or deal-making, professional conceptual corporate photography, clean or soft neutral background, no face visible.
+- Option E (meeting hands): close-up of business meeting table with multiple hands holding tablet, documents, pen, calculator; collaborative discussion, no faces visible, clean white table, natural light, professional corporate stock photography.
+- Option F: two or three business professionals in formal suits, mid-shot, clean uncluttered background, positive professional mood, like high-end stock photography.
+- Avoid: busy conference rooms with many people, cluttered desks, windows with city views, casual or generic office meetings.
+- For non-M&A topics: overhead flat-lay of documents/contracts, or hands with documents/charts, or simple office desk with laptop/documents; same clean, minimal background.
+
+RULES:
+- Clean, minimal background (white, light grey, or soft neutral). No text, no watermark, no typography in the image.
+- Photorealistic, professional, navy/grey/white color palette, soft even lighting, 16:9 horizontal.
+- For M&A articles, choose from options A through F so that handshake, flat-lay, stacked blocks, conceptual hand, meeting hands, and group shot are all used over time — do not always pick the same option.
 
 OUTPUT: ONE English sentence only. No explanation. No quotes. Under 30 words.
 

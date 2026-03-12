@@ -164,8 +164,14 @@ function buildPrompt(title: string, targetKeyword?: string): string {
     theme =
       'mid shot of two pairs of hands exchanging business documents across a desk, warm office lighting, succession symbolism, no faces'
   } else if (isMA) {
-    theme =
-      'wide shot of corporate meeting room with business professionals in suits seen from behind, documents and laptops on table, M&A negotiation setting'
+    const maThemes = [
+      'professional handshake between two business people in dark navy and grey suits, clean white or light grey minimalist background, symbolic of M&A deal and partnership, corporate stock photography style, upper body and hands visible, photorealistic',
+      'overhead flat-lay of M&A themed objects on white desk: wooden or cardboard blocks spelling M and A, business documents, laptop, calculator, pen, professional corporate stock photography, clean minimal style, no people',
+      'wooden blocks stacked vertically with M and A letters on each, placed on business documents with graphs and charts, clean light grey or white background, shallow depth of field, professional corporate stock photography',
+      'businessman hand in dark suit sleeve over business documents and charts, symbolic of M&A or deal-making, professional conceptual corporate photography, clean neutral background, no face visible, photorealistic',
+      'close-up of business meeting table with multiple hands holding tablet and documents, pen and calculator, collaborative discussion, no faces visible, clean white table, natural light, professional corporate stock photography',
+    ]
+    theme = maThemes[Math.floor(Math.random() * maThemes.length)]!
   } else {
     theme =
       'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style'

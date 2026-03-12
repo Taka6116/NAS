@@ -34,7 +34,7 @@ export async function GET() {
         return new NextResponse(null, { status: 404 })
       }
       const contentType = result.contentType ?? 'image/png'
-      return new NextResponse(result.body, {
+      return new NextResponse(Buffer.from(result.body), {
         headers: {
           'Content-Type': contentType,
           'Cache-Control': 'public, max-age=3600',

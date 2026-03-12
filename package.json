@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "upload-supervisor": "node scripts/upload-supervisor-image.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1006.0",

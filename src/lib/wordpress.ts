@@ -16,10 +16,15 @@ export interface WordPressPostResult {
   status: 'draft' | 'publish';
 }
 
-// 監修者画像（大野 駿介さん）のURL。環境変数で上書き可能。
-const SUPERVISOR_IMAGE_URL =
-  process.env.WORDPRESS_SUPERVISOR_IMAGE_URL ??
-  'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
+// 監修者画像（大野 駿介さん）のURL。S3/CloudFront または環境変数で指定。
+// 優先: SUPERVISOR_IMAGE_URL > (NEXT_PUBLIC_CLOUDFRONT_URL + /images/supervisor/ohno-shunsuke.jpg) > WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト
+const SUPERVISOR_IMAGE_URL = (() => {
+  const direct = process.env.SUPERVISOR_IMAGE_URL?.trim();
+  if (direct) return direct;
+  const cloudFront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim();
+  if (cloudFront) return `${cloudFront.replace(/\/$/, '')}/images/supervisor/ohno-shunsuke.jpg`;
+  return process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim() ?? 'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
+})();
 
 /** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */
 interface WordPressMediaUploadResult {
@@ -58,11 +63,18 @@ async function uploadBase64ImageToWordPress(
   return { id: media.id, sourceUrl: media.source_url ?? media.link };
 }
 
-/** インラインの **太字** を <strong> に変換（エスケープ済み文字列に使用） */
-function applyInlineStrong(text: string): string {
+/**
+ * インラインのマークダウン風記法をHTMLに変換（WordPress表示用）
+ * - **太字** → <strong>
+ * - __下線__ → <span style="text-decoration:underline;">
+ * - *斜体* → <em>
+ * - 既存の <strong>, <em>, <u>, <a>, <br> はそのまま通過
+ */
+function applyInlineFormatting(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.+?)__/g, '<span style="border-bottom:2px solid #1e3a8a;">$1</span>');
+    .replace(/__(.+?)__/g, '<span style="text-decoration:underline;">$1</span>')
+    .replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 }
 
 /** リスト行「・ラベル: 説明」のラベル部分を太字に */
@@ -72,7 +84,7 @@ function emphasizeListLabel(line: string): string {
     const [, bullet, label, colon, rest] = match;
     return `${bullet}<strong>${label.trim()}</strong>${colon} ${rest}`;
   }
-  return applyInlineStrong(line);
+  return applyInlineFormatting(line);
 }
 
 const HEADING_STYLE = 'font-weight:700;color:#1e3a8a;margin:1em 0 0.5em;';
@@ -115,21 +127,21 @@ export function convertToHtml(content: string): string {
     if (/^\d+[．.]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^\d+[．.]\s*/, '');
-      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineStrong(text)}</h2>`);
+      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(text)}</h2>`);
       continue;
     }
 
     if (/^\d+-\d+[．.]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineStrong(text)}</h3>`);
+      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineFormatting(text)}</h3>`);
       continue;
     }
 
     if (/^[■▶◆●▼]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^[■▶◆●▼]\s*/, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineStrong(text)}</h3>`);
+      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineFormatting(text)}</h3>`);
       continue;
     }
 
@@ -263,7 +275,7 @@ export function buildPostContent(
 <div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:32px 0 40px;max-width:800px;margin-left:auto;margin-right:auto;">
   <p style="font-weight:700;color:#1e293b;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #e5e7eb;text-align:center;">監修者</p>
   <div style="display:flex;gap:20px;align-items:flex-start;">
-    <img src="${SUPERVISOR_IMAGE_URL}" alt="大野 駿介" style="width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block;"/>
+    <img src="${SUPERVISOR_IMAGE_URL}" alt="大野駿介" style="width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;display:block;"/>
     <div style="flex:1;min-width:0;font-size:14px;line-height:1.7;color:#374151;">
       <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">株式会社日本提携支援 代表取締役</p>
       <p style="margin:0 0 8px;font-weight:700;font-size:16px;color:#111827;">大野 駿介</p>

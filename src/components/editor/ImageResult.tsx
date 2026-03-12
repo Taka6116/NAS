@@ -107,21 +107,6 @@ export default function ImageResult({
               <p className="mt-1 break-all">{fireflyError}</p>
             </div>
           )}
-          {/* 未生成：画像を生成するボタンを表示（idle または error で再試行） */}
-          {!article.imageUrl && (fireflyStatus === 'idle' || fireflyStatus === 'error') && onGenerate && (
-            <Card>
-              <div className="flex flex-col items-center gap-5 py-8">
-                <p className="text-sm text-[#64748B]">
-                  {fireflyStatus === 'error' ? 'もう一度お試しください。' : '記事用の画像を生成します（30秒～1分ほどかかります）'}
-                </p>
-                <Button variant="primary" size="lg" onClick={onGenerate} className="gap-2">
-                  <RefreshCw size={18} />
-                  画像を生成する
-                </Button>
-              </div>
-            </Card>
-          )}
-
           {/* ローディング */}
           {fireflyStatus === 'loading' && (
             <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
@@ -151,20 +136,34 @@ export default function ImageResult({
             </div>
           )}
 
-          {/* 画像カード（画像があるときのみ）：下書きに保存・プレビューへはカード内左右に配置 */}
-          {article.imageUrl && (
+          {/* 画像カード：常に3ボタン（アップロード・保存・別の画像を生成）を表示 */}
           <Card>
             <div className="flex flex-col items-center gap-5">
-              <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
-                <Image
-                  src={article.imageUrl}
-                  alt="生成された記事画像"
-                  width={1000}
-                  height={525}
-                  className="w-full h-auto"
-                  unoptimized
-                />
-              </div>
+              {/* 未生成：画像を生成するボタン */}
+              {!article.imageUrl && (fireflyStatus === 'idle' || fireflyStatus === 'error') && onGenerate && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <p className="text-sm text-[#64748B]">
+                    {fireflyStatus === 'error' ? 'もう一度お試しください。' : '記事用の画像を生成します（30秒～1分ほどかかります）'}
+                  </p>
+                  <Button variant="primary" size="lg" onClick={onGenerate} className="gap-2">
+                    <RefreshCw size={18} />
+                    画像を生成する
+                  </Button>
+                </div>
+              )}
+              {/* 画像があるとき：画像表示 */}
+              {article.imageUrl && (
+                <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
+                  <Image
+                    src={article.imageUrl}
+                    alt="生成された記事画像"
+                    width={1000}
+                    height={525}
+                    className="w-full h-auto"
+                    unoptimized
+                  />
+                </div>
+              )}
 
               <div className="flex items-center gap-3 flex-wrap justify-center">
                 <input
@@ -191,14 +190,13 @@ export default function ImageResult({
                   variant="ghost"
                   size="md"
                   onClick={onRegenerate}
-                  disabled={fireflyStatus as string === 'loading'}
+                  disabled={fireflyStatus === 'loading'}
                 >
                   <RefreshCw size={15} />
                   別の画像を生成する
                 </Button>
               </div>
 
-              {/* 画像の箱内：下書きに保存（左）・プレビューへ（右） */}
               <div className="w-full max-w-[640px] flex items-center justify-between gap-4 pt-2 border-t border-[#E2E8F0]">
                 <button
                   type="button"
@@ -221,7 +219,6 @@ export default function ImageResult({
               </div>
             </div>
           </Card>
-          )}
         </div>
 
         {/* 右：StepIndicator（固定幅） */}

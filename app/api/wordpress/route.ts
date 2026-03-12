@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       success: true,
       postId: result.id,
       postUrl: result.link,
+      wordpressUrl: result.link, // クライアント（editor/page.tsx）が wordpressUrl で参照するため必須
       editUrl: result.editLink,
       status: result.status,
     })

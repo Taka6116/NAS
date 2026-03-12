@@ -268,9 +268,22 @@ export async function postToWordPress(
   payload: WordPressPostPayload,
   status: 'draft' | 'publish' = 'draft'
 ): Promise<WordPressPostResult> {
-  const wpUrl = process.env.WORDPRESS_URL!;
-  const username = process.env.WORDPRESS_USERNAME!;
-  const appPassword = process.env.WORDPRESS_APP_PASSWORD!;
+  const wpUrl = process.env.WORDPRESS_URL?.trim();
+  const username = process.env.WORDPRESS_USERNAME?.trim();
+  const appPassword = process.env.WORDPRESS_APP_PASSWORD?.trim();
+
+  if (!wpUrl || !username || !appPassword) {
+    const missing = [
+      !wpUrl && 'WORDPRESS_URL',
+      !username && 'WORDPRESS_USERNAME',
+      !appPassword && 'WORDPRESS_APP_PASSWORD',
+    ].filter(Boolean);
+    throw new Error(`WordPressの環境変数が設定されていません: ${missing.join(', ')}`);
+  }
+
+  const rawCategoryId = process.env.WORDPRESS_CATEGORY_ID?.trim() || '115';
+  const categoryId = parseInt(rawCategoryId, 10);
+  const safeCategoryId = Number.isNaN(categoryId) || categoryId < 1 ? 115 : categoryId;
 
   // Basic認証のトークンを生成
   const credentials = Buffer.from(`${username}:${appPassword}`).toString('base64');
@@ -307,15 +320,18 @@ export async function postToWordPress(
       status: status,
       slug: payload.slug || undefined,
       ...(mediaId ? { featured_media: mediaId } : {}),
-      categories: [parseInt(process.env.WORDPRESS_CATEGORY_ID || '115', 10)],
+      categories: [safeCategoryId],
     }),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      `WordPress API error: ${response.status} - ${errorData.message || response.statusText}`
-    );
+    const message =
+      (errorData as { message?: string }).message ||
+      (errorData as { code?: string }).code ||
+      response.statusText;
+    console.error('WordPress API error response:', response.status, errorData);
+    throw new Error(`WordPress API error: ${response.status} - ${message}`);
   }
 
   const data = await response.json();

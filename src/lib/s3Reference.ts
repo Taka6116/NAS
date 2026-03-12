@@ -58,3 +58,24 @@ export async function getS3ObjectAsText(key: string): Promise<{ key: string; con
     return null
   }
 }
+
+/** S3オブジェクトをバイナリで取得（画像など）。Content-Type を返す */
+export async function getS3ObjectAsBuffer(key: string): Promise<{ body: Uint8Array; contentType?: string } | null> {
+  const client = getClient()
+  if (!client) return null
+  try {
+    const command = new GetObjectCommand({ Bucket: BUCKET!, Key: key })
+    const res = await client.send(command)
+    const body = res.Body
+    if (!body) return null
+    const bytes = await body.transformToByteArray()
+    const contentType = res.ContentType ?? undefined
+    return { body: bytes, contentType }
+  } catch {
+    return null
+  }
+}
+
+export function getS3BucketName(): string | null {
+  return BUCKET ?? null
+}

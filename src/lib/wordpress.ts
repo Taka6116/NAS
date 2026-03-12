@@ -16,15 +16,23 @@ export interface WordPressPostResult {
   status: 'draft' | 'publish';
 }
 
-// 監修者画像（大野 駿介さん）のURL。S3/CloudFront または環境変数で指定。
-// 優先: SUPERVISOR_IMAGE_URL > (NEXT_PUBLIC_CLOUDFRONT_URL + /images/supervisor/ohno-shunsuke.jpg) > WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト
-const SUPERVISOR_IMAGE_URL = (() => {
+/**
+ * 監修者画像（大野 駿介さん）のURLを実行時に取得。
+ * 優先: SUPERVISOR_IMAGE_URL（フルURL） > (NEXT_PUBLIC_CLOUDFRONT_URL + SUPERVISOR_IMAGE_PATH) > WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト
+ * S3のみ使用する場合（CloudFrontなし）:
+ *   SUPERVISOR_IMAGE_URL=https://data-for-nas.s3.ap-northeast-1.amazonaws.com/pictures/%E5%A4%A7%E9%87%8E%E6%A7%98.png
+ */
+export function getSupervisorImageUrl(): string {
   const direct = process.env.SUPERVISOR_IMAGE_URL?.trim();
   if (direct) return direct;
   const cloudFront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim();
-  if (cloudFront) return `${cloudFront.replace(/\/$/, '')}/images/supervisor/ohno-shunsuke.jpg`;
+  const path = process.env.SUPERVISOR_IMAGE_PATH?.trim();
+  if (cloudFront) {
+    const base = cloudFront.replace(/\/$/, '');
+    return path ? `${base}/${path}` : `${base}/images/supervisor/ohno-shunsuke.jpg`;
+  }
   return process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim() ?? 'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
-})();
+}
 
 /** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */
 interface WordPressMediaUploadResult {
@@ -242,8 +250,30 @@ function buildFaqSchema(faqs: Array<{ question: string; answer: string }>): stri
 }
 
 /**
+ * 本文先頭の「監修者：…」「実績：…」などの監修者テキストを除去する
+ * （画像付き監修者ブロックを別挿入するため、テキストの二重表示を防ぐ）
+ */
+function stripLeadingSupervisorText(content: string): string {
+  const lines = content.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i]!.trim();
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+    if (/^監修者[：:]\s*/.test(trimmed) || /^実績[：:]\s*/.test(trimmed) || /^株式会社日本提携支援\s+代表/.test(trimmed) || /^\(株\)日本M&Aセンター/.test(trimmed)) {
+      i++;
+      continue;
+    }
+    break;
+  }
+  return lines.slice(i).join('\n').replace(/^\n+/, '');
+}
+
+/**
  * メインの投稿コンテンツを構築
- * 順序: 本文最上部に記事画像（アイキャッチと同じ）→ 監修者ブロック → 記事本文 → Schema
+ * 順序: 本文最上部に記事画像（アイキャッチと同じ）→ 監修者ブロック（画像付き）→ 記事本文 → Schema
  * @param bodyTopImageUrl ウェブアプリで作成した画像のURL（WordPressメディア）。本文最上部とアイキャッチに使用
  */
 export function buildPostContent(
@@ -256,8 +286,11 @@ export function buildPostContent(
     .replace(/\s+/g, '-')
     .slice(0, 50);
 
+  // 0. 本文から先頭の監修者テキストを除去（画像付きブロックのみ表示するため）
+  const contentWithoutSupervisorText = stripLeadingSupervisorText(payload.content);
+
   // 1. 本文をHTMLに変換
-  const htmlBody = convertToHtml(payload.content);
+  const htmlBody = convertToHtml(contentWithoutSupervisorText);
 
   // 1-1. 本文最上部：アイキャッチ画像（監修者ブロックの前、中央・max-width:800px）
   const bodyTopImageBlock =
@@ -269,13 +302,13 @@ export function buildPostContent(
 `.trim()
       : '';
 
-  // 1-2. 監修者ブロック（灰色背景 #f3f4f6、左に丸画像・右にテキスト、上部に「監修者」見出し）
-  const supervisorBlock = SUPERVISOR_IMAGE_URL
-    ? `
+  // 1-2. 監修者ブロック（必ず挿入）：ウェブアプリ生成画像の直下、灰色背景・左に丸画像・右にテキスト
+  const supervisorImageUrl = getSupervisorImageUrl();
+  const supervisorBlock = `
 <div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:32px 0 40px;max-width:800px;margin-left:auto;margin-right:auto;">
   <p style="font-weight:700;color:#1e293b;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #e5e7eb;text-align:center;">監修者</p>
   <div style="display:flex;gap:20px;align-items:flex-start;">
-    <img src="${SUPERVISOR_IMAGE_URL}" alt="大野駿介" style="width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;display:block;"/>
+    <img src="${supervisorImageUrl}" alt="大野駿介" style="width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;display:block;"/>
     <div style="flex:1;min-width:0;font-size:14px;line-height:1.7;color:#374151;">
       <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">株式会社日本提携支援 代表取締役</p>
       <p style="margin:0 0 8px;font-weight:700;font-size:16px;color:#111827;">大野 駿介</p>
@@ -283,8 +316,7 @@ export function buildPostContent(
     </div>
   </div>
 </div>
-`.trim()
-    : '';
+`.trim();
 
   const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('\n\n');
 

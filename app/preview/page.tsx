@@ -18,10 +18,18 @@ const DUMMY_ARTICLES = [
   },
 ]
 
+/** 監修者ブロック＝S3の大野様画像をそのままの形で0.85倍に縮小表示。/api/supervisor-image 経由で取得。 */
+function getSupervisorBlockHtml(): string {
+  const imgUrl = '/api/supervisor-image'
+  return `<img src="${imgUrl}" alt="大野駿介" style="width:85%;height:auto;margin:32px auto 40px;display:block;" />`
+}
+
 function formatContent(content: string, imageUrl: string): string {
   const imageHtml = imageUrl
     ? `<img src="${imageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="" />`
     : ''
+
+  const supervisorBlock = getSupervisorBlockHtml()
 
   const bodyHtml = content
     .replace(
@@ -44,7 +52,7 @@ function formatContent(content: string, imageUrl: string): string {
     )
     .join('')
 
-  return imageHtml + bodyHtml
+  return imageHtml + supervisorBlock + bodyHtml
 }
 
 function PreviewContent() {

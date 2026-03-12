@@ -307,39 +307,57 @@ export async function postToWordPress(
     }
   }
 
-  // WordPress REST APIにPOST
-  const response = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      title: payload.title,
-      content: postContent,
-      status: status,
-      slug: payload.slug || undefined,
-      ...(mediaId ? { featured_media: mediaId } : {}),
-      categories: [safeCategoryId],
-    }),
-  });
+  const requestUrl = `${wpUrl}/wp-json/wp/v2/posts`;
+  const authHeaderValue = `Basic ***`; // ログ用（パスワードは出さない）
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message =
-      (errorData as { message?: string }).message ||
-      (errorData as { code?: string }).code ||
-      response.statusText;
-    console.error('WordPress API error response:', response.status, errorData);
-    throw new Error(`WordPress API error: ${response.status} - ${message}`);
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: payload.title,
+        content: postContent,
+        status: status,
+        slug: payload.slug || undefined,
+        ...(mediaId ? { featured_media: mediaId } : {}),
+        categories: [safeCategoryId],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message =
+        (errorData as { message?: string }).message ||
+        (errorData as { code?: string }).code ||
+        response.statusText;
+
+      // 403 等の原因特定用：詳細をコンソールに出力
+      console.error('[WordPress 403 デバッグ] リクエストURL:', requestUrl);
+      console.error('[WordPress 403 デバッグ] レスポンスステータス:', response.status);
+      console.error('[WordPress 403 デバッグ] レスポンスボディ:', JSON.stringify(errorData, null, 2));
+      console.error('[WordPress 403 デバッグ] 認証ヘッダー:', authHeaderValue);
+
+      throw new Error(`WordPress API error: ${response.status} - ${message}`);
+    }
+
+    const data = await response.json();
+    return {
+      id: data.id,
+      link: data.link,
+      editLink: `${wpUrl}/wp-admin/post.php?post=${data.id}&action=edit`,
+      status: data.status,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('WordPress API error:')) {
+      throw err;
+    }
+    // ネットワークエラー等
+    console.error('[WordPress デバッグ] リクエストURL:', requestUrl);
+    console.error('[WordPress デバッグ] 認証ヘッダー:', authHeaderValue);
+    console.error('[WordPress デバッグ] エラー:', err);
+    throw err;
   }
-
-  const data = await response.json();
-
-  return {
-    id: data.id,
-    link: data.link,
-    editLink: `${wpUrl}/wp-admin/post.php?post=${data.id}&action=edit`,
-    status: data.status,
-  };
 }

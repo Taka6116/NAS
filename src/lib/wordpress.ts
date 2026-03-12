@@ -246,7 +246,7 @@ export function buildPostContent(payload: WordPressPostPayload): string {
   // 2. FAQを抽出
   const faqs = extractFaqs(payload.content);
 
-  // 3. Schema生成
+  // 3. Schema生成（投稿には必ず含める）
   const articleSchema = buildArticleSchema(payload, slug);
   const faqSchema = buildFaqSchema(faqs);
 
@@ -307,7 +307,7 @@ export async function postToWordPress(
       status: status,
       slug: payload.slug || undefined,
       ...(mediaId ? { featured_media: mediaId } : {}),
-      // categories: [categoryId],
+      categories: [parseInt(process.env.WORDPRESS_CATEGORY_ID || '115', 10)],
     }),
   });
 

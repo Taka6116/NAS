@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { SavedArticle } from '@/lib/types'
-import { getAllArticles, saveArticle } from '@/lib/articleStorage'
-import { FileText, ExternalLink, Copy } from 'lucide-react'
+import { getAllArticles, saveArticle, deleteArticle } from '@/lib/articleStorage'
+import { FileText, ExternalLink, Copy, Trash2 } from 'lucide-react'
 
 export default function PublishedArticlesPage() {
   const [articles, setArticles] = useState<SavedArticle[]>([])
@@ -27,10 +27,21 @@ export default function PublishedArticlesPage() {
       status: 'draft',
       createdAt: new Date().toISOString(),
       scheduledDate: undefined,
+      imageUrl: '', // 画像はコピーしない（base64で容量を消費するため）。編集画面で再生成可能
     }
-    saveArticle(newArticle)
-    setCopiedId(article.id)
-    setTimeout(() => setCopiedId(null), 2000)
+    try {
+      saveArticle(newArticle)
+      setCopiedId(article.id)
+      setTimeout(() => setCopiedId(null), 2000)
+      loadArticles()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '保存に失敗しました')
+    }
+  }
+
+  const handleDelete = (article: SavedArticle) => {
+    if (!window.confirm(`「${(article.refinedTitle || article.title).slice(0, 30)}…」を一覧から削除しますか？\n（WordPress上の記事は削除されません）`)) return
+    deleteArticle(article.id)
     loadArticles()
   }
 
@@ -43,7 +54,7 @@ export default function PublishedArticlesPage() {
           過去投稿済み記事一覧
         </h1>
         <p className="text-sm mt-1" style={{ color: '#64748B' }}>
-          投稿済みの記事を閲覧できます
+          投稿済みの記事を閲覧できます。複製時は画像を含みません（編集画面で再生成できます）。
         </p>
       </div>
 
@@ -116,19 +127,34 @@ export default function PublishedArticlesPage() {
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => handleDuplicateToSaved(article)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 transition-colors"
-              style={{
-                background: copiedId === article.id ? '#E2E8F0' : '#F0F4FF',
-                border: '1px solid #C7D7FF',
-                color: '#1B2A4A',
-              }}
-            >
-              <Copy size={14} />
-              {copiedId === article.id ? '複製しました' : '保存済み記事一覧に複製する'}
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => handleDuplicateToSaved(article)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: copiedId === article.id ? '#E2E8F0' : '#F0F4FF',
+                  border: '1px solid #C7D7FF',
+                  color: '#1B2A4A',
+                }}
+              >
+                <Copy size={14} />
+                {copiedId === article.id ? '複製しました' : '保存済み記事一覧に複製する'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(article)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  color: '#B91C1C',
+                }}
+              >
+                <Trash2 size={14} />
+                削除する
+              </button>
+            </div>
           </div>
         ))}
       </div>

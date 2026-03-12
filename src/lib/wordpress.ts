@@ -21,15 +21,21 @@ const SUPERVISOR_IMAGE_URL =
   process.env.WORDPRESS_SUPERVISOR_IMAGE_URL ??
   'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
 
+/** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */
+interface WordPressMediaUploadResult {
+  id: number;
+  sourceUrl: string;
+}
+
 /**
- * Base64画像をWordPressメディアライブラリにアップロードしてメディアIDを返す
+ * Base64画像をWordPressメディアライブラリにアップロードしてメディアIDとURLを返す
  */
 async function uploadBase64ImageToWordPress(
   base64: string,
   mimeType: string,
   credentials: string,
   wpUrl: string
-): Promise<number> {
+): Promise<WordPressMediaUploadResult> {
   const buffer = Buffer.from(base64, 'base64');
   const ext = mimeType.split('/')[1] ?? 'png';
   const fileName = `nas-image-${Date.now()}.${ext}`;
@@ -49,7 +55,7 @@ async function uploadBase64ImageToWordPress(
   }
 
   const media = await res.json();
-  return media.id;
+  return { id: media.id, sourceUrl: media.source_url ?? media.link };
 }
 
 /**
@@ -206,9 +212,13 @@ function buildFaqSchema(faqs: Array<{ question: string; answer: string }>): stri
 
 /**
  * メインの投稿コンテンツを構築
- * HTML本文 + Article Schema + FAQ Schema を結合
+ * 順序: 本文最上部に記事画像（アイキャッチと同じ）→ 監修者ブロック → 記事本文 → Schema
+ * @param bodyTopImageUrl ウェブアプリで作成した画像のURL（WordPressメディア）。本文最上部とアイキャッチに使用
  */
-export function buildPostContent(payload: WordPressPostPayload): string {
+export function buildPostContent(
+  payload: WordPressPostPayload,
+  options?: { bodyTopImageUrl?: string }
+): string {
   const slug = payload.slug || payload.title
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
@@ -218,7 +228,17 @@ export function buildPostContent(payload: WordPressPostPayload): string {
   // 1. 本文をHTMLに変換
   const htmlBody = convertToHtml(payload.content);
 
-  // 1-2. 監修者ブロック（本文の最上部に挿入）
+  // 1-1. 本文最上部：ウェブアプリで作成した画像（アイキャッチと同じ）
+  const bodyTopImageBlock =
+    options?.bodyTopImageUrl
+      ? `
+<figure style="margin:0 0 32px;text-align:center;">
+  <img src="${options.bodyTopImageUrl}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;" loading="eager"/>
+</figure>
+`.trim()
+      : '';
+
+  // 1-2. 監修者ブロック（記事画像の直下に挿入）
   const supervisorBlock = SUPERVISOR_IMAGE_URL
     ? `
 <!-- Supervisor Block -->
@@ -241,7 +261,7 @@ export function buildPostContent(payload: WordPressPostPayload): string {
 `.trim()
     : '';
 
-  const fullBody = supervisorBlock ? `${supervisorBlock}\n\n${htmlBody}` : htmlBody;
+  const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('\n\n');
 
   // 2. FAQを抽出
   const faqs = extractFaqs(payload.content);
@@ -288,24 +308,27 @@ export async function postToWordPress(
   // Basic認証のトークンを生成
   const credentials = Buffer.from(`${username}:${appPassword}`).toString('base64');
 
-  // 投稿コンテンツ構築
-  const postContent = buildPostContent(payload);
-
-  // アイキャッチ画像をBase64からWordPressメディアへアップロード
+  // アイキャッチ画像を先にアップロード（本文最上部の画像URL取得のため）
   let mediaId: number | undefined;
+  let bodyTopImageUrl: string | undefined;
 
   if (payload.imageBase64) {
     try {
-      mediaId = await uploadBase64ImageToWordPress(
+      const mediaResult = await uploadBase64ImageToWordPress(
         payload.imageBase64,
         payload.imageBase64MimeType ?? 'image/png',
         credentials,
         wpUrl
       );
+      mediaId = mediaResult.id;
+      bodyTopImageUrl = mediaResult.sourceUrl;
     } catch (err) {
       console.error('アイキャッチ画像のアップロードに失敗しました（投稿は続行）:', err);
     }
   }
+
+  // 投稿コンテンツ構築（本文最上部に記事画像 → 監修者ブロック → 本文）
+  const postContent = buildPostContent(payload, { bodyTopImageUrl });
 
   const requestUrl = `${wpUrl}/wp-json/wp/v2/posts`;
   const authHeaderValue = `Basic ***`; // ログ用（パスワードは出さない）

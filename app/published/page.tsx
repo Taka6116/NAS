@@ -2,17 +2,37 @@
 
 import { useEffect, useState } from 'react'
 import { SavedArticle } from '@/lib/types'
-import { getAllArticles } from '@/lib/articleStorage'
-import { FileText, ExternalLink } from 'lucide-react'
+import { getAllArticles, saveArticle } from '@/lib/articleStorage'
+import { FileText, ExternalLink, Copy } from 'lucide-react'
 
 export default function PublishedArticlesPage() {
   const [articles, setArticles] = useState<SavedArticle[]>([])
   const [mounted, setMounted] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const loadArticles = () => {
+    setArticles(getAllArticles().filter(article => article.status === 'published'))
+  }
 
   useEffect(() => {
-    setArticles(getAllArticles().filter(article => article.status === 'published'))
+    loadArticles()
     setMounted(true)
   }, [])
+
+  const handleDuplicateToSaved = (article: SavedArticle) => {
+    const newArticle: SavedArticle = {
+      ...article,
+      id: `copy-${Date.now()}`,
+      wordpressUrl: undefined,
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      scheduledDate: undefined,
+    }
+    saveArticle(newArticle)
+    setCopiedId(article.id)
+    setTimeout(() => setCopiedId(null), 2000)
+    loadArticles()
+  }
 
   if (!mounted) return null
 
@@ -96,6 +116,19 @@ export default function PublishedArticlesPage() {
                 )}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => handleDuplicateToSaved(article)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium flex-shrink-0 transition-colors"
+              style={{
+                background: copiedId === article.id ? '#E2E8F0' : '#F0F4FF',
+                border: '1px solid #C7D7FF',
+                color: '#1B2A4A',
+              }}
+            >
+              <Copy size={14} />
+              {copiedId === article.id ? '複製しました' : '保存済み記事一覧に複製する'}
+            </button>
           </div>
         ))}
       </div>

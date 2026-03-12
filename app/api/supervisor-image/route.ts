@@ -37,12 +37,17 @@ export async function GET() {
       return new NextResponse(Buffer.from(result.body), {
         headers: {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=3600',
+          'Cache-Control': 'public, max-age=60',
         },
       })
     }
 
-    const res = await fetch(imageUrl, { cache: 'force-cache', next: { revalidate: 3600 } })
+    const res = await fetch(imageUrl, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    })
     if (!res.ok) {
       return new NextResponse(null, { status: res.status })
     }
@@ -51,7 +56,7 @@ export async function GET() {
     return new NextResponse(blob, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'public, max-age=60',
       },
     })
   } catch {

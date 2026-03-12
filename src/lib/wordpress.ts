@@ -16,22 +16,30 @@ export interface WordPressPostResult {
   status: 'draft' | 'publish';
 }
 
+/** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
+const DEFAULT_SUPERVISOR_IMAGE_URL = 'http://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
+
+/** 旧S3の監修者画像URL（このURLの場合はWordPressのURLに差し替える） */
+const LEGACY_S3_SUPERVISOR_PATTERN = /data-for-nas\.s3\.ap-northeast-1\.amazonaws\.com\/pictures\//i
+
 /**
  * 監修者画像（大野 駿介さん）のURLを実行時に取得。
- * 優先: SUPERVISOR_IMAGE_URL（フルURL） > (NEXT_PUBLIC_CLOUDFRONT_URL + SUPERVISOR_IMAGE_PATH) > WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト
- * S3のみ使用する場合（CloudFrontなし）:
- *   SUPERVISOR_IMAGE_URL=https://data-for-nas.s3.ap-northeast-1.amazonaws.com/pictures/%E5%A4%A7%E9%87%8E%E6%A7%98.png
+ * 左の丸画像は必ずWordPressメディアライブラリのお顔画像を使用。
+ * 優先: WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト（お顔画像URL）。S3/CloudFrontは使わない。
  */
 export function getSupervisorImageUrl(): string {
+  const wp = process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim();
+  if (wp) return wp;
   const direct = process.env.SUPERVISOR_IMAGE_URL?.trim();
-  if (direct) return direct;
-  const cloudFront = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim();
-  const path = process.env.SUPERVISOR_IMAGE_PATH?.trim();
-  if (cloudFront) {
-    const base = cloudFront.replace(/\/$/, '');
-    return path ? `${base}/${path}` : `${base}/images/supervisor/ohno-shunsuke.jpg`;
-  }
-  return process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim() ?? 'https://nihon-teikei.co.jp/wp-content/uploads/ohno-supervisor.jpg';
+  if (direct && !LEGACY_S3_SUPERVISOR_PATTERN.test(direct)) return direct;
+  return DEFAULT_SUPERVISOR_IMAGE_URL;
+}
+
+/** WordPress投稿本文用の監修者画像URL。メディアライブラリのURLを優先（下書きで表示される）。 */
+export function getSupervisorImageUrlForWordPress(): string {
+  const wpUrl = process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim();
+  if (wpUrl) return wpUrl;
+  return getSupervisorImageUrl();
 }
 
 /** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */
@@ -78,9 +86,12 @@ async function uploadBase64ImageToWordPress(
  * - *斜体* → <em>
  * - 既存の <strong>, <em>, <u>, <a>, <br> はそのまま通過
  */
+/** プレビューとWordPressで同一表示にするための strong スタイル */
+const STRONG_STYLE = 'color:#0e357f;font-weight:700;';
+
 function applyInlineFormatting(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, `<strong style="${STRONG_STYLE}">$1</strong>`)
     .replace(/__(.+?)__/g, '<span style="text-decoration:underline;">$1</span>')
     .replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 }
@@ -90,14 +101,15 @@ function emphasizeListLabel(line: string): string {
   const match = line.match(/^([・\s]*)([^：:]+)([：:])\s*(.*)$/);
   if (match) {
     const [, bullet, label, colon, rest] = match;
-    return `${bullet}<strong>${label.trim()}</strong>${colon} ${rest}`;
+    return `${bullet}<strong style="${STRONG_STYLE}">${label.trim()}</strong>${colon} ${rest}`;
   }
   return applyInlineFormatting(line);
 }
 
-const HEADING_STYLE = 'font-weight:700;color:#1e3a8a;margin:1em 0 0.5em;';
-const H2_STYLE = HEADING_STYLE + 'font-size:1.25em;';
-const H3_STYLE = HEADING_STYLE + 'font-size:1.05em;';
+/** プレビューと同一の見出し・本文スタイル（WordPress本文で使用） */
+const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;";
+const H3_STYLE = 'font-size:18px;font-weight:700;margin:32px 0 12px;color:#111;';
+const P_STYLE = 'margin-bottom:1.6em;';
 
 /**
  * プレーンテキストの本文をHTMLに変換する
@@ -118,7 +130,7 @@ export function convertToHtml(content: string): string {
           .split('<br>')
           .map(emphasizeListLabel)
           .join('<br>');
-        htmlLines.push(`<p style="line-height:1.8;">${text}</p>`);
+        htmlLines.push(`<p style="${P_STYLE}">${text}</p>`);
       }
       currentParagraph = [];
     }
@@ -292,33 +304,31 @@ export function buildPostContent(
   // 1. 本文をHTMLに変換
   const htmlBody = convertToHtml(contentWithoutSupervisorText);
 
-  // 1-1. 本文最上部：アイキャッチ画像（監修者ブロックの前、中央・max-width:800px）
+  // 1-1. 本文最上部：記事画像（プレビューと同じスタイル）
   const bodyTopImageBlock =
     options?.bodyTopImageUrl
-      ? `
-<figure style="margin:0 0 32px;text-align:center;">
-  <img src="${options.bodyTopImageUrl}" alt="" style="max-width:800px;width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;" loading="eager"/>
-</figure>
-`.trim()
+      ? `<img src="${options.bodyTopImageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="" />`
       : '';
 
-  // 1-2. 監修者ブロック（必ず挿入）：ウェブアプリ生成画像の直下、灰色背景・左に丸画像・右にテキスト
-  const supervisorImageUrl = getSupervisorImageUrl();
+  // 1-2. 監修者ブロック（コンパクトなカード・WordPressメディアURLを優先）
+  const supervisorImageUrl = getSupervisorImageUrlForWordPress();
   const supervisorBlock = `
-<div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:32px 0 40px;max-width:800px;margin-left:auto;margin-right:auto;">
-  <p style="font-weight:700;color:#1e293b;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #e5e7eb;text-align:center;">監修者</p>
-  <div style="display:flex;gap:20px;align-items:flex-start;">
-    <img src="${supervisorImageUrl}" alt="大野駿介" style="width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:center;flex-shrink:0;display:block;"/>
-    <div style="flex:1;min-width:0;font-size:14px;line-height:1.7;color:#374151;">
-      <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">株式会社日本提携支援 代表取締役</p>
-      <p style="margin:0 0 8px;font-weight:700;font-size:16px;color:#111827;">大野 駿介</p>
-      <p style="margin:0;font-size:13px;color:#4b5563;">過去1,000件超のM&amp;A相談、50件超のアドバイザリー契約、15組超のM&amp;A成約組数を担当。(株)日本M&amp;Aセンターにて、年間最多アドバイザリー契約受賞経験あり。新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。</p>
+<div style="max-width:600px;margin:24px auto 32px;background:#f3f4f6;border-radius:10px;padding:14px 18px;">
+  <p style="font-weight:700;font-size:14px;color:#1e293b;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;text-align:center;">監修者</p>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <img src="${supervisorImageUrl}" alt="大野駿介" style="width:64px;height:64px;border-radius:50%;object-fit:cover;object-position:center 25%;flex-shrink:0;display:block;" />
+    <div style="flex:1;min-width:0;font-size:12px;line-height:1.6;color:#374151;">
+      <p style="margin:0 0 2px;font-size:11px;color:#6b7280;">株式会社日本提携支援 代表取締役</p>
+      <p style="margin:0 0 6px;font-weight:700;font-size:14px;color:#111827;">大野 駿介</p>
+      <p style="margin:0 0 2px;font-size:11px;color:#4b5563;white-space:nowrap;">過去1,000件超のM&amp;A相談、50件超のアドバイザリー契約、15組超のM&amp;A成約組数を担当。</p>
+      <p style="margin:0 0 2px;font-size:11px;color:#4b5563;white-space:nowrap;">(株)日本M&amp;Aセンターにて、年間最多アドバイザリー契約受賞経験あり。</p>
+      <p style="margin:0;font-size:11px;color:#4b5563;white-space:nowrap;">新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。</p>
     </div>
   </div>
 </div>
 `.trim();
 
-  const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('\n\n');
+  const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('');
 
   // 2. FAQを抽出
   const faqs = extractFaqs(payload.content);

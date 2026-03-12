@@ -58,12 +58,32 @@ async function uploadBase64ImageToWordPress(
   return { id: media.id, sourceUrl: media.source_url ?? media.link };
 }
 
+/** インラインの **太字** を <strong> に変換（エスケープ済み文字列に使用） */
+function applyInlineStrong(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<span style="border-bottom:2px solid #1e3a8a;">$1</span>');
+}
+
+/** リスト行「・ラベル: 説明」のラベル部分を太字に */
+function emphasizeListLabel(line: string): string {
+  const match = line.match(/^([・\s]*)([^：:]+)([：:])\s*(.*)$/);
+  if (match) {
+    const [, bullet, label, colon, rest] = match;
+    return `${bullet}<strong>${label.trim()}</strong>${colon} ${rest}`;
+  }
+  return applyInlineStrong(line);
+}
+
+const HEADING_STYLE = 'font-weight:700;color:#1e3a8a;margin:1em 0 0.5em;';
+const H2_STYLE = HEADING_STYLE + 'font-size:1.25em;';
+const H3_STYLE = HEADING_STYLE + 'font-size:1.05em;';
+
 /**
  * プレーンテキストの本文をHTMLに変換する
- * Geminiが生成した本文フォーマット：
- * - 「1. 見出し」→ <h2>
- * - 「1-1. 小見出し」→ <h3>
- * - 空行区切り → <p>
+ * - 見出しは太字・色 #1e3a8a
+ * - **テキスト** → <strong>、__テキスト__ → 下線
+ * - 「・ラベル: 説明」のラベルを太字に
  */
 export function convertToHtml(content: string): string {
   const lines = content.split('\n');
@@ -72,9 +92,13 @@ export function convertToHtml(content: string): string {
 
   function flushParagraph() {
     if (currentParagraph.length > 0) {
-      const text = currentParagraph.join('<br>').trim();
-      if (text) {
-        htmlLines.push(`<p>${text}</p>`);
+      const raw = currentParagraph.join('<br>').trim();
+      if (raw) {
+        const text = raw
+          .split('<br>')
+          .map(emphasizeListLabel)
+          .join('<br>');
+        htmlLines.push(`<p style="line-height:1.8;">${text}</p>`);
       }
       currentParagraph = [];
     }
@@ -83,37 +107,32 @@ export function convertToHtml(content: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // 空行：段落を区切る
     if (!trimmed) {
       flushParagraph();
       continue;
     }
 
-    // H2：「1. 」「2. 」形式
     if (/^\d+[．.]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^\d+[．.]\s*/, '');
-      htmlLines.push(`<h2>${text}</h2>`);
+      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineStrong(text)}</h2>`);
       continue;
     }
 
-    // H3：「1-1. 」「1-2. 」形式
     if (/^\d+-\d+[．.]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '');
-      htmlLines.push(`<h3>${text}</h3>`);
+      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineStrong(text)}</h3>`);
       continue;
     }
 
-    // H3：「■」「▶」「◆」「●」「▼」形式
     if (/^[■▶◆●▼]\s/.test(trimmed)) {
       flushParagraph();
       const text = trimmed.replace(/^[■▶◆●▼]\s*/, '');
-      htmlLines.push(`<h3>${text}</h3>`);
+      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineStrong(text)}</h3>`);
       continue;
     }
 
-    // 通常テキスト：段落に追加
     currentParagraph.push(trimmed);
   }
 
@@ -228,33 +247,27 @@ export function buildPostContent(
   // 1. 本文をHTMLに変換
   const htmlBody = convertToHtml(payload.content);
 
-  // 1-1. 本文最上部：ウェブアプリで作成した画像（アイキャッチと同じ）
+  // 1-1. 本文最上部：アイキャッチ画像（監修者ブロックの前、中央・max-width:800px）
   const bodyTopImageBlock =
     options?.bodyTopImageUrl
       ? `
 <figure style="margin:0 0 32px;text-align:center;">
-  <img src="${options.bodyTopImageUrl}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;" loading="eager"/>
+  <img src="${options.bodyTopImageUrl}" alt="" style="max-width:800px;width:100%;height:auto;border-radius:8px;display:block;margin:0 auto;" loading="eager"/>
 </figure>
 `.trim()
       : '';
 
-  // 1-2. 監修者ブロック（記事画像の直下に挿入）
+  // 1-2. 監修者ブロック（灰色背景 #f3f4f6、左に丸画像・右にテキスト、上部に「監修者」見出し）
   const supervisorBlock = SUPERVISOR_IMAGE_URL
     ? `
-<!-- Supervisor Block -->
-<div style="text-align:center;margin:32px auto 40px;max-width:780px;">
-  <div style="display:inline-block;text-align:left;background:#f8fafc;border-radius:16px;padding:24px 24px 20px;border:1px solid #e2e8f0;">
-    <div style="display:flex;gap:16px;align-items:flex-start;">
-      <img src="${SUPERVISOR_IMAGE_URL}"
-           alt="株式会社日本提携支援 代表取締役 大野 駿介"
-           style="width:96px;height:96px;border-radius:999px;object-fit:cover;flex-shrink:0;"/>
-      <div style="font-size:14px;line-height:1.6;color:#1e293b;">
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px;color:#0f172a;">監修者</div>
-        <div style="font-weight:700;">株式会社日本提携支援 代表取締役<br/>大野 駿介</div>
-        <div style="margin-top:6px;font-size:13px;color:#475569;">
-          過去1,000件超のM&A相談、50件超のアドバイザリー契約、15組超のM&A成約組数を担当。(株)日本M&amp;Aセンターにて、年間最多アドバイザリー契約受賞経験あり。新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。
-        </div>
-      </div>
+<div style="background:#f3f4f6;border-radius:12px;padding:24px;margin:32px 0 40px;max-width:800px;margin-left:auto;margin-right:auto;">
+  <p style="font-weight:700;color:#1e293b;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #e5e7eb;text-align:center;">監修者</p>
+  <div style="display:flex;gap:20px;align-items:flex-start;">
+    <img src="${SUPERVISOR_IMAGE_URL}" alt="大野 駿介" style="width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block;"/>
+    <div style="flex:1;min-width:0;font-size:14px;line-height:1.7;color:#374151;">
+      <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">株式会社日本提携支援 代表取締役</p>
+      <p style="margin:0 0 8px;font-weight:700;font-size:16px;color:#111827;">大野 駿介</p>
+      <p style="margin:0;font-size:13px;color:#4b5563;">過去1,000件超のM&amp;A相談、50件超のアドバイザリー契約、15組超のM&amp;A成約組数を担当。(株)日本M&amp;Aセンターにて、年間最多アドバイザリー契約受賞経験あり。新規提携先の開拓やマネジメント経験を経て、(株)日本提携支援を設立。</p>
     </div>
   </div>
 </div>

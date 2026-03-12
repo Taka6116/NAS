@@ -239,10 +239,8 @@ function EditorContent() {
       return
     }
     prevStepRef.current = 3
-    if (fireflyStatus === 'idle') {
-      triggerFirefly()
-    }
-  }, [mounted, currentStep, article.imageUrl, fireflyStatus, triggerFirefly])
+    // 画像は「画像を生成する」クリックで開始（自動では開始しない）
+  }, [mounted, currentStep, article.imageUrl, fireflyStatus])
 
   const handleStep3NextComplete = useCallback(() => setCurrentStep(5), [])
 
@@ -481,6 +479,7 @@ function EditorContent() {
           onSaveDraft={handleSaveDraft}
           onNext={handleStep3NextComplete}
           onRegenerate={handleRegenerate}
+          onGenerate={triggerFirefly}
           onImageUpload={handleImageUpload}
           onStepClick={handleStepClick}
           articleId={currentArticleId}

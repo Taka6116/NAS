@@ -18,6 +18,8 @@ interface ImageResultProps {
   onSaveDraft: () => string | void
   onNext: () => void
   onRegenerate: () => void
+  /** 初回の画像生成を開始する（クリックで呼ぶ） */
+  onGenerate?: () => void
   /** クライアント画像を選択したときに呼ばれる（imageUrl を上書き） */
   onImageUpload?: (imageUrl: string) => void
   onStepClick?: (step: Step) => void
@@ -33,6 +35,7 @@ export default function ImageResult({
   onSaveDraft,
   onNext,
   onRegenerate,
+  onGenerate,
   onImageUpload,
   onStepClick,
   articleId = null,
@@ -104,6 +107,21 @@ export default function ImageResult({
               <p className="mt-1 break-all">{fireflyError}</p>
             </div>
           )}
+          {/* 未生成：画像を生成するボタンを表示（idle または error で再試行） */}
+          {!article.imageUrl && (fireflyStatus === 'idle' || fireflyStatus === 'error') && onGenerate && (
+            <Card>
+              <div className="flex flex-col items-center gap-5 py-8">
+                <p className="text-sm text-[#64748B]">
+                  {fireflyStatus === 'error' ? 'もう一度お試しください。' : '記事用の画像を生成します（30秒～1分ほどかかります）'}
+                </p>
+                <Button variant="primary" size="lg" onClick={onGenerate} className="gap-2">
+                  <RefreshCw size={18} />
+                  画像を生成する
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* ローディング */}
           {fireflyStatus === 'loading' && (
             <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
@@ -133,21 +151,20 @@ export default function ImageResult({
             </div>
           )}
 
-          {/* 画像カード（画像の箱）：下書きに保存・プレビューへはカード内左右に配置 */}
+          {/* 画像カード（画像があるときのみ）：下書きに保存・プレビューへはカード内左右に配置 */}
+          {article.imageUrl && (
           <Card>
             <div className="flex flex-col items-center gap-5">
-              {article.imageUrl && (
-                <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
-                  <Image
-                    src={article.imageUrl}
-                    alt="生成された記事画像"
-                    width={1000}
-                    height={525}
-                    className="w-full h-auto"
-                    unoptimized
-                  />
-                </div>
-              )}
+              <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
+                <Image
+                  src={article.imageUrl}
+                  alt="生成された記事画像"
+                  width={1000}
+                  height={525}
+                  className="w-full h-auto"
+                  unoptimized
+                />
+              </div>
 
               <div className="flex items-center gap-3 flex-wrap justify-center">
                 <input
@@ -204,6 +221,7 @@ export default function ImageResult({
               </div>
             </div>
           </Card>
+          )}
         </div>
 
         {/* 右：StepIndicator（固定幅） */}

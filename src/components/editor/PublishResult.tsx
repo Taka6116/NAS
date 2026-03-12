@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Typ
 interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
+  wordpressError?: string | null
   onBack: () => void
   onSaveDraft: () => void
   onPublish: () => void
@@ -22,6 +23,7 @@ interface PublishResultProps {
 export default function PublishResult({
   article,
   wordpressStatus,
+  wordpressError = null,
   onBack,
   onSaveDraft,
   onPublish,
@@ -223,23 +225,37 @@ export default function PublishResult({
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={onSaveDraft}
-                className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
-                style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
-              >
-                💾 下書きに保存
-              </button>
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={onPublish}
-                className="justify-center"
-              >
-                <CheckCircle size={18} />
-                WordPressに投稿する
-              </Button>
+            <div className="flex flex-col gap-3">
+              {wordpressStatus === 'error' && wordpressError && (
+                <div
+                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                  role="alert"
+                >
+                  <p className="font-medium mb-1">投稿に失敗しました</p>
+                  <p className="font-mono text-xs break-all">{wordpressError}</p>
+                  <p className="mt-2 text-xs text-red-600">
+                    Vercelの環境変数（WORDPRESS_URL / USERNAME / APP_PASSWORD）や、WordPressのアプリパスワード（0とO・スペース）を確認してください。
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={onSaveDraft}
+                  className="flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-medium"
+                  style={{ background: '#F0F4FF', border: '1.5px solid #C7D7FF', color: '#1B2A4A' }}
+                >
+                  💾 下書きに保存
+                </button>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={onPublish}
+                  className="justify-center"
+                >
+                  <CheckCircle size={18} />
+                  WordPressに投稿する
+                </Button>
+              </div>
             </div>
           )}
         </div>

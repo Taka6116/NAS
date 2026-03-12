@@ -66,6 +66,7 @@ function EditorContent() {
   const [fireflyStatus, setFireflyStatus] = useState<ProcessingState>('idle')
   const [fireflyError, setFireflyError] = useState<string | null>(null)
   const [wordpressStatus, setWordpressStatus] = useState<ProcessingState>('idle')
+  const [wordpressError, setWordpressError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const prevStepRef = useRef<Step>(1)
 
@@ -332,6 +333,7 @@ function EditorContent() {
 
   const handlePublish = useCallback(async () => {
     setWordpressStatus('loading')
+    setWordpressError(null)
     try {
       const contentWithLinks = applyInternalLinksToHtml(
         article.refinedContent,
@@ -370,8 +372,9 @@ function EditorContent() {
         })
       }
       setWordpressStatus('success')
-    } catch {
+    } catch (e) {
       setWordpressStatus('error')
+      setWordpressError(e instanceof Error ? e.message : 'WordPress投稿に失敗しました')
     }
   }, [
     article.title,
@@ -394,6 +397,7 @@ function EditorContent() {
     setGeminiError(null)
     setFireflyStatus('idle')
     setWordpressStatus('idle')
+    setWordpressError(null)
   }, [])
 
   const handleClearArticle = useCallback(() => {
@@ -403,6 +407,7 @@ function EditorContent() {
     setGeminiError(null)
     setFireflyStatus('idle')
     setWordpressStatus('idle')
+    setWordpressError(null)
     setCurrentStep(1)
   }, [])
 
@@ -417,6 +422,7 @@ function EditorContent() {
     setFireflyStatus('idle')
     setFireflyError(null)
     setWordpressStatus('idle')
+    setWordpressError(null)
     setCurrentStep(1)
     router.replace('/editor')
   }, [router])
@@ -484,6 +490,7 @@ function EditorContent() {
         <PublishResult
           article={article}
           wordpressStatus={wordpressStatus}
+          wordpressError={wordpressError}
           onBack={() => setCurrentStep(3)}
           onSaveDraft={handleSaveDraft}
           onPublish={handlePublish}

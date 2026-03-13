@@ -88,27 +88,47 @@
                 grid grid-cols-2 gap-6 rounded-xl border border-[#E2E8F0] overflow-hidden shadow-sm
               "
             >
-               {/* 左: 元の記事 */}
+              {/* 左: 元の記事 */}
               <div className="flex flex-col bg-[#F8FAFC]">
-                 <div className="flex items-center gap-2 px-5 py-3 border-b border-[#E2E8F0]">
-                   <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">
-                     元の記事
-                   </span>
-                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E2E8F0] text-[#64748B]">
-                     入力済み
-                   </span>
-                 </div>
-                 <div className="px-5 py-3 border-b border-[#E2E8F0]">
-                   <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
-                     記事タイトル
-                   </label>
-                   <input
-                     type="text"
-                     readOnly
-                     value={article.title}
-                     className="w-full px-4 py-2 rounded-lg border border-[#E2E8F0] bg-[#F1F5F9] text-[#64748B] text-sm focus:outline-none"
-                   />
-                 </div>
+                <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">
+                      元の記事
+                    </span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E2E8F0] text-[#64748B]">
+                      入力済み
+                    </span>
+                  </div>
+                  {/* 右カラムのコピー ボタンと高さを揃えるためのダミーボタン（見た目は非表示） */}
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    className="
+                      inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                      border border-[#E2E8F0] text-[#F8FAFC] opacity-0
+                    "
+                    tabIndex={-1}
+                  >
+                    <ClipboardCopy size={13} />
+                    全文コピー
+                  </button>
+                </div>
+                <div className="px-5 py-3 border-b border-[#E2E8F0]">
+                  <label className="block text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">
+                    記事タイトル
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={article.title}
+                    className="
+                      w-full px-4 py-2 rounded-lg border border-[#E2E8F0]
+                      bg-[#F1F5F9] text-[#64748B] text-sm placeholder-[#CBD5E1]
+                      focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                      transition-all
+                    "
+                  />
+                </div>
                  <textarea
                    readOnly
                    value={article.originalContent}

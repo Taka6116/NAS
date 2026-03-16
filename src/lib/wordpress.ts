@@ -44,6 +44,90 @@ export function getSupervisorImageUrlForWordPress(): string {
   return getSupervisorImageUrl();
 }
 
+/**
+ * WordPress投稿用のCTAバナー画像URLを取得
+ * 環境変数 NEXT_PUBLIC_CLOUDFRONT_URL があればCloudFront経由、なければS3直接URLを返す
+ */
+function getCtaBannerImageUrl(): string {
+  const cloudFrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim();
+  if (cloudFrontUrl) {
+    return `${cloudFrontUrl}/data-for-nas/pictures/NTS+CTA+%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7%E4%BB%98%E3%81%8D.png`;
+  }
+  return 'https://data-for-nas.s3.ap-northeast-1.amazonaws.com/pictures/NTS+CTA+%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7%E4%BB%98%E3%81%8D.png';
+}
+
+/**
+ * CTAバナーのHTMLブロックを生成
+ * クリックで https://nihon-teikei.co.jp/contact/ に遷移する
+ */
+function buildCtaBannerHtml(): string {
+  const imageUrl = getCtaBannerImageUrl();
+  return `<div style="text-align:center;margin:40px 0;padding:0;">
+  <a href="https://nihon-teikei.co.jp/contact/" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;">
+    <img src="${imageUrl}" alt="M&Aの専門家に無料で相談してみる - 03-6455-2940（10:00〜20:00 年中無休）" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" />
+  </a>
+</div>`;
+}
+
+/**
+ * 記事本文HTMLの「中盤」にCTAバナーを挿入する
+ *
+ * ロジック:
+ * 1. htmlBody 内のすべての <h2 タグの出現位置を取得
+ * 2. h2 が3個以上 → 中間のh2の直前に挿入
+ * 3. h2 が2個 → 2番目のh2の直前に挿入
+ * 4. h2 が1個以下 → 段落(<p>)の中間地点付近の直後に挿入（フォールバック）
+ *
+ * @param htmlBody convertToHtml + linkifyCtaUrls 適用済みの本文HTML
+ * @returns CTAバナーが挿入された本文HTML
+ */
+function insertCtaBannerIntoBody(htmlBody: string): string {
+  const ctaBannerHtml = buildCtaBannerHtml();
+
+  // h2タグの出現位置をすべて取得
+  const h2Regex = /<h2[\s>]/gi;
+  const h2Positions: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = h2Regex.exec(htmlBody)) !== null) {
+    h2Positions.push(match.index);
+  }
+
+  if (h2Positions.length >= 3) {
+    // h2が3個以上 → 中間のh2直前に挿入
+    const midIndex = Math.floor(h2Positions.length / 2);
+    const insertPos = h2Positions[midIndex]!;
+    return htmlBody.slice(0, insertPos) + ctaBannerHtml + '\n' + htmlBody.slice(insertPos);
+  } else if (h2Positions.length === 2) {
+    // h2が2個 → 2番目のh2直前に挿入
+    const insertPos = h2Positions[1]!;
+    return htmlBody.slice(0, insertPos) + ctaBannerHtml + '\n' + htmlBody.slice(insertPos);
+  }
+
+  // h2が1個以下の場合は <p> の終端(</p>)を使って本文の中間あたりを探す
+  const pEndRegex = /<\/p>/gi;
+  const pEndPositions: number[] = [];
+  let pMatch: RegExpExecArray | null;
+  while ((pMatch = pEndRegex.exec(htmlBody)) !== null) {
+    // </p> の直後に挿入したいので、タグの末尾位置を記録
+    pEndPositions.push(pMatch.index + pMatch[0].length);
+  }
+
+  if (pEndPositions.length >= 2) {
+    const midIndex = Math.floor(pEndPositions.length / 2);
+    const insertPos = pEndPositions[midIndex]!;
+    return (
+      htmlBody.slice(0, insertPos) +
+      '\n' +
+      ctaBannerHtml +
+      '\n' +
+      htmlBody.slice(insertPos)
+    );
+  }
+
+  // フォールバック：本文末尾に追加
+  return htmlBody + '\n' + ctaBannerHtml;
+}
+
 /** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */
 interface WordPressMediaUploadResult {
   id: number;
@@ -132,7 +216,14 @@ export function convertToHtml(content: string): string {
           .split('<br>')
           .map(emphasizeListLabel)
           .join('<br>');
-        htmlLines.push(`<p style="${P_STYLE}">${text}</p>`);
+
+        // 既にブロック要素(<p>, <h2> など)で始まっている場合は二重に <p> で囲まない
+        const isBlockElement = /^<(p|h[1-6]|div|ul|ol|li|table|script|!--)/i.test(text.trim());
+        if (isBlockElement) {
+          htmlLines.push(text);
+        } else {
+          htmlLines.push(`<p style="${P_STYLE}">${text}</p>`);
+        }
       }
       currentParagraph = [];
     }
@@ -197,9 +288,25 @@ function extractFaqs(content: string): Array<{ question: string; answer: string 
 
 /**
  * Article Schema（構造化データ）を生成
+ * image.url には必ず HTTPS のURLのみを使用し、data URL(base64)は入れない
  */
-function buildArticleSchema(payload: WordPressPostPayload, slug: string): string {
-  const schema = {
+function buildArticleSchema(
+  payload: WordPressPostPayload,
+  slug: string,
+  options?: { bodyTopImageUrl?: string }
+): string {
+  // Schema用の画像URL決定ロジック
+  // 1. WordPressメディアにアップロード済みのURL（bodyTopImageUrl）があれば最優先
+  // 2. payload.imageUrl が data: で始まらない通常のURLならそれを使用
+  // 3. どちらも無ければ image プロパティ自体を省略
+  let schemaImageUrl: string | null = null;
+  if (options?.bodyTopImageUrl) {
+    schemaImageUrl = options.bodyTopImageUrl;
+  } else if (payload.imageUrl && !payload.imageUrl.startsWith('data:')) {
+    schemaImageUrl = payload.imageUrl;
+  }
+
+  const schema: any = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     'headline': payload.title,
@@ -223,12 +330,6 @@ function buildArticleSchema(payload: WordPressPostPayload, slug: string): string
       '@type': 'WebPage',
       '@id': `https://nihon-teikei.co.jp/news/column/${slug}`,
     },
-    ...(payload.imageUrl ? {
-      'image': {
-        '@type': 'ImageObject',
-        'url': payload.imageUrl,
-      },
-    } : {}),
     ...(payload.targetKeyword ? {
       'keywords': payload.targetKeyword,
       'about': {
@@ -237,6 +338,13 @@ function buildArticleSchema(payload: WordPressPostPayload, slug: string): string
       },
     } : {}),
   };
+
+  if (schemaImageUrl) {
+    schema.image = {
+      '@type': 'ImageObject',
+      'url': schemaImageUrl,
+    };
+  }
 
   return `<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`;
 }
@@ -324,6 +432,9 @@ export function buildPostContent(
   let htmlBody = convertToHtml(contentWithoutSupervisorText);
   htmlBody = linkifyCtaUrls(htmlBody);
 
+  // 1-0. CTAバナーを本文中盤に挿入
+  htmlBody = insertCtaBannerIntoBody(htmlBody);
+
   // 1-1. 本文最上部：記事画像（プレビューと同じスタイル）
   const bodyTopImageBlock =
     options?.bodyTopImageUrl
@@ -340,7 +451,7 @@ export function buildPostContent(
   const faqs = extractFaqs(payload.content);
 
   // 3. Schema生成（投稿には必ず含める）
-  const articleSchema = buildArticleSchema(payload, slug);
+  const articleSchema = buildArticleSchema(payload, slug, { bodyTopImageUrl: options?.bodyTopImageUrl });
   const faqSchema = buildFaqSchema(faqs);
 
   // 4. 結合（本文 → Article Schema → FAQ Schema）

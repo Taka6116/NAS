@@ -9,6 +9,7 @@ export default function PublishedArticlesPage() {
   const [articles, setArticles] = useState<SavedArticle[]>([])
   const [mounted, setMounted] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<SavedArticle | null>(null)
 
   const loadArticles = () => {
     setArticles(getAllArticles().filter(article => article.status === 'published'))
@@ -40,9 +41,7 @@ export default function PublishedArticlesPage() {
   }
 
   const handleDelete = (article: SavedArticle) => {
-    if (!window.confirm(`「${(article.refinedTitle || article.title).slice(0, 30)}…」を一覧から削除しますか？\n（WordPress上の記事は削除されません）`)) return
-    deleteArticle(article.id)
-    loadArticles()
+    setConfirmTarget(article)
   }
 
   if (!mounted) return null
@@ -158,6 +157,51 @@ export default function PublishedArticlesPage() {
           </div>
         ))}
       </div>
+
+      {/* 削除確認モーダル（画面中央） */}
+      {confirmTarget && (
+        <div
+          className="
+            fixed inset-0 z-50 flex items-center justify-center
+            bg-black/40
+          "
+        >
+          <div
+            className="w-full max-w-md rounded-xl p-6 space-y-4"
+            style={{ background: 'white', boxShadow: '0 10px 25px rgba(15,23,42,0.18)' }}
+          >
+            <h2 className="text-base font-semibold" style={{ color: '#1A1A2E' }}>
+              記事を一覧から削除しますか？
+            </h2>
+            <p className="text-sm" style={{ color: '#64748B', whiteSpace: 'pre-line' }}>
+              {`「${(confirmTarget.refinedTitle || confirmTarget.title).slice(0, 30)}…」を一覧から削除しますか？\n（WordPress上の記事は削除されません）`}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: '#E2E8F0', color: '#1F2933' }}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteArticle(confirmTarget.id)
+                  setConfirmTarget(null)
+                  loadArticles()
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: '#DC2626', color: 'white' }}
+              >
+                <Trash2 size={14} />
+                削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

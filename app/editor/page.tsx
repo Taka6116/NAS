@@ -68,6 +68,7 @@ function EditorContent() {
   const [wordpressStatus, setWordpressStatus] = useState<ProcessingState>('idle')
   const [wordpressError, setWordpressError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
@@ -295,7 +296,7 @@ function EditorContent() {
       return
     }
 
-    alert('下書きを保存しました')
+    setToastMessage('下書きを保存しました')
     return id
   }, [article, currentArticleId, searchParams])
 
@@ -499,6 +500,20 @@ function EditorContent() {
           onRefinedTitleChange={title => updateArticle({ refinedTitle: title })}
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
         />
+      )}
+
+      {toastMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl max-w-sm w-full mx-4 p-6 text-center">
+            <p className="text-sm font-medium text-[#1A1A2E] mb-5">{toastMessage}</p>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="px-8 py-2 rounded-full bg-[#1B2A4A] text-white text-sm font-semibold hover:bg-[#162240] transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

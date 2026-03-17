@@ -100,6 +100,13 @@ function insertCtaBannerIntoBody(htmlBody: string): string {
     return htmlBody.slice(0, matomeMatch.index) + ctaBannerHtml + '\n' + htmlBody.slice(matomeMatch.index);
   }
 
+  // 次点: 「まとめ」で始まる段落/小見出しの直前に挿入
+  const matomeBlockRegex = /<(h2|h3|p)[^>]*>\s*(?:<strong>)?\s*まとめ[\s\S]*?<\/\1>/i;
+  const matomeBlockMatch = matomeBlockRegex.exec(htmlBody);
+  if (matomeBlockMatch && matomeBlockMatch.index !== undefined) {
+    return htmlBody.slice(0, matomeBlockMatch.index) + ctaBannerHtml + '\n' + htmlBody.slice(matomeBlockMatch.index);
+  }
+
   // フォールバック: 最後の h2 の直前に挿入
   const h2Regex = /<h2[\s>]/gi;
   const h2Positions: number[] = [];
@@ -277,7 +284,8 @@ function stripHtmlAndDecodeEntities(text: string): string {
  * 返り値: { body: FAQ前の本文, faqSection: FAQセクション部分（空の場合もある） }
  */
 function splitFaqSection(content: string): { body: string; faqSection: string } {
-  const faqHeaderRegex = /^(?:(?:よくある質問|FAQ|Q\s*&\s*A).*|.*(?:よくある質問|FAQ|Q\s*&\s*A).*)$/im;
+  // FAQ見出しとして成立する行のみを対象にする（本文中の「Q&A」言及では分離しない）
+  const faqHeaderRegex = /^\s*(?:#+\s*)?(?:よくある質問(?:\s*[\(（]FAQ[\)）])?|FAQ|Q\s*&\s*A)\s*[:：]?\s*$/im;
   const match = content.match(faqHeaderRegex);
   if (match && match.index !== undefined) {
     return {

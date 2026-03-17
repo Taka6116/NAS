@@ -42,6 +42,12 @@ function insertCtaBannersForPreview(html: string): string {
     return html.slice(0, matomeMatch.index) + cta + '\n' + html.slice(matomeMatch.index)
   }
 
+  const matomeBlockRegex = /<(h2|h3|p)[^>]*>\s*(?:<strong>)?\s*まとめ[\s\S]*?<\/\1>/i
+  const matomeBlockMatch = matomeBlockRegex.exec(html)
+  if (matomeBlockMatch && matomeBlockMatch.index !== undefined) {
+    return html.slice(0, matomeBlockMatch.index) + cta + '\n' + html.slice(matomeBlockMatch.index)
+  }
+
   // フォールバック: 最後の h2 の直前に挿入
   const h2Regex = /<h2[\s>]/gi
   let match: RegExpExecArray | null
@@ -64,26 +70,60 @@ function formatContent(content: string, imageUrl: string): string {
 
   const supervisorBlock = getSupervisorBlockHtml(SUPERVISOR_FACE_IMAGE_URL)
 
-  let bodyHtml = content
-    .replace(
-      /^(\d+)[\.．]\s*(.+)$/gm,
-      '<h2 style="font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:\'Noto Sans JP\',sans-serif;text-decoration:underline;text-underline-offset:6px;">$2</h2>'
-    )
-    .replace(
-      /^[■▶◆●]\s*(.+)$/gm,
-      '<h3 style="font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;">$1</h3>'
-    )
-    .replace(
-      /\*\*(.+?)\*\*/g,
-      '<strong>$1</strong>'
-    )
-    .split(/\n\n+/)
-    .map(p =>
-      p.trim()
-        ? `<p style="margin-bottom:1.6em;">${p.replace(/\n/g, '<br/>')}</p>`
-        : ''
-    )
-    .join('')
+  const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;text-underline-offset:6px;"
+  const H3_STYLE = 'font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;'
+  const P_STYLE = 'margin-bottom:1.6em;'
+
+  const applyInlineFormatting = (text: string): string =>
+    text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+?)__/g, '$1')
+      .replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+
+  const lines = content.split('\n')
+  const htmlLines: string[] = []
+  let currentParagraph: string[] = []
+
+  const flushParagraph = () => {
+    if (currentParagraph.length === 0) return
+    const raw = currentParagraph.join('<br>').trim()
+    if (raw) {
+      htmlLines.push(`<p style="${P_STYLE}">${applyInlineFormatting(raw)}</p>`)
+    }
+    currentParagraph = []
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) {
+      flushParagraph()
+      continue
+    }
+
+    if (/^\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
+      const text = trimmed.replace(/^\d+[．.]\s*/, '')
+      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(text)}</h2>`)
+      continue
+    }
+
+    if (/^\d+-\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
+      const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1')
+      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`)
+      continue
+    }
+
+    if (/^[■▶◆●▼]\s/.test(trimmed)) {
+      flushParagraph()
+      const text = trimmed.replace(/^[■▶◆●▼]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1')
+      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`)
+      continue
+    }
+
+    currentParagraph.push(trimmed)
+  }
+
+  flushParagraph()
+  let bodyHtml = htmlLines.join('\n')
 
   bodyHtml = insertCtaBannersForPreview(bodyHtml)
 

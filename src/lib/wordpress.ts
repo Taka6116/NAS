@@ -175,7 +175,9 @@ function applyInlineFormatting(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '$1')
-    .replace(/\*([^*]+?)\*/g, '<em>$1</em>');
+    .replace(/\*([^*]+?)\*/g, '<em>$1</em>')
+    // 閉じ忘れなどで残った生の ** は投稿前に除去する
+    .replace(/\*\*/g, '');
 }
 
 /** リスト行「・ラベル: 説明」のラベル部分を太字に（・で始まる行のみ対象） */
@@ -245,14 +247,20 @@ export function convertToHtml(content: string): string {
 
     // h3 小見出し: "1-1. テキスト" — 同様に直前が空行の場合のみ
     if (/^\d+-\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
-      const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1');
+      const text = trimmed
+        .replace(/^\d+-\d+[．.]\s*/, '')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\*\*/g, '');
       htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
       continue;
     }
 
     if (/^[■▶◆●▼]\s/.test(trimmed)) {
       flushParagraph();
-      const text = trimmed.replace(/^[■▶◆●▼]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1');
+      const text = trimmed
+        .replace(/^[■▶◆●▼]\s*/, '')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/\*\*/g, '');
       htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
       continue;
     }

@@ -24,6 +24,15 @@ export function applyInternalLinksToHtml(
   content: string,
   links: InternalLinkEntry[]
 ): string {
+  const linkedText = applyInternalLinksToText(content, links)
+  return plainToHtml(linkedText)
+}
+
+/** 記事本文（プレーンテキスト）に内部リンクだけを適用して返す */
+export function applyInternalLinksToText(
+  content: string,
+  links: InternalLinkEntry[]
+): string {
   let text = content
 
   if (links.length > 0) {
@@ -36,7 +45,7 @@ export function applyInternalLinksToHtml(
     }
   }
 
-  return plainToHtml(text)
+  return text
 }
 
 /** テキストをHTMLに変換。既存の <a> タグはエスケープせずそのまま残す */

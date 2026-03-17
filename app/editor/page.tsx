@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
-import { applyInternalLinksToHtml } from '@/lib/internalLinks'
+import { applyInternalLinksToText } from '@/lib/internalLinks'
 import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
@@ -91,7 +91,10 @@ function EditorContent() {
         setCurrentArticleId(savedArticle.id)
         const parsedStep = Number(stepParam)
         if (parsedStep === 4) {
-          const content = savedArticle.refinedContent || savedArticle.originalContent || ''
+          const content = applyInternalLinksToText(
+            savedArticle.refinedContent || savedArticle.originalContent || '',
+            []
+          )
           sessionStorage.setItem('preview_content', content)
           const params = new URLSearchParams({
             title: (savedArticle.refinedTitle || savedArticle.title || '').trim(),
@@ -248,7 +251,10 @@ function EditorContent() {
   const handleStepClick = useCallback(
     (step: Step) => {
       if (step === 4) {
-        const content = article.refinedContent || article.originalContent || ''
+        const content = applyInternalLinksToText(
+          article.refinedContent || article.originalContent || '',
+          article.internalLinks ?? []
+        )
         sessionStorage.setItem('preview_content', content)
         if (article.imageUrl) {
           sessionStorage.setItem('preview_image', article.imageUrl)
@@ -334,7 +340,7 @@ function EditorContent() {
     setWordpressStatus('loading')
     setWordpressError(null)
     try {
-      const contentWithLinks = applyInternalLinksToHtml(
+      const contentWithLinks = applyInternalLinksToText(
         article.refinedContent,
         article.internalLinks ?? []
       )

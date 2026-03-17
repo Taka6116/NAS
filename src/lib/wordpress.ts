@@ -195,7 +195,7 @@ function emphasizeListLabel(line: string): string {
 }
 
 /** プレビューと同一の見出し・本文スタイル（WordPress本文で使用） */
-const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;text-underline-offset:6px;";
+const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;";
 const H3_STYLE = 'font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;';
 const P_STYLE = 'margin-bottom:1.6em;';
 

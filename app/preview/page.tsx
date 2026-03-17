@@ -79,6 +79,7 @@ function formatContent(content: string, imageUrl: string): string {
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__([^_]+?)__/g, '$1')
       .replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+      .replace(/\*\*/g, '')
 
   const lines = content.split('\n')
   const htmlLines: string[] = []

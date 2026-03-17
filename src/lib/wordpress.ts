@@ -186,7 +186,9 @@ function emphasizeListLabel(line: string): string {
     const match = line.match(/^(・\s*)([^：:]+)([：:])\s*(.*)$/);
     if (match) {
       const [, bullet, label, colon, rest] = match;
-      return `${bullet}<strong>${label.trim()}</strong>${colon} ${rest}`;
+      const safeLabel = label.trim().replace(/\*\*/g, '');
+      const safeRest = applyInlineFormatting(rest);
+      return `${bullet}<strong>${safeLabel}</strong>${colon} ${safeRest}`;
     }
   }
   return applyInlineFormatting(line);

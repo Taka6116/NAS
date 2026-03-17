@@ -22,6 +22,51 @@ const DUMMY_ARTICLES = [
 /** 監修者・丸部分のお顔画像（WordPressメディアライブラリ）。プレビューではこのURLを直接表示。 */
 const SUPERVISOR_FACE_IMAGE_URL = 'http://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
 
+/** プレビュー用CTAバナーHTML */
+function getPreviewCtaBannerHtml(): string {
+  const cloudFrontUrl = process.env.NEXT_PUBLIC_CLOUDFRONT_URL?.trim()
+  const bannerUrl = cloudFrontUrl
+    ? `${cloudFrontUrl}/data-for-nas/pictures/NTS+CTA+%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7%E4%BB%98%E3%81%8D.png`
+    : 'https://data-for-nas.s3.ap-northeast-1.amazonaws.com/pictures/NTS+CTA+%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7%E4%BB%98%E3%81%8D.png'
+  return `<div style="text-align:center;margin:40px 0;padding:0;"><a href="https://nihon-teikei.co.jp/contact/" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;"><img src="${bannerUrl}" alt="M&Aの専門家に無料で相談してみる" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" /></a></div>`
+}
+
+/** プレビュー用: CTAバナーを中盤+まとめ前に挿入 */
+function insertCtaBannersForPreview(html: string): string {
+  const cta = getPreviewCtaBannerHtml()
+  const h2Regex = /<h2[\s>]/gi
+  let match: RegExpExecArray | null
+  let positions: number[] = []
+  while ((match = h2Regex.exec(html)) !== null) {
+    positions.push(match.index)
+  }
+
+  let result = html
+
+  // (A) 中盤に挿入
+  if (positions.length >= 3) {
+    const midIdx = Math.floor(positions.length / 2)
+    const pos = positions[midIdx]!
+    result = result.slice(0, pos) + cta + '\n' + result.slice(pos)
+  } else if (positions.length === 2) {
+    const pos = positions[1]!
+    result = result.slice(0, pos) + cta + '\n' + result.slice(pos)
+  }
+
+  // (B) 最後のh2の直前に挿入
+  positions = []
+  const h2Regex2 = /<h2[\s>]/gi
+  while ((match = h2Regex2.exec(result)) !== null) {
+    positions.push(match.index)
+  }
+  if (positions.length >= 2) {
+    const lastPos = positions[positions.length - 1]!
+    result = result.slice(0, lastPos) + cta + '\n' + result.slice(lastPos)
+  }
+
+  return result
+}
+
 function formatContent(content: string, imageUrl: string): string {
   const imageHtml = imageUrl
     ? `<img src="${imageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="" />`
@@ -29,7 +74,7 @@ function formatContent(content: string, imageUrl: string): string {
 
   const supervisorBlock = getSupervisorBlockHtml(SUPERVISOR_FACE_IMAGE_URL)
 
-  const bodyHtml = content
+  let bodyHtml = content
     .replace(
       /^(\d+)[\.．]\s*(.+)$/gm,
       '<h2 style="font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:\'Noto Sans JP\',sans-serif;text-decoration:underline;text-underline-offset:6px;">$2</h2>'
@@ -49,6 +94,8 @@ function formatContent(content: string, imageUrl: string): string {
         : ''
     )
     .join('')
+
+  bodyHtml = insertCtaBannersForPreview(bodyHtml)
 
   return imageHtml + supervisorBlock + bodyHtml
 }

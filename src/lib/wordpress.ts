@@ -182,13 +182,14 @@ async function uploadBase64ImageToWordPress(
  * - *斜体* → <em>
  * - 既存の <strong>, <em>, <u>, <a>, <br> はそのまま通過
  */
-/** プレビューとWordPressで同一表示にするための strong スタイル */
-const STRONG_STYLE = 'color:#0e357f;font-weight:700;';
-
+/**
+ * インライン書式: **太字** のみサポート。
+ * 太字はテーマに馴染む黒（本文色）で表示。色付き太字や下線は参考サイトに倣い廃止。
+ */
 function applyInlineFormatting(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, `<strong style="${STRONG_STYLE}">$1</strong>`)
-    .replace(/__(.+?)__/g, '<span style="text-decoration:underline;">$1</span>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '$1')
     .replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 }
 
@@ -198,7 +199,7 @@ function emphasizeListLabel(line: string): string {
     const match = line.match(/^(・\s*)([^：:]+)([：:])\s*(.*)$/);
     if (match) {
       const [, bullet, label, colon, rest] = match;
-      return `${bullet}<strong style="${STRONG_STYLE}">${label.trim()}</strong>${colon} ${rest}`;
+      return `${bullet}<strong>${label.trim()}</strong>${colon} ${rest}`;
     }
   }
   return applyInlineFormatting(line);

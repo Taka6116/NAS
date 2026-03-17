@@ -40,7 +40,7 @@ function formatContent(content: string, imageUrl: string): string {
     )
     .replace(
       /\*\*(.+?)\*\*/g,
-      '<strong style="color:#0e357f;font-weight:700;">$1</strong>'
+      '<strong>$1</strong>'
     )
     .split(/\n\n+/)
     .map(p =>

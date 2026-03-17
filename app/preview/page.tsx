@@ -31,40 +31,22 @@ function getPreviewCtaBannerHtml(): string {
   return `<div style="text-align:center;margin:40px 0;padding:0;"><a href="https://nihon-teikei.co.jp/contact/" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;"><img src="${bannerUrl}" alt="M&Aの専門家に無料で相談してみる" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" /></a></div>`
 }
 
-/** プレビュー用: CTAバナーを中盤+まとめ前に挿入 */
+/** プレビュー用: CTAバナーをまとめ（最後のh2）の直前に挿入 */
 function insertCtaBannersForPreview(html: string): string {
   const cta = getPreviewCtaBannerHtml()
   const h2Regex = /<h2[\s>]/gi
   let match: RegExpExecArray | null
-  let positions: number[] = []
+  const positions: number[] = []
   while ((match = h2Regex.exec(html)) !== null) {
     positions.push(match.index)
   }
 
-  let result = html
-
-  // (A) 中盤に挿入
-  if (positions.length >= 3) {
-    const midIdx = Math.floor(positions.length / 2)
-    const pos = positions[midIdx]!
-    result = result.slice(0, pos) + cta + '\n' + result.slice(pos)
-  } else if (positions.length === 2) {
-    const pos = positions[1]!
-    result = result.slice(0, pos) + cta + '\n' + result.slice(pos)
-  }
-
-  // (B) 最後のh2の直前に挿入
-  positions = []
-  const h2Regex2 = /<h2[\s>]/gi
-  while ((match = h2Regex2.exec(result)) !== null) {
-    positions.push(match.index)
-  }
   if (positions.length >= 2) {
     const lastPos = positions[positions.length - 1]!
-    result = result.slice(0, lastPos) + cta + '\n' + result.slice(lastPos)
+    return html.slice(0, lastPos) + cta + '\n' + html.slice(lastPos)
   }
 
-  return result
+  return html + '\n' + cta
 }
 
 function formatContent(content: string, imageUrl: string): string {

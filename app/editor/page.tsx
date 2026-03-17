@@ -346,7 +346,6 @@ function EditorContent() {
           content: contentWithLinks,
           imageUrl: article.imageUrl,
           targetKeyword: article.targetKeyword?.trim() || undefined,
-          slug: article.slug?.trim() || undefined,
         }),
       })
       const data = await res.json()

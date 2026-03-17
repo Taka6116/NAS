@@ -396,6 +396,39 @@ function buildArticleSchema(
 }
 
 /**
+ * FAQセクションのアコーディオンHTMLを生成（本文内表示用）
+ * <details><summary> を使ったシンプルなアコーディオン
+ */
+function buildFaqAccordionHtml(faqs: Array<{ question: string; answer: string }>): string {
+  if (!faqs || faqs.length === 0) return '';
+
+  const itemsHtml = faqs
+    .map(faq => {
+      const question = faq.question;
+      const answerHtml = faq.answer.replace(/\n/g, '<br>');
+      return `
+<details class="nts-faq-item" style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 16px;background:#FFFFFF;">
+  <summary style="list-style:none;cursor:pointer;font-weight:700;color:#1A1A2E;display:flex;align-items:center;justify-content:space-between;outline:none;">
+    <span>${question}</span>
+    <span style="margin-left:12px;font-size:18px;line-height:1;color:#94A3B8;">＋</span>
+  </summary>
+  <div style="margin-top:10px;font-size:14px;color:#475569;line-height:1.8;">
+    ${answerHtml}
+  </div>
+</details>`.trim();
+    })
+    .join('\n');
+
+  return `
+<div class="nts-faq" style="margin:40px 0;">
+  <h2 style="${H2_STYLE}">よくある質問（FAQ）</h2>
+  <div class="nts-faq-list" style="display:flex;flex-direction:column;gap:12px;">
+${itemsHtml}
+  </div>
+</div>`.trim();
+}
+
+/**
  * FAQPage Schema を生成（FAQが存在する場合のみ）
  */
 function buildFaqSchema(faqs: Array<{ question: string; answer: string }>): string {
@@ -499,6 +532,9 @@ export function buildPostContent(
     console.log(`[FAQ] Extracted ${faqs.length} FAQs`);
   }
 
+  // 2-1. FAQアコーディオンHTML
+  const faqAccordionHtml = buildFaqAccordionHtml(faqs);
+
   // 3. Schema生成（投稿には必ず含める）
   const articleSchema = buildArticleSchema(payload, slug, { bodyTopImageUrl: options?.bodyTopImageUrl });
   const faqSchema = buildFaqSchema(faqs);
@@ -506,10 +542,11 @@ export function buildPostContent(
     console.log(`[FAQ] Schema generated: ${faqSchema ? 'yes' : 'no'}`);
   }
 
-  // 4. 結合（本文 → Article Schema → FAQ Schema）
+  // 4. 結合（本文 → FAQアコーディオン → Article Schema → FAQ Schema）
   const parts = [
     `<!-- NAS Generated Content -->`,
     fullBody,
+    faqAccordionHtml,
     articleSchema,
     faqSchema,
   ].filter(Boolean);

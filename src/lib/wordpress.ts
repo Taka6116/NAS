@@ -93,20 +93,25 @@ function buildCtaBannerHtml(): string {
 function insertCtaBannerIntoBody(htmlBody: string): string {
   const ctaBannerHtml = buildCtaBannerHtml();
 
-  // 最後のh2（まとめセクション）の直前にCTAバナーを1つだけ挿入
+  // 優先: 「まとめ」を含む h2 タグの直前に挿入
+  const matomeRegex = /<h2[^>]*>[^<]*まとめ[^<]*<\/h2>/gi;
+  const matomeMatch = matomeRegex.exec(htmlBody);
+  if (matomeMatch) {
+    return htmlBody.slice(0, matomeMatch.index) + ctaBannerHtml + '\n' + htmlBody.slice(matomeMatch.index);
+  }
+
+  // フォールバック: 最後の h2 の直前に挿入
   const h2Regex = /<h2[\s>]/gi;
   const h2Positions: number[] = [];
   let match: RegExpExecArray | null;
   while ((match = h2Regex.exec(htmlBody)) !== null) {
     h2Positions.push(match.index);
   }
-
   if (h2Positions.length >= 2) {
     const lastH2Pos = h2Positions[h2Positions.length - 1]!;
     return htmlBody.slice(0, lastH2Pos) + ctaBannerHtml + '\n' + htmlBody.slice(lastH2Pos);
   }
 
-  // h2が1個以下の場合は本文末尾に追加
   return htmlBody + '\n' + ctaBannerHtml;
 }
 

@@ -31,16 +31,24 @@ function getPreviewCtaBannerHtml(): string {
   return `<div style="text-align:center;margin:40px 0;padding:0;"><a href="https://nihon-teikei.co.jp/contact/" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;"><img src="${bannerUrl}" alt="M&Aの専門家に無料で相談してみる" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" /></a></div>`
 }
 
-/** プレビュー用: CTAバナーをまとめ（最後のh2）の直前に挿入 */
+/** プレビュー用: CTAバナーを「まとめ」h2の直前に挿入 */
 function insertCtaBannersForPreview(html: string): string {
   const cta = getPreviewCtaBannerHtml()
+
+  // 優先: 「まとめ」を含む h2 タグの直前に挿入
+  const matomeRegex = /<h2[^>]*>[^<]*まとめ[^<]*<\/h2>/gi
+  const matomeMatch = matomeRegex.exec(html)
+  if (matomeMatch) {
+    return html.slice(0, matomeMatch.index) + cta + '\n' + html.slice(matomeMatch.index)
+  }
+
+  // フォールバック: 最後の h2 の直前に挿入
   const h2Regex = /<h2[\s>]/gi
   let match: RegExpExecArray | null
   const positions: number[] = []
   while ((match = h2Regex.exec(html)) !== null) {
     positions.push(match.index)
   }
-
   if (positions.length >= 2) {
     const lastPos = positions[positions.length - 1]!
     return html.slice(0, lastPos) + cta + '\n' + html.slice(lastPos)

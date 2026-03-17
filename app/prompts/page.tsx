@@ -12,6 +12,7 @@ export default function PromptsPage() {
   const [editContent, setEditContent] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<SavedPrompt | null>(null)
 
   useEffect(() => {
     setPrompts(getAllPrompts())
@@ -51,14 +52,23 @@ export default function PromptsPage() {
     setEditingId(null)
   }
 
-  const handleDelete = (id: string) => {
-    if (!confirm('このプロンプトを削除しますか？')) return
-    deletePrompt(id)
+  const handleRequestDelete = (p: SavedPrompt) => {
+    setDeleteTarget(p)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return
+    deletePrompt(deleteTarget.id)
     setPrompts(getAllPrompts())
-    if (editingId === id) {
+    if (editingId === deleteTarget.id) {
       setEditingId(null)
       setIsCreating(false)
     }
+    setDeleteTarget(null)
+  }
+
+  const handleCloseDeleteModal = () => {
+    setDeleteTarget(null)
   }
 
   const isEditorOpen = isCreating || editingId !== null
@@ -153,7 +163,7 @@ export default function PromptsPage() {
                     <Pencil size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(p.id)}
+                    onClick={() => handleRequestDelete(p)}
                     className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="削除"
                   >
@@ -165,6 +175,37 @@ export default function PromptsPage() {
           ))
         )}
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-[#1A1A2E] mb-1">
+                  このプロンプトを削除しますか？
+                </h2>
+                <p className="text-xs text-[#64748B]">
+                  {`「${deleteTarget.title.slice(0, 30)}${deleteTarget.title.length > 30 ? '…' : ''}」を削除します。よろしいですか？`}
+                </p>
+              </div>
+              <button
+                onClick={handleCloseDeleteModal}
+                className="text-[#94A3B8] hover:text-[#1A1A2E]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="ghost" onClick={handleCloseDeleteModal}>
+                キャンセル
+              </Button>
+              <Button variant="primary" onClick={handleConfirmDelete}>
+                削除する
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -206,8 +206,8 @@ function emphasizeListLabel(line: string): string {
 }
 
 /** プレビューと同一の見出し・本文スタイル（WordPress本文で使用） */
-const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;";
-const H3_STYLE = 'font-size:18px;font-weight:700;margin:32px 0 12px;color:#111;';
+const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;text-underline-offset:6px;";
+const H3_STYLE = 'font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;';
 const P_STYLE = 'margin-bottom:1.6em;';
 
 /**
@@ -259,15 +259,15 @@ export function convertToHtml(content: string): string {
 
     if (/^\d+-\d+[．.]\s/.test(trimmed)) {
       flushParagraph();
-      const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineFormatting(text)}</h3>`);
+      const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1');
+      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
       continue;
     }
 
     if (/^[■▶◆●▼]\s/.test(trimmed)) {
       flushParagraph();
-      const text = trimmed.replace(/^[■▶◆●▼]\s*/, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${applyInlineFormatting(text)}</h3>`);
+      const text = trimmed.replace(/^[■▶◆●▼]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1');
+      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
       continue;
     }
 

@@ -32,11 +32,11 @@ function formatContent(content: string, imageUrl: string): string {
   const bodyHtml = content
     .replace(
       /^(\d+)[\.．]\s*(.+)$/gm,
-      '<h2 style="font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:\'Noto Sans JP\',sans-serif;">$2</h2>'
+      '<h2 style="font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:\'Noto Sans JP\',sans-serif;text-decoration:underline;text-underline-offset:6px;">$2</h2>'
     )
     .replace(
       /^[■▶◆●]\s*(.+)$/gm,
-      '<h3 style="font-size:18px;font-weight:700;margin:32px 0 12px;color:#111;">$1</h3>'
+      '<h3 style="font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;">$1</h3>'
     )
     .replace(
       /\*\*(.+?)\*\*/g,

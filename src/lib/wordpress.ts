@@ -192,12 +192,14 @@ function applyInlineFormatting(text: string): string {
     .replace(/\*([^*]+?)\*/g, '<em>$1</em>');
 }
 
-/** リスト行「・ラベル: 説明」のラベル部分を太字に */
+/** リスト行「・ラベル: 説明」のラベル部分を太字に（・で始まる行のみ対象） */
 function emphasizeListLabel(line: string): string {
-  const match = line.match(/^([・\s]*)([^：:]+)([：:])\s*(.*)$/);
-  if (match) {
-    const [, bullet, label, colon, rest] = match;
-    return `${bullet}<strong style="${STRONG_STYLE}">${label.trim()}</strong>${colon} ${rest}`;
+  if (/^・/.test(line)) {
+    const match = line.match(/^(・\s*)([^：:]+)([：:])\s*(.*)$/);
+    if (match) {
+      const [, bullet, label, colon, rest] = match;
+      return `${bullet}<strong style="${STRONG_STYLE}">${label.trim()}</strong>${colon} ${rest}`;
+    }
   }
   return applyInlineFormatting(line);
 }
@@ -290,14 +292,30 @@ function stripHtmlAndDecodeEntities(text: string): string {
 }
 
 /**
+ * FAQセクション（「よくある質問」見出し以降）を本文から分離する。
+ * 返り値: { body: FAQ前の本文, faqSection: FAQセクション部分（空の場合もある） }
+ */
+function splitFaqSection(content: string): { body: string; faqSection: string } {
+  const faqHeaderRegex = /^(?:(?:よくある質問|FAQ|Q\s*&\s*A).*|.*(?:よくある質問|FAQ|Q\s*&\s*A).*)$/im;
+  const match = content.match(faqHeaderRegex);
+  if (match && match.index !== undefined) {
+    return {
+      body: content.slice(0, match.index).trimEnd(),
+      faqSection: content.slice(match.index).trim(),
+    };
+  }
+  return { body: content, faqSection: '' };
+}
+
+/**
  * 本文からFAQ候補を抽出する（Q&A形式の箇所を検出）
- * 対応形式: "Q1. 質問文\n\nA. 回答文" / "Q. 質問" / "Q：質問" など
+ * 対応形式: "Q1. 質問文\n\nA1. 回答文" / "Q. 質問\nA. 回答" / "Q：質問\nA：回答" など
  */
 function extractFaqs(content: string): Array<{ question: string; answer: string }> {
   const faqs: Array<{ question: string; answer: string }> = [];
 
-  // パターン: "Q数字. 質問" または "Q. 質問" → 改行 → "A. 回答"（次のQまたは末尾まで）
-  const qaRegex = /Q\d*[.．、]\s*(.+?)[\n\r]+(?:<br\s*\/?>)*[\n\r]*A[.．、]\s*([\s\S]*?)(?=Q\d*[.．、]|$)/gi;
+  // パターン: "Q数字. 質問" → 改行 → "A数字. 回答"（次の Q または末尾まで）
+  const qaRegex = /Q\d*[.．、]\s*(.+?)[\n\r]+(?:<br\s*\/?>)*[\n\r]*A\d*[.．、]\s*([\s\S]*?)(?=Q\d*[.．、]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = qaRegex.exec(content)) !== null) {
     const question = stripHtmlAndDecodeEntities(match[1].trim());
@@ -307,7 +325,7 @@ function extractFaqs(content: string): Array<{ question: string; answer: string 
     }
   }
 
-  // 上記で取れなかった場合: "Q. / Q: / Q：" と "A. / A:" のペア（数字なし）
+  // フォールバック: "Q. / Q: / Q：" と "A. / A:" のペア
   if (faqs.length === 0) {
     const fallbackRegex = /Q[.．：:\s]+(.+?)[\n\r]+(?:<br\s*\/?>)*[\n\r]*A[.．：:\s]+([\s\S]*?)(?=Q[.．：:\s]|$)/gs;
     while ((match = fallbackRegex.exec(content)) !== null) {
@@ -507,8 +525,11 @@ export function buildPostContent(
   // 0. 本文から先頭の監修者テキストを除去（画像付きブロックのみ表示するため）
   const contentWithoutSupervisorText = stripLeadingSupervisorText(payload.content);
 
-  // 1. 本文をHTMLに変換
-  let htmlBody = convertToHtml(contentWithoutSupervisorText);
+  // 0-1. FAQセクションを本文から分離（convertToHtmlで見出し化されないように）
+  const { body: bodyText, faqSection } = splitFaqSection(contentWithoutSupervisorText);
+
+  // 1. 本文（FAQ除外）をHTMLに変換
+  let htmlBody = convertToHtml(bodyText);
   htmlBody = linkifyCtaUrls(htmlBody);
 
   // 1-0. CTAバナーを本文中盤に挿入
@@ -526,10 +547,11 @@ export function buildPostContent(
 
   const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('');
 
-  // 2. FAQを抽出
-  const faqs = extractFaqs(payload.content);
+  // 2. FAQを抽出（分離したFAQセクション or 全文から）
+  const faqSource = faqSection || payload.content;
+  const faqs = extractFaqs(faqSource);
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[FAQ] Extracted ${faqs.length} FAQs`);
+    console.log(`[FAQ] Extracted ${faqs.length} FAQs from ${faqSection ? 'faqSection' : 'fullContent'}`);
   }
 
   // 2-1. FAQアコーディオンHTML

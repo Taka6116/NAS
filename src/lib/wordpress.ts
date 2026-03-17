@@ -250,15 +250,16 @@ export function convertToHtml(content: string): string {
       continue;
     }
 
-    if (/^\d+[．.]\s/.test(trimmed)) {
-      flushParagraph();
+    // h2 見出し: "1. テキスト" — 直前が空行（段落バッファが空）の場合のみ見出しとして扱う
+    // 本文中の番号リスト（"1. ..." が段落の途中にある場合）は通常テキストとして扱う
+    if (/^\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
       const text = trimmed.replace(/^\d+[．.]\s*/, '');
       htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(text)}</h2>`);
       continue;
     }
 
-    if (/^\d+-\d+[．.]\s/.test(trimmed)) {
-      flushParagraph();
+    // h3 小見出し: "1-1. テキスト" — 同様に直前が空行の場合のみ
+    if (/^\d+-\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
       const text = trimmed.replace(/^\d+-\d+[．.]\s*/, '').replace(/\*\*(.+?)\*\*/g, '$1');
       htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
       continue;

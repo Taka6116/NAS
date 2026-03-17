@@ -19,28 +19,37 @@ export interface WordPressPostResult {
 import { getSupervisorBlockHtml } from './supervisorBlock'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
-const DEFAULT_SUPERVISOR_IMAGE_URL = 'http://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
+const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
 
 /** 旧S3の監修者画像URL（このURLの場合はWordPressのURLに差し替える） */
 const LEGACY_S3_SUPERVISOR_PATTERN = /data-for-nas\.s3\.ap-northeast-1\.amazonaws\.com\/pictures\//i
+
+/** URLが http:// の場合は https:// に変換（Mixed Content 防止） */
+function forceHttps(url: string): string {
+  if (url && url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  return url;
+}
 
 /**
  * 監修者画像（大野 駿介さん）のURLを実行時に取得。
  * 左の丸画像は必ずWordPressメディアライブラリのお顔画像を使用。
  * 優先: WORDPRESS_SUPERVISOR_IMAGE_URL > デフォルト（お顔画像URL）。S3/CloudFrontは使わない。
+ * 返却URLは必ず https に統一（Mixed Content 防止）。
  */
 export function getSupervisorImageUrl(): string {
   const wp = process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim();
-  if (wp) return wp;
+  if (wp) return forceHttps(wp);
   const direct = process.env.SUPERVISOR_IMAGE_URL?.trim();
-  if (direct && !LEGACY_S3_SUPERVISOR_PATTERN.test(direct)) return direct;
+  if (direct && !LEGACY_S3_SUPERVISOR_PATTERN.test(direct)) return forceHttps(direct);
   return DEFAULT_SUPERVISOR_IMAGE_URL;
 }
 
-/** WordPress投稿本文用の監修者画像URL。メディアライブラリのURLを優先（下書きで表示される）。 */
+/** WordPress投稿本文用の監修者画像URL。メディアライブラリのURLを優先（下書きで表示される）。必ず https。 */
 export function getSupervisorImageUrlForWordPress(): string {
   const wpUrl = process.env.WORDPRESS_SUPERVISOR_IMAGE_URL?.trim();
-  if (wpUrl) return wpUrl;
+  if (wpUrl) return forceHttps(wpUrl);
   return getSupervisorImageUrl();
 }
 
@@ -162,7 +171,8 @@ async function uploadBase64ImageToWordPress(
   }
 
   const media = await res.json();
-  return { id: media.id, sourceUrl: media.source_url ?? media.link };
+  const rawUrl = media.source_url ?? media.link;
+  return { id: media.id, sourceUrl: forceHttps(rawUrl) };
 }
 
 /**
@@ -265,38 +275,45 @@ export function convertToHtml(content: string): string {
   return htmlLines.join('\n');
 }
 
+/** HTMLタグ除去と主要なHTMLエンティティのデコード（Schema用プレーンテキスト化） */
+function stripHtmlAndDecodeEntities(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * 本文からFAQ候補を抽出する（Q&A形式の箇所を検出）
- * パターン1: "Q. " / "Q: " / "Q： " で始まる質問
- * パターン2: 「よくある質問」「FAQ」「Q&A」セクション内の Q. / A. 形式
+ * 対応形式: "Q1. 質問文\n\nA. 回答文" / "Q. 質問" / "Q：質問" など
  */
 function extractFaqs(content: string): Array<{ question: string; answer: string }> {
   const faqs: Array<{ question: string; answer: string }> = [];
 
-  // よくある質問セクションがあればその部分を優先して解析
-  const faqSectionRegex = /(?:よくある質問|FAQ|Q\s*&\s*A)[\s\S]*$/i;
-  const faqSectionMatch = content.match(faqSectionRegex);
-  const searchContent = faqSectionMatch ? faqSectionMatch[0] : content;
-
-  // Q. / Q: / Q： と A. / A: / A： のペアを検出（改行で区切られたブロック）
-  const qaRegex = /Q[.．：:\s]+(.+?)[\n\r]+A[.．：:\s]+(.+?)(?=Q[.．：:\s]|$)/gs;
+  // パターン: "Q数字. 質問" または "Q. 質問" → 改行 → "A. 回答"（次のQまたは末尾まで）
+  const qaRegex = /Q\d*[.．、]\s*(.+?)[\n\r]+(?:<br\s*\/?>)*[\n\r]*A[.．、]\s*([\s\S]*?)(?=Q\d*[.．、]|$)/gi;
   let match: RegExpExecArray | null;
-  while ((match = qaRegex.exec(searchContent)) !== null) {
-    const question = match[1].trim();
-    const answer = match[2].trim();
+  while ((match = qaRegex.exec(content)) !== null) {
+    const question = stripHtmlAndDecodeEntities(match[1].trim());
+    const answer = stripHtmlAndDecodeEntities(match[2].trim());
     if (question.length > 0 && answer.length > 0) {
       faqs.push({ question, answer });
     }
   }
 
-  // 上記で取れなかった場合のみ、従来の「Q：〜」「A：〜」1行形式も試す
+  // 上記で取れなかった場合: "Q. / Q: / Q：" と "A. / A:" のペア（数字なし）
   if (faqs.length === 0) {
-    const legacyPattern = /Q[：:]\s*(.+?)\nA[：:]\s*(.+?)(?=\nQ[：:]|\n\n|\n■|\n\d+[．.]|$)/gs;
-    for (const m of content.matchAll(legacyPattern)) {
-      faqs.push({
-        question: m[1].trim(),
-        answer: m[2].trim(),
-      });
+    const fallbackRegex = /Q[.．：:\s]+(.+?)[\n\r]+(?:<br\s*\/?>)*[\n\r]*A[.．：:\s]+([\s\S]*?)(?=Q[.．：:\s]|$)/gs;
+    while ((match = fallbackRegex.exec(content)) !== null) {
+      const question = stripHtmlAndDecodeEntities(match[1].trim());
+      const answer = stripHtmlAndDecodeEntities(match[2].trim());
+      if (question && answer) faqs.push({ question, answer });
     }
   }
 
@@ -323,12 +340,10 @@ function buildArticleSchema(
     schemaImageUrl = payload.imageUrl;
   }
 
-  // 記事の最初の200文字程度を description として抽出（監修者テキストは除去）
-  const plainContent = payload.content
-    .replace(/監修者：[\s\S]*?(?=\n\n)/g, '')
-    .replace(/[#*\-=]/g, '')
-    .trim();
-  const description = plainContent.substring(0, 200).replace(/\n/g, ' ').trim();
+  // 記事の最初の200文字程度を description として抽出（監修者・HTML・エンティティ除去）
+  const withoutSupervisor = payload.content.replace(/監修者[\s\S]*?(?=\n\n)/g, '').trim();
+  const plainContent = stripHtmlAndDecodeEntities(withoutSupervisor);
+  const description = plainContent.substring(0, 200).trim();
 
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -367,7 +382,7 @@ function buildArticleSchema(
       '@type': 'Thing',
       'name': payload.targetKeyword || payload.title,
     },
-    'keywords': payload.targetKeyword || '',
+    'keywords': payload.targetKeyword?.trim() || payload.title || '',
   };
 
   if (schemaImageUrl) {
@@ -480,10 +495,16 @@ export function buildPostContent(
 
   // 2. FAQを抽出
   const faqs = extractFaqs(payload.content);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[FAQ] Extracted ${faqs.length} FAQs`);
+  }
 
   // 3. Schema生成（投稿には必ず含める）
   const articleSchema = buildArticleSchema(payload, slug, { bodyTopImageUrl: options?.bodyTopImageUrl });
   const faqSchema = buildFaqSchema(faqs);
+  if (process.env.NODE_ENV === 'development' && faqs.length > 0) {
+    console.log(`[FAQ] Schema generated: ${faqSchema ? 'yes' : 'no'}`);
+  }
 
   // 4. 結合（本文 → Article Schema → FAQ Schema）
   const parts = [

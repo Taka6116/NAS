@@ -60,11 +60,13 @@
         <div className="flex-1 min-w-0 flex flex-col gap-5">
            {/* ローディング（戻るボタンは下の「記事を修正する」でいつでも前のステップに戻れます） */}
            {geminiStatus === 'loading' && (
-             <div className="w-full max-w-4xl space-y-3">
-               <GeminiLoadingCard />
-               <p className="text-xs text-[#64748B]">
-                 推敲中です。キャンセルする場合は下の「記事を修正する」で戻れます。
-               </p>
+             <div className="w-full flex flex-col items-center">
+               <div className="w-full max-w-4xl space-y-3">
+                 <GeminiLoadingCard />
+                 <p className="text-xs text-[#64748B]">
+                   推敲中です。キャンセルする場合は下の「記事を修正する」で戻れます。
+                 </p>
+               </div>
              </div>
            )}
 

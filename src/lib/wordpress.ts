@@ -267,27 +267,44 @@ export function convertToHtml(content: string): string {
 
 /**
  * 本文からFAQ候補を抽出する（Q&A形式の箇所を検出）
- * Geminiが生成したFAQセクションを構造化データに変換
+ * パターン1: "Q. " / "Q: " / "Q： " で始まる質問
+ * パターン2: 「よくある質問」「FAQ」「Q&A」セクション内の Q. / A. 形式
  */
 function extractFaqs(content: string): Array<{ question: string; answer: string }> {
   const faqs: Array<{ question: string; answer: string }> = [];
 
-  // 「Q：〜」「A：〜」形式を検出
-  const qaPattern = /Q[：:]\s*(.+?)\nA[：:]\s*(.+?)(?=\nQ[：:]|\n\n|\n■|\n\d+[．.]|$)/gs;
-  const matches = content.matchAll(qaPattern);
+  // よくある質問セクションがあればその部分を優先して解析
+  const faqSectionRegex = /(?:よくある質問|FAQ|Q\s*&\s*A)[\s\S]*$/i;
+  const faqSectionMatch = content.match(faqSectionRegex);
+  const searchContent = faqSectionMatch ? faqSectionMatch[0] : content;
 
-  for (const match of matches) {
-    faqs.push({
-      question: match[1].trim(),
-      answer: match[2].trim(),
-    });
+  // Q. / Q: / Q： と A. / A: / A： のペアを検出（改行で区切られたブロック）
+  const qaRegex = /Q[.．：:\s]+(.+?)[\n\r]+A[.．：:\s]+(.+?)(?=Q[.．：:\s]|$)/gs;
+  let match: RegExpExecArray | null;
+  while ((match = qaRegex.exec(searchContent)) !== null) {
+    const question = match[1].trim();
+    const answer = match[2].trim();
+    if (question.length > 0 && answer.length > 0) {
+      faqs.push({ question, answer });
+    }
+  }
+
+  // 上記で取れなかった場合のみ、従来の「Q：〜」「A：〜」1行形式も試す
+  if (faqs.length === 0) {
+    const legacyPattern = /Q[：:]\s*(.+?)\nA[：:]\s*(.+?)(?=\nQ[：:]|\n\n|\n■|\n\d+[．.]|$)/gs;
+    for (const m of content.matchAll(legacyPattern)) {
+      faqs.push({
+        question: m[1].trim(),
+        answer: m[2].trim(),
+      });
+    }
   }
 
   return faqs;
 }
 
 /**
- * Article Schema（構造化データ）を生成
+ * Article Schema（構造化データ）を生成（AIO/LLMO最適化）
  * image.url には必ず HTTPS のURLのみを使用し、data URL(base64)は入れない
  */
 function buildArticleSchema(
@@ -306,17 +323,33 @@ function buildArticleSchema(
     schemaImageUrl = payload.imageUrl;
   }
 
-  const schema: any = {
+  // 記事の最初の200文字程度を description として抽出（監修者テキストは除去）
+  const plainContent = payload.content
+    .replace(/監修者：[\s\S]*?(?=\n\n)/g, '')
+    .replace(/[#*\-=]/g, '')
+    .trim();
+  const description = plainContent.substring(0, 200).replace(/\n/g, ' ').trim();
+
+  const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     'headline': payload.title,
+    'description': description,
     'datePublished': new Date().toISOString().split('T')[0],
     'dateModified': new Date().toISOString().split('T')[0],
-    'author': {
-      '@type': 'Organization',
-      'name': '株式会社日本提携支援',
-      'url': 'https://nihon-teikei.co.jp',
-    },
+    'author': [
+      {
+        '@type': 'Person',
+        'name': '大野 駿介',
+        'jobTitle': '代表取締役',
+        'worksFor': {
+          '@type': 'Organization',
+          'name': '株式会社日本提携支援',
+          'url': 'https://nihon-teikei.co.jp',
+        },
+        'description': '過去1,000件超のM&A相談、50件超のアドバイザリー契約、15組超のM&A成約組数を担当。(株)日本M&Aセンターにて、年間最多アドバイザリー契約受賞経験あり。',
+      },
+    ],
     'publisher': {
       '@type': 'Organization',
       'name': '株式会社日本提携支援',
@@ -330,13 +363,11 @@ function buildArticleSchema(
       '@type': 'WebPage',
       '@id': `https://nihon-teikei.co.jp/news/column/${slug}`,
     },
-    ...(payload.targetKeyword ? {
-      'keywords': payload.targetKeyword,
-      'about': {
-        '@type': 'Thing',
-        'name': payload.targetKeyword,
-      },
-    } : {}),
+    'about': {
+      '@type': 'Thing',
+      'name': payload.targetKeyword || payload.title,
+    },
+    'keywords': payload.targetKeyword || '',
   };
 
   if (schemaImageUrl) {
@@ -353,7 +384,7 @@ function buildArticleSchema(
  * FAQPage Schema を生成（FAQが存在する場合のみ）
  */
 function buildFaqSchema(faqs: Array<{ question: string; answer: string }>): string {
-  if (faqs.length === 0) return '';
+  if (!faqs || faqs.length === 0) return '';
 
   const schema = {
     '@context': 'https://schema.org',

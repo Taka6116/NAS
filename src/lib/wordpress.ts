@@ -279,10 +279,11 @@ export function convertToHtml(content: string): string {
   return htmlLines.join('\n');
 }
 
-/** HTMLタグ除去と主要なHTMLエンティティのデコード（Schema用プレーンテキスト化） */
+/** HTMLタグ・マークダウン記法除去と主要なHTMLエンティティのデコード（Schema/FAQ用プレーンテキスト化） */
 function stripHtmlAndDecodeEntities(text: string): string {
   return text
     .replace(/<[^>]*>/g, '')
+    .replace(/\*\*/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -424,8 +425,8 @@ function buildFaqAccordionHtml(faqs: Array<{ question: string; answer: string }>
 
   const itemsHtml = faqs
     .map(faq => {
-      const question = faq.question;
-      const answerHtml = faq.answer.replace(/\n/g, '<br>');
+      const question = faq.question.replace(/\*\*/g, '');
+      const answerHtml = faq.answer.replace(/\*\*/g, '').replace(/\n/g, '<br>');
       return `
 <details class="nts-faq-item" style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 16px;background:#FFFFFF;">
   <summary style="list-style:none;cursor:pointer;font-weight:700;color:#1A1A2E;display:flex;align-items:center;justify-content:space-between;outline:none;">

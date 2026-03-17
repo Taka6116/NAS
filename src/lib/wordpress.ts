@@ -101,40 +101,44 @@ function insertCtaBannerIntoBody(htmlBody: string): string {
     h2Positions.push(match.index);
   }
 
+  let result = htmlBody;
+
+  // (A) 中盤に1つ目のCTAバナーを挿入
   if (h2Positions.length >= 3) {
-    // h2が3個以上 → 中間のh2直前に挿入
     const midIndex = Math.floor(h2Positions.length / 2);
     const insertPos = h2Positions[midIndex]!;
-    return htmlBody.slice(0, insertPos) + ctaBannerHtml + '\n' + htmlBody.slice(insertPos);
+    result = result.slice(0, insertPos) + ctaBannerHtml + '\n' + result.slice(insertPos);
   } else if (h2Positions.length === 2) {
-    // h2が2個 → 2番目のh2直前に挿入
     const insertPos = h2Positions[1]!;
-    return htmlBody.slice(0, insertPos) + ctaBannerHtml + '\n' + htmlBody.slice(insertPos);
+    result = result.slice(0, insertPos) + ctaBannerHtml + '\n' + result.slice(insertPos);
+  } else {
+    const pEndRegex = /<\/p>/gi;
+    const pEndPositions: number[] = [];
+    let pMatch: RegExpExecArray | null;
+    while ((pMatch = pEndRegex.exec(result)) !== null) {
+      pEndPositions.push(pMatch.index + pMatch[0].length);
+    }
+    if (pEndPositions.length >= 2) {
+      const midIndex = Math.floor(pEndPositions.length / 2);
+      const insertPos = pEndPositions[midIndex]!;
+      result = result.slice(0, insertPos) + '\n' + ctaBannerHtml + '\n' + result.slice(insertPos);
+    } else {
+      result = result + '\n' + ctaBannerHtml;
+    }
   }
 
-  // h2が1個以下の場合は <p> の終端(</p>)を使って本文の中間あたりを探す
-  const pEndRegex = /<\/p>/gi;
-  const pEndPositions: number[] = [];
-  let pMatch: RegExpExecArray | null;
-  while ((pMatch = pEndRegex.exec(htmlBody)) !== null) {
-    // </p> の直後に挿入したいので、タグの末尾位置を記録
-    pEndPositions.push(pMatch.index + pMatch[0].length);
+  // (B) 最後のh2（まとめセクション）の直前にも2つ目のCTAバナーを挿入
+  const h2RegexAgain = /<h2[\s>]/gi;
+  const h2PositionsAfter: number[] = [];
+  while ((match = h2RegexAgain.exec(result)) !== null) {
+    h2PositionsAfter.push(match.index);
+  }
+  if (h2PositionsAfter.length >= 2) {
+    const lastH2Pos = h2PositionsAfter[h2PositionsAfter.length - 1]!;
+    result = result.slice(0, lastH2Pos) + ctaBannerHtml + '\n' + result.slice(lastH2Pos);
   }
 
-  if (pEndPositions.length >= 2) {
-    const midIndex = Math.floor(pEndPositions.length / 2);
-    const insertPos = pEndPositions[midIndex]!;
-    return (
-      htmlBody.slice(0, insertPos) +
-      '\n' +
-      ctaBannerHtml +
-      '\n' +
-      htmlBody.slice(insertPos)
-    );
-  }
-
-  // フォールバック：本文末尾に追加
-  return htmlBody + '\n' + ctaBannerHtml;
+  return result;
 }
 
 /** メディアアップロード結果（アイキャッチ設定と本文挿入用URL） */

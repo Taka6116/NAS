@@ -107,7 +107,7 @@ export default function SchedulePage() {
           content,
           targetKeyword: article.targetKeyword,
           imageUrl: article.imageUrl,
-          status: 'draft',
+          status: 'future',
           scheduledDate,
         }),
       })
@@ -125,9 +125,9 @@ export default function SchedulePage() {
         }
         const dateObj = new Date(scheduledDate)
         const timeStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日 ${article.scheduledTime}`
-        setPublishResult({ articleId: article.id, success: true, message: `下書き保存しました（${timeStr} 公開予定）` })
+        setPublishResult({ articleId: article.id, success: true, message: `予約投稿しました（${timeStr} 公開予定）` })
       } else {
-        setPublishResult({ articleId: article.id, success: false, message: data.error || '下書き保存に失敗しました' })
+        setPublishResult({ articleId: article.id, success: false, message: data.error || '予約投稿に失敗しました' })
       }
     } catch {
       setPublishResult({ articleId: article.id, success: false, message: 'ネットワークエラーが発生しました' })

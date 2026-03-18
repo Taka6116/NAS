@@ -315,20 +315,6 @@ export default function PublishResult({
   )
 }
 
-function generateSlugFromTitle(title: string): string {
-  const ascii = title
-    .toLowerCase()
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-    .replace(/&/g, '-and-')
-    .replace(/[^\x20-\x7E]/g, ' ')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60)
-  if (!ascii) {
-    const d = new Date()
-    return `article-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
-  }
-  return ascii
+function generateSlugFromTitle(_title: string): string {
+  return 'ma-advisor-selection'
 }

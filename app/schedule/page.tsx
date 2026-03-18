@@ -90,6 +90,16 @@ export default function SchedulePage() {
     }
   }
 
+  const handleSlugChange = (articleId: string, newSlug: string) => {
+    const all = getAllArticles()
+    const a = all.find(x => x.id === articleId)
+    if (a) {
+      a.slug = newSlug
+      saveArticle(a)
+      setArticles(getAllArticles())
+    }
+  }
+
   const handleScheduledPublish = async (article: SavedArticle) => {
     if (!article.scheduledDate || !article.scheduledTime) return
     setPublishingId(article.id)
@@ -109,6 +119,7 @@ export default function SchedulePage() {
           imageUrl: article.imageUrl,
           status: 'future',
           scheduledDate,
+          slug: article.slug?.trim() || undefined,
         }),
       })
 
@@ -462,6 +473,25 @@ export default function SchedulePage() {
                           fontFamily: 'DM Mono',
                           background: '#FAFBFC',
                         }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: '#94A3B8' }}>
+                        スラッグ：
+                      </span>
+                      <input
+                        type="text"
+                        value={article.slug ?? ''}
+                        onChange={e => handleSlugChange(article.id, e.target.value)}
+                        className="text-xs px-2 py-1 rounded-md border flex-1"
+                        style={{
+                          border: '1px solid #E2E8F0',
+                          color: '#64748B',
+                          fontFamily: 'DM Mono',
+                          background: '#FAFBFC',
+                        }}
+                        placeholder="例: ma-advisor-selection"
                       />
                     </div>
 

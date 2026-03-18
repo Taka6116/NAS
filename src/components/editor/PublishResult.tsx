@@ -5,7 +5,7 @@ import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type } from 'lucide-react'
+import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon } from 'lucide-react'
 
 interface PublishResultProps {
   article: ArticleData
@@ -18,6 +18,8 @@ interface PublishResultProps {
   onStepClick?: (step: Step) => void
   onRefinedTitleChange?: (title: string) => void
   onRefinedContentChange?: (content: string) => void
+  slug?: string
+  onSlugChange?: (slug: string) => void
 }
 
 export default function PublishResult({
@@ -31,6 +33,8 @@ export default function PublishResult({
   onStepClick,
   onRefinedTitleChange,
   onRefinedContentChange,
+  slug = '',
+  onSlugChange,
 }: PublishResultProps) {
   // Ctrl+A で全選択→削除が効くよう、タイトルをローカル state で保持して即反映する
   const [localTitle, setLocalTitle] = useState(() => article.refinedTitle ?? article.title)
@@ -132,6 +136,25 @@ export default function PublishResult({
                           transition-all
                         "
                         placeholder="記事タイトル"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <LinkIcon size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
+                    <div className="w-full">
+                      <p className="text-xs font-mono text-[#64748B] mb-0.5">スラッグ（URL末尾）</p>
+                      <input
+                        type="text"
+                        value={slug}
+                        onChange={e => onSlugChange?.(e.target.value)}
+                        className="
+                          w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
+                          text-sm text-[#1A1A2E]
+                          focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                          transition-all font-mono
+                        "
+                        placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
                       />
                     </div>
                   </div>

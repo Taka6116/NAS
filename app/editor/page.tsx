@@ -69,6 +69,7 @@ function EditorContent() {
   const [wordpressError, setWordpressError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [slug, setSlug] = useState('')
   const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
@@ -89,6 +90,7 @@ function EditorContent() {
           wordpressUrl: savedArticle.wordpressUrl,
         })
         setCurrentArticleId(savedArticle.id)
+        setSlug(savedArticle.slug || '')
         const parsedStep = Number(stepParam)
         if (parsedStep === 4) {
           const content = applyInternalLinksToText(
@@ -295,6 +297,7 @@ function EditorContent() {
         status: article.imageUrl ? 'ready' : 'draft',
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         scheduledDate: existing?.scheduledDate,
+        slug: slug.trim() || existing?.slug || undefined,
         wordCount: article.refinedContent.length,
       })
     } catch (e) {
@@ -304,7 +307,7 @@ function EditorContent() {
 
     setToastMessage('下書きを保存しました')
     return id
-  }, [article, currentArticleId, searchParams])
+  }, [article, currentArticleId, searchParams, slug])
 
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')
@@ -353,6 +356,7 @@ function EditorContent() {
           content: contentWithLinks,
           imageUrl: article.imageUrl,
           targetKeyword: article.targetKeyword?.trim() || undefined,
+          slug: slug.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -375,6 +379,7 @@ function EditorContent() {
           status: 'published',
           createdAt: new Date().toISOString(),
           wordCount: article.refinedContent.length,
+          slug: slug.trim() || undefined,
         })
       }
       setWordpressStatus('success')
@@ -391,6 +396,7 @@ function EditorContent() {
     article.internalLinks,
     article.imageUrl,
     currentArticleId,
+    slug,
     updateArticle,
   ])
 
@@ -505,6 +511,8 @@ function EditorContent() {
           onStepClick={handleStepClick}
           onRefinedTitleChange={title => updateArticle({ refinedTitle: title })}
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
+          slug={slug}
+          onSlugChange={setSlug}
         />
       )}
 

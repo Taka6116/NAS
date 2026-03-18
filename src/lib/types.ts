@@ -38,6 +38,7 @@ export interface SavedArticle {
   createdAt: string
   scheduledDate?: string
   scheduledTime?: string
+  slug?: string
   wordCount: number
 }
 

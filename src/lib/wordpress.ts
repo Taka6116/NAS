@@ -512,18 +512,26 @@ function linkifyCtaUrls(html: string): string {
  * アコーディオン版FAQが別途生成されるため、テキスト版は不要。
  */
 function stripTextFaqFromHtml(html: string): string {
-  // 「よくある質問」を含む<h2>または<p>タグ以降を全て除去
-  const faqH2Regex = /<h2[^>]*>[^<]*よくある質問[^<]*<\/h2>[\s\S]*$/i;
-  let cleaned = html.replace(faqH2Regex, '');
+  const lines = html.split('\n');
+  let faqStartIdx = -1;
 
-  // <p>タグ内に「よくある質問」が含まれる場合もそこ以降を全て除去
-  const faqPRegex = /<p[^>]*>[^<]*よくある質問[^<]*<\/p>[\s\S]*$/i;
-  cleaned = cleaned.replace(faqPRegex, '');
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].replace(/<[^>]*>/g, '').trim();
+    if (/よくある質問/.test(stripped)) {
+      faqStartIdx = i;
+      break;
+    }
+  }
 
-  // 「—」（水平線代わり）の後に何も本文がなければそれも除去
-  cleaned = cleaned.replace(/(?:<p[^>]*>\s*[—―─]\s*<\/p>\s*)$/i, '');
+  if (faqStartIdx < 0) return html;
 
-  // 本文末尾に残ったQ&Aテキストブロックも除去（Q. / A. 形式のパラグラフ群）
+  // 「よくある質問」を含む行以降を全て除去
+  let cleaned = lines.slice(0, faqStartIdx).join('\n');
+
+  // 末尾に残った水平線的な要素（—, ---, ―, ─）も除去
+  cleaned = cleaned.replace(/<p[^>]*>\s*[—―─\-]{1,5}\s*<\/p>\s*$/i, '');
+
+  // 末尾に残ったQ&Aテキストブロックも除去
   cleaned = cleaned.replace(
     /(?:<p[^>]*>\s*(?:<strong>)?Q\d*[.．]\s*[\s\S]*?)$/i,
     ''

@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SavedArticle } from '@/lib/types'
 import { getAllArticles, saveArticle } from '@/lib/articleStorage'
-import { ChevronLeft, ChevronRight, Send, Pencil, FileText, CalendarDays, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, Pencil, FileText, CalendarDays, Trash2, Clock, Loader2 } from 'lucide-react'
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
@@ -27,6 +27,8 @@ export default function SchedulePage() {
   const [articles, setArticles] = useState<SavedArticle[]>([])
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null)
 
   useEffect(() => {
     setArticles(getAllArticles())
@@ -75,6 +77,62 @@ export default function SchedulePage() {
       a.scheduledDate = date
       saveArticle(a)
       setArticles(getAllArticles())
+    }
+  }
+
+  const handleTimeChange = (articleId: string, time: string) => {
+    const all = getAllArticles()
+    const a = all.find(x => x.id === articleId)
+    if (a) {
+      a.scheduledTime = time
+      saveArticle(a)
+      setArticles(getAllArticles())
+    }
+  }
+
+  const handleScheduledPublish = async (article: SavedArticle) => {
+    if (!article.scheduledDate || !article.scheduledTime) return
+    setPublishingId(article.id)
+    setPublishResult(null)
+
+    try {
+      const scheduledDate = `${article.scheduledDate}T${article.scheduledTime}:00`
+      const content = article.refinedContent || article.originalContent || ''
+
+      const res = await fetch('/api/wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: article.refinedTitle || article.title,
+          content,
+          targetKeyword: article.targetKeyword,
+          imageUrl: article.imageUrl,
+          status: 'future',
+          scheduledDate,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.id) {
+        const all = getAllArticles()
+        const a = all.find(x => x.id === article.id)
+        if (a) {
+          a.status = 'published'
+          a.wordpressUrl = data.link
+          saveArticle(a)
+          setArticles(getAllArticles())
+        }
+        const dateObj = new Date(scheduledDate)
+        const timeStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日 ${article.scheduledTime}`
+        setPublishResult({ articleId: article.id, success: true, message: `予約投稿しました（${timeStr} 公開予定）` })
+      } else {
+        setPublishResult({ articleId: article.id, success: false, message: data.error || '予約投稿に失敗しました' })
+      }
+    } catch {
+      setPublishResult({ articleId: article.id, success: false, message: 'ネットワークエラーが発生しました' })
+    } finally {
+      setPublishingId(null)
     }
   }
 
@@ -372,25 +430,79 @@ export default function SchedulePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: '1px solid #F1F5F9' }}>
-                    <span className="text-xs" style={{ color: '#94A3B8' }}>
-                      投稿予定日を変更：
-                    </span>
-                    <input
-                      type="date"
-                      value={article.scheduledDate ?? ''}
-                      onChange={e => {
-                        handleScheduleChange(article.id, e.target.value)
-                        setSelectedDate(e.target.value)
-                      }}
-                      className="text-xs px-2 py-1 rounded-md border"
-                      style={{
-                        border: '1px solid #E2E8F0',
-                        color: '#64748B',
-                        fontFamily: 'DM Mono',
-                        background: '#FAFBFC',
-                      }}
-                    />
+                  <div className="mt-4 pt-3 space-y-3" style={{ borderTop: '1px solid #F1F5F9' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: '#94A3B8' }}>
+                        投稿予定日を変更：
+                      </span>
+                      <input
+                        type="date"
+                        value={article.scheduledDate ?? ''}
+                        onChange={e => {
+                          handleScheduleChange(article.id, e.target.value)
+                          setSelectedDate(e.target.value)
+                        }}
+                        className="text-xs px-2 py-1 rounded-md border"
+                        style={{
+                          border: '1px solid #E2E8F0',
+                          color: '#64748B',
+                          fontFamily: 'DM Mono',
+                          background: '#FAFBFC',
+                        }}
+                      />
+                      <Clock size={14} style={{ color: '#94A3B8', marginLeft: 4 }} />
+                      <input
+                        type="time"
+                        value={article.scheduledTime ?? ''}
+                        onChange={e => handleTimeChange(article.id, e.target.value)}
+                        className="text-xs px-2 py-1 rounded-md border"
+                        style={{
+                          border: '1px solid #E2E8F0',
+                          color: '#64748B',
+                          fontFamily: 'DM Mono',
+                          background: '#FAFBFC',
+                        }}
+                      />
+                    </div>
+
+                    {article.status !== 'published' && article.scheduledDate && article.scheduledTime && (
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleScheduledPublish(article)}
+                          disabled={publishingId === article.id}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
+                          style={{ background: '#1B2A4A', boxShadow: '0 2px 6px rgba(27,42,74,0.2)' }}
+                        >
+                          {publishingId === article.id ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin" />
+                              予約投稿中...
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={12} />
+                              予約投稿する
+                            </>
+                          )}
+                        </button>
+                        <span className="text-xs" style={{ color: '#94A3B8' }}>
+                          {article.scheduledTime} に自動公開されます
+                        </span>
+                      </div>
+                    )}
+
+                    {publishResult?.articleId === article.id && (
+                      <div
+                        className="text-xs px-3 py-2 rounded-lg"
+                        style={{
+                          background: publishResult.success ? '#F0FDF4' : '#FEF2F2',
+                          color: publishResult.success ? '#16A34A' : '#DC2626',
+                          border: `1px solid ${publishResult.success ? '#BBF7D0' : '#FECACA'}`,
+                        }}
+                      >
+                        {publishResult.message}
+                      </div>
+                    )}
                   </div>
                 </div>
               )

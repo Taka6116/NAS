@@ -37,6 +37,7 @@ export interface SavedArticle {
   status: ArticleStatus
   createdAt: string
   scheduledDate?: string
+  scheduledTime?: string
   wordCount: number
 }
 

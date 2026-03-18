@@ -13,7 +13,7 @@ export interface WordPressPostResult {
   id: number;
   link: string;             // 投稿のURL
   editLink: string;         // 管理画面の編集URL
-  status: 'draft' | 'publish';
+  status: 'draft' | 'publish' | 'future';
 }
 
 import { getSupervisorBlockHtml } from './supervisorBlock'
@@ -580,7 +580,8 @@ export function buildPostContent(
  */
 export async function postToWordPress(
   payload: WordPressPostPayload,
-  status: 'draft' | 'publish' = 'draft'
+  status: 'draft' | 'publish' | 'future' = 'draft',
+  options?: { scheduledDate?: string }
 ): Promise<WordPressPostResult> {
   const wpUrl = process.env.WORDPRESS_URL?.trim();
   const username = process.env.WORDPRESS_USERNAME?.trim();
@@ -640,6 +641,7 @@ export async function postToWordPress(
         status: status,
         slug: payload.slug || undefined,
         ...(mediaId ? { featured_media: mediaId } : {}),
+        ...(status === 'future' && options?.scheduledDate ? { date: options.scheduledDate } : {}),
         categories: [safeCategoryId],
       }),
     });

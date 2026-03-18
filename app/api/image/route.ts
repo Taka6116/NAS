@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (title.trim() && trimmedContent) {
     try {
       prompt = await generateImagePromptFromArticle(title.trim(), trimmedContent)
-      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9'].join(', ')
+      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9', 'Each human hand must have exactly 5 fingers (1 thumb + 4 fingers) naturally proportioned', 'All limbs must be properly connected to the body with correct joint articulation', 'Objects held in hands must have physically plausible grip and contact points', 'Human body proportions must follow realistic anatomical standards', 'Fingers must have natural spacing length variation and nail placement'].join(', ')
     } catch (e) {
       console.warn('Gemini image prompt failed, using fallback:', (e as Error)?.message)
       prompt = buildPrompt(title, typeof targetKeyword === 'string' ? targetKeyword : undefined)
@@ -187,5 +187,10 @@ function buildPrompt(title: string, targetKeyword?: string): string {
     'NO text NO watermark NO logo',
     'horizontal 16:9 composition',
     'wide or overhead shot',
+    'Each human hand must have exactly 5 fingers (1 thumb + 4 fingers) naturally proportioned',
+    'All limbs must be properly connected to the body with correct joint articulation',
+    'Objects held in hands must have physically plausible grip and contact points',
+    'Human body proportions must follow realistic anatomical standards',
+    'Fingers must have natural spacing length variation and nail placement',
   ].join(', ')
 }

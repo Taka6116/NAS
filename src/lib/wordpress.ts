@@ -295,7 +295,8 @@ function stripHtmlAndDecodeEntities(text: string): string {
  */
 function splitFaqSection(content: string): { body: string; faqSection: string } {
   // FAQ見出しとして成立する行のみを対象にする（本文中の「Q&A」言及では分離しない）
-  const faqHeaderRegex = /^\s*(?:#+\s*)?(?:よくある質問(?:\s*[\(（]FAQ[\)）])?|FAQ|Q\s*&\s*A)\s*[:：]?\s*$/im;
+  // "7. よくある質問（FAQ）" のような数字付き見出し形式にも対応
+  const faqHeaderRegex = /^\s*(?:#+\s*)?(?:\d+[．.]\s*)?(?:よくある質問(?:\s*[\(（]FAQ[\)）])?|FAQ|Q\s*&\s*A)\s*[:：]?\s*$/im;
   const match = content.match(faqHeaderRegex);
   if (match && match.index !== undefined) {
     return {
@@ -511,12 +512,18 @@ function linkifyCtaUrls(html: string): string {
  * アコーディオン版FAQが別途生成されるため、テキスト版は不要。
  */
 function stripTextFaqFromHtml(html: string): string {
-  // 「よくある質問」を含む<h2>タグ以降を全て除去
+  // 「よくある質問」を含む<h2>または<p>タグ以降を全て除去
   const faqH2Regex = /<h2[^>]*>[^<]*よくある質問[^<]*<\/h2>[\s\S]*$/i;
   let cleaned = html.replace(faqH2Regex, '');
 
+  // <p>タグ内に「よくある質問」が含まれる場合もそこ以降を全て除去
+  const faqPRegex = /<p[^>]*>[^<]*よくある質問[^<]*<\/p>[\s\S]*$/i;
+  cleaned = cleaned.replace(faqPRegex, '');
+
+  // 「—」（水平線代わり）の後に何も本文がなければそれも除去
+  cleaned = cleaned.replace(/(?:<p[^>]*>\s*[—―─]\s*<\/p>\s*)$/i, '');
+
   // 本文末尾に残ったQ&Aテキストブロックも除去（Q. / A. 形式のパラグラフ群）
-  // 「Q.」で始まるパラグラフとそれに続く「A.」パラグラフを末尾から除去
   cleaned = cleaned.replace(
     /(?:<p[^>]*>\s*(?:<strong>)?Q\d*[.．]\s*[\s\S]*?)$/i,
     ''

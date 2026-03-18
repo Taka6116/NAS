@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
@@ -47,6 +47,15 @@ export default function PublishResult({
     setLocalTitle(value)
     onRefinedTitleChange?.(value)
   }
+
+  const autoSlug = useMemo(() => generateSlugFromTitle(localTitle.trim() || article.title), [localTitle, article.title])
+  const [slugMode, setSlugMode] = useState<'auto' | 'custom'>(() => slug && slug !== autoSlug ? 'custom' : 'auto')
+
+  useEffect(() => {
+    if (slugMode === 'auto' && autoSlug) {
+      onSlugChange?.(autoSlug)
+    }
+  }, [slugMode, autoSlug])
 
   const finalTitle = localTitle.trim() || article.title
   const finalContent = article.refinedContent || ''
@@ -144,18 +153,37 @@ export default function PublishResult({
                     <LinkIcon size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
                     <div className="w-full">
                       <p className="text-xs font-mono text-[#64748B] mb-0.5">スラッグ（URL末尾）</p>
-                      <input
-                        type="text"
-                        value={slug}
-                        onChange={e => onSlugChange?.(e.target.value)}
+                      <select
+                        value={slugMode}
+                        onChange={e => {
+                          const mode = e.target.value as 'auto' | 'custom'
+                          setSlugMode(mode)
+                          if (mode === 'auto') onSlugChange?.(autoSlug)
+                        }}
                         className="
                           w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
-                          text-sm text-[#1A1A2E]
+                          text-sm text-[#1A1A2E] bg-white
                           focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
-                          transition-all font-mono
+                          transition-all font-mono mb-1.5
                         "
-                        placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
-                      />
+                      >
+                        <option value="auto">{autoSlug}</option>
+                        <option value="custom">自分で入力</option>
+                      </select>
+                      {slugMode === 'custom' && (
+                        <input
+                          type="text"
+                          value={slug}
+                          onChange={e => onSlugChange?.(e.target.value)}
+                          className="
+                            w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
+                            text-sm text-[#1A1A2E]
+                            focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
+                            transition-all font-mono
+                          "
+                          placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -285,4 +313,22 @@ export default function PublishResult({
       )}
     </div>
   )
+}
+
+function generateSlugFromTitle(title: string): string {
+  const ascii = title
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/&/g, '-and-')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+  if (!ascii) {
+    const d = new Date()
+    return `article-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
+  }
+  return ascii
 }

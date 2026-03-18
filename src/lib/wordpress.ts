@@ -507,6 +507,25 @@ function linkifyCtaUrls(html: string): string {
 }
 
 /**
+ * 本文HTMLからテキスト版FAQ（「よくある質問」を含むH2見出し以降）を除去する。
+ * アコーディオン版FAQが別途生成されるため、テキスト版は不要。
+ */
+function stripTextFaqFromHtml(html: string): string {
+  // 「よくある質問」を含む<h2>タグ以降を全て除去
+  const faqH2Regex = /<h2[^>]*>[^<]*よくある質問[^<]*<\/h2>[\s\S]*$/i;
+  let cleaned = html.replace(faqH2Regex, '');
+
+  // 本文末尾に残ったQ&Aテキストブロックも除去（Q. / A. 形式のパラグラフ群）
+  // 「Q.」で始まるパラグラフとそれに続く「A.」パラグラフを末尾から除去
+  cleaned = cleaned.replace(
+    /(?:<p[^>]*>\s*(?:<strong>)?Q\d*[.．]\s*[\s\S]*?)$/i,
+    ''
+  );
+
+  return cleaned.replace(/\s+$/, '');
+}
+
+/**
  * メインの投稿コンテンツを構築
  * 順序: 本文最上部に記事画像（アイキャッチと同じ）→ 監修者ブロック（画像付き）→ 記事本文 → Schema
  * @param bodyTopImageUrl ウェブアプリで作成した画像のURL（WordPressメディア）。本文最上部とアイキャッチに使用
@@ -533,6 +552,9 @@ export function buildPostContent(
 
   // 1-0. CTAバナーを本文中盤に挿入
   htmlBody = insertCtaBannerIntoBody(htmlBody);
+
+  // 1-0a. テキスト版FAQ（「よくある質問」H2以降のQ/Aテキスト）を除去（アコーディオンで置換するため）
+  htmlBody = stripTextFaqFromHtml(htmlBody);
 
   // 1-1. 本文最上部：記事画像（プレビューと同じスタイル）
   const bodyTopImageBlock =

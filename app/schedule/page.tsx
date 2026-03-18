@@ -476,24 +476,54 @@ export default function SchedulePage() {
                       />
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: '#94A3B8' }}>
-                        スラッグ：
-                      </span>
-                      <input
-                        type="text"
-                        value={article.slug ?? ''}
-                        onChange={e => handleSlugChange(article.id, e.target.value)}
-                        className="text-xs px-2 py-1 rounded-md border flex-1"
-                        style={{
-                          border: '1px solid #E2E8F0',
-                          color: '#64748B',
-                          fontFamily: 'DM Mono',
-                          background: '#FAFBFC',
-                        }}
-                        placeholder="例: ma-advisor-selection"
-                      />
-                    </div>
+                    {(() => {
+                      const autoSlug = generateSlugFromTitle(article.refinedTitle || article.title)
+                      const isCustom = article.slug && article.slug !== autoSlug
+                      return (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs" style={{ color: '#94A3B8' }}>
+                              スラッグ：
+                            </span>
+                            <select
+                              value={isCustom ? 'custom' : 'auto'}
+                              onChange={e => {
+                                if (e.target.value === 'auto') {
+                                  handleSlugChange(article.id, autoSlug)
+                                } else {
+                                  handleSlugChange(article.id, article.slug || '')
+                                }
+                              }}
+                              className="text-xs px-2 py-1 rounded-md border flex-1"
+                              style={{
+                                border: '1px solid #E2E8F0',
+                                color: '#64748B',
+                                fontFamily: 'DM Mono',
+                                background: '#FAFBFC',
+                              }}
+                            >
+                              <option value="auto">{autoSlug}</option>
+                              <option value="custom">自分で入力</option>
+                            </select>
+                          </div>
+                          {isCustom && (
+                            <input
+                              type="text"
+                              value={article.slug ?? ''}
+                              onChange={e => handleSlugChange(article.id, e.target.value)}
+                              className="text-xs px-2 py-1 rounded-md border w-full"
+                              style={{
+                                border: '1px solid #E2E8F0',
+                                color: '#64748B',
+                                fontFamily: 'DM Mono',
+                                background: '#FAFBFC',
+                              }}
+                              placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
+                            />
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {article.status !== 'published' && article.scheduledDate && article.scheduledTime && (
                       <div className="flex items-center gap-3">
@@ -589,4 +619,22 @@ export default function SchedulePage() {
       </div>
     </div>
   )
+}
+
+function generateSlugFromTitle(title: string): string {
+  const ascii = title
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/&/g, '-and-')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+  if (!ascii) {
+    const d = new Date()
+    return `article-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
+  }
+  return ascii
 }

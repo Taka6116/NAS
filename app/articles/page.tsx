@@ -17,28 +17,28 @@ export default function ArticlesPage() {
   const [articles, setArticles] = useState<SavedArticle[]>([])
   const [mounted, setMounted] = useState(false)
 
-  const reloadArticles = () => {
-    setArticles(getAllArticles().filter(article => article.status !== 'published'))
+  const reloadArticles = async () => {
+    const all = await getAllArticles()
+    setArticles(all.filter(article => article.status !== 'published'))
   }
 
   useEffect(() => {
-    reloadArticles()
-    setMounted(true)
+    reloadArticles().then(() => setMounted(true))
   }, [])
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('この記事を削除しますか？')) return
-    deleteArticle(id)
-    reloadArticles()
+    await deleteArticle(id)
+    await reloadArticles()
   }
 
-  const handleScheduleChange = (id: string, date: string) => {
-    const all = getAllArticles()
+  const handleScheduleChange = async (id: string, date: string) => {
+    const all = await getAllArticles()
     const article = all.find(a => a.id === id)
     if (article) {
       article.scheduledDate = date
-      saveArticle(article)
-      reloadArticles()
+      await saveArticle(article)
+      await reloadArticles()
     }
   }
 

@@ -11,16 +11,16 @@ export default function PublishedArticlesPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<SavedArticle | null>(null)
 
-  const loadArticles = () => {
-    setArticles(getAllArticles().filter(article => article.status === 'published'))
+  const loadArticles = async () => {
+    const all = await getAllArticles()
+    setArticles(all.filter(article => article.status === 'published'))
   }
 
   useEffect(() => {
-    loadArticles()
-    setMounted(true)
+    loadArticles().then(() => setMounted(true))
   }, [])
 
-  const handleDuplicateToSaved = (article: SavedArticle) => {
+  const handleDuplicateToSaved = async (article: SavedArticle) => {
     const newArticle: SavedArticle = {
       ...article,
       id: `copy-${Date.now()}`,
@@ -28,13 +28,13 @@ export default function PublishedArticlesPage() {
       status: 'draft',
       createdAt: new Date().toISOString(),
       scheduledDate: undefined,
-      imageUrl: '', // 画像はコピーしない（base64で容量を消費するため）。編集画面で再生成可能
+      imageUrl: '',
     }
     try {
-      saveArticle(newArticle)
+      await saveArticle(newArticle)
       setCopiedId(article.id)
       setTimeout(() => setCopiedId(null), 2000)
-      loadArticles()
+      await loadArticles()
     } catch (e) {
       alert(e instanceof Error ? e.message : '保存に失敗しました')
     }
@@ -187,10 +187,10 @@ export default function PublishedArticlesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  deleteArticle(confirmTarget.id)
+                onClick={async () => {
+                  await deleteArticle(confirmTarget.id)
                   setConfirmTarget(null)
-                  loadArticles()
+                  await loadArticles()
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
                 style={{ background: '#DC2626', color: 'white' }}

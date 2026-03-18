@@ -12,7 +12,7 @@ interface PublishResultProps {
   wordpressStatus: ProcessingState
   wordpressError?: string | null
   onBack: () => void
-  onSaveDraft: () => void
+  onSaveDraft: () => Promise<string | undefined> | void
   onPublish: () => void
   onReset: () => void
   onStepClick?: (step: Step) => void

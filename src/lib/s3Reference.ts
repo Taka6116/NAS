@@ -1,4 +1,4 @@
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 const TEXT_EXT = new Set(['.txt', '.csv', '.md', '.json', '.html', '.xml'])
 const REGION = process.env.AWS_REGION ?? 'ap-northeast-1'
@@ -78,4 +78,36 @@ export async function getS3ObjectAsBuffer(key: string): Promise<{ body: Uint8Arr
 
 export function getS3BucketName(): string | null {
   return BUCKET ?? null
+}
+
+export async function putS3Object(key: string, body: string, contentType = 'application/json'): Promise<boolean> {
+  const client = getClient()
+  if (!client) return false
+  try {
+    await client.send(new PutObjectCommand({
+      Bucket: BUCKET!,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }))
+    return true
+  } catch (e) {
+    console.error('S3 put error:', e)
+    return false
+  }
+}
+
+export async function deleteS3Object(key: string): Promise<boolean> {
+  const client = getClient()
+  if (!client) return false
+  try {
+    await client.send(new DeleteObjectCommand({
+      Bucket: BUCKET!,
+      Key: key,
+    }))
+    return true
+  } catch (e) {
+    console.error('S3 delete error:', e)
+    return false
+  }
 }

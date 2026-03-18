@@ -560,7 +560,6 @@ export function buildPostContent(
 
   // 0-1. FAQセクションを本文から分離（convertToHtmlで見出し化されないように）
   const { body: bodyText, faqSection } = splitFaqSection(contentWithoutSupervisorText);
-  console.log('[FAQ-DEBUG] splitFaqSection result: faqSection length =', faqSection.length, ', bodyText ends with:', JSON.stringify(bodyText.slice(-200)));
 
   // 1. 本文（FAQ除外）をHTMLに変換
   let htmlBody = convertToHtml(bodyText);
@@ -569,11 +568,8 @@ export function buildPostContent(
   // 1-0. CTAバナーを本文中盤に挿入
   htmlBody = insertCtaBannerIntoBody(htmlBody);
 
-  console.log('[FAQ-DEBUG] htmlBody contains よくある質問:', htmlBody.includes('よくある質問'));
-
   // 1-0a. テキスト版FAQ（「よくある質問」H2以降のQ/Aテキスト）を除去（アコーディオンで置換するため）
   htmlBody = stripTextFaqFromHtml(htmlBody);
-  console.log('[FAQ-DEBUG] after stripTextFaqFromHtml, contains よくある質問:', htmlBody.includes('よくある質問'));
 
   // 1-1. 本文最上部：記事画像（プレビューと同じスタイル）
   const bodyTopImageBlock =

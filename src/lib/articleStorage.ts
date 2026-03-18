@@ -1,62 +1,56 @@
 import { SavedArticle } from './types'
 
-const STORAGE_KEY = 'nas_articles'
+const API_BASE = '/api/articles'
 
-export function getAllArticles(): SavedArticle[] {
-  if (typeof window === 'undefined') return []
+export async function getAllArticles(): Promise<SavedArticle[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
+    const res = await fetch(API_BASE)
+    if (!res.ok) throw new Error(`GET ${res.status}`)
+    const data = await res.json()
+    return data.articles ?? []
+  } catch (e) {
+    console.error('getAllArticles error:', e)
     return []
   }
 }
 
-function isQuotaExceeded(e: unknown): boolean {
-  return e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)
-}
-
-export function saveArticle(article: SavedArticle): void {
-  if (typeof window === 'undefined') return
-  const all = getAllArticles()
-  const existingIndex = all.findIndex(a => a.id === article.id)
-  if (existingIndex >= 0) {
-    all[existingIndex] = article
-  } else {
-    all.unshift(article)
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
-  } catch (e) {
-    if (isQuotaExceeded(e)) {
-      throw new Error(
-        'ストレージの容量不足です。画像が大きい可能性があります。不要な記事を一覧から削除してから再度保存してください。'
-      )
-    }
-    throw e
+export async function saveArticle(article: SavedArticle): Promise<void> {
+  const res = await fetch(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(article),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || '記事の保存に失敗しました')
   }
 }
 
-export function deleteArticle(id: string): void {
-  const all = getAllArticles().filter(a => a.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
+export async function deleteArticle(id: string): Promise<void> {
+  const res = await fetch(API_BASE, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || '記事の削除に失敗しました')
+  }
 }
 
-export function getArticleById(id: string): SavedArticle | null {
-  return getAllArticles().find(a => a.id === id) ?? null
+export async function getArticleById(id: string): Promise<SavedArticle | null> {
+  const all = await getAllArticles()
+  return all.find(a => a.id === id) ?? null
 }
 
-export function updateArticleStatus(
+export async function updateArticleStatus(
   id: string,
   status: SavedArticle['status'],
   wordpressUrl?: string
-): void {
-  const all = getAllArticles()
-  const article = all.find(a => a.id === id)
-  if (article) {
-    article.status = status
-    if (wordpressUrl) article.wordpressUrl = wordpressUrl
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all))
-  }
+): Promise<void> {
+  const article = await getArticleById(id)
+  if (!article) return
+  article.status = status
+  if (wordpressUrl) article.wordpressUrl = wordpressUrl
+  await saveArticle(article)
 }

@@ -15,7 +15,7 @@ interface ImageResultProps {
   /** 画像生成失敗時に表示するAPIエラーメッセージ */
   fireflyError?: string | null
   onBack: () => void
-  onSaveDraft: () => string | void
+  onSaveDraft: () => Promise<string | undefined> | string | void
   onNext: () => void
   onRegenerate: () => void
   /** 初回の画像生成を開始する（クリックで呼ぶ） */
@@ -43,9 +43,8 @@ export default function ImageResult({
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const handlePreview = () => {
-    // プレビュー前に最新の画像を保存させる
-    const savedId = onSaveDraft()
+  const handlePreview = async () => {
+    const savedId = await onSaveDraft()
     const finalArticleId = savedId || articleId
     
     const content = article.refinedContent || article.originalContent || ''

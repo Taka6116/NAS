@@ -73,11 +73,12 @@ function EditorContent() {
   const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
+    const init = async () => {
     const articleId = searchParams.get('articleId')
     const stepParam = searchParams.get('step')
 
     if (articleId) {
-      const savedArticle = getArticleById(articleId)
+      const savedArticle = await getArticleById(articleId)
       if (savedArticle) {
         setArticle({
           title: savedArticle.title,
@@ -137,6 +138,8 @@ function EditorContent() {
       setCurrentStep(parsedStepFromUrl as Step)
     }
     setMounted(true)
+    }
+    init()
   }, [searchParams])
 
   useEffect(() => {
@@ -277,15 +280,14 @@ function EditorContent() {
     [article, currentArticleId, router]
   )
 
-  const handleSaveDraft = useCallback(() => {
-    // 保存済み一覧→投稿する→画像ページから保存する場合、URL の articleId をフォールバックで使う
+  const handleSaveDraft = useCallback(async () => {
     const idFromUrl = searchParams.get('articleId')
     const id = currentArticleId ?? idFromUrl ?? String(Date.now())
     setCurrentArticleId(id)
 
-    const existing = getArticleById(id)
+    const existing = await getArticleById(id)
     try {
-      saveArticle({
+      await saveArticle({
         id,
         title: article.title,
         refinedTitle: article.refinedTitle ?? article.title,
@@ -363,11 +365,11 @@ function EditorContent() {
       if (!res.ok) throw new Error(data.error)
       updateArticle({ wordpressUrl: data.wordpressUrl })
       if (currentArticleId) {
-        updateArticleStatus(currentArticleId, 'published', data.wordpressUrl)
+        await updateArticleStatus(currentArticleId, 'published', data.wordpressUrl)
       } else {
         const newId = String(Date.now())
         setCurrentArticleId(newId)
-        saveArticle({
+        await saveArticle({
           id: newId,
           title: article.title,
           refinedTitle: article.refinedTitle ?? article.title,

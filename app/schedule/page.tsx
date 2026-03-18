@@ -31,8 +31,10 @@ export default function SchedulePage() {
   const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null)
 
   useEffect(() => {
-    setArticles(getAllArticles())
-    setMounted(true)
+    getAllArticles().then(all => {
+      setArticles(all)
+      setMounted(true)
+    })
   }, [])
 
   const articlesByDate = useMemo(() => {
@@ -70,33 +72,33 @@ export default function SchedulePage() {
   ]
   while (calendarCells.length % 7 !== 0) calendarCells.push(null)
 
-  const handleScheduleChange = (articleId: string, date: string) => {
-    const all = getAllArticles()
+  const handleScheduleChange = async (articleId: string, date: string) => {
+    const all = await getAllArticles()
     const a = all.find(x => x.id === articleId)
     if (a) {
       a.scheduledDate = date
-      saveArticle(a)
-      setArticles(getAllArticles())
+      await saveArticle(a)
+      setArticles(await getAllArticles())
     }
   }
 
-  const handleTimeChange = (articleId: string, time: string) => {
-    const all = getAllArticles()
+  const handleTimeChange = async (articleId: string, time: string) => {
+    const all = await getAllArticles()
     const a = all.find(x => x.id === articleId)
     if (a) {
       a.scheduledTime = time
-      saveArticle(a)
-      setArticles(getAllArticles())
+      await saveArticle(a)
+      setArticles(await getAllArticles())
     }
   }
 
-  const handleSlugChange = (articleId: string, newSlug: string) => {
-    const all = getAllArticles()
+  const handleSlugChange = async (articleId: string, newSlug: string) => {
+    const all = await getAllArticles()
     const a = all.find(x => x.id === articleId)
     if (a) {
       a.slug = newSlug
-      saveArticle(a)
-      setArticles(getAllArticles())
+      await saveArticle(a)
+      setArticles(await getAllArticles())
     }
   }
 
@@ -126,13 +128,13 @@ export default function SchedulePage() {
       const data = await res.json()
 
       if (res.ok && data.postId) {
-        const all = getAllArticles()
+        const all = await getAllArticles()
         const a = all.find(x => x.id === article.id)
         if (a) {
           a.status = 'published'
           a.wordpressUrl = data.wordpressUrl
-          saveArticle(a)
-          setArticles(getAllArticles())
+          await saveArticle(a)
+          setArticles(await getAllArticles())
         }
         const dateObj = new Date(scheduledDate)
         const timeStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日 ${article.scheduledTime}`
@@ -147,15 +149,15 @@ export default function SchedulePage() {
     }
   }
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (!deleteTargetId) return
-    const all = getAllArticles()
+    const all = await getAllArticles()
     const target = all.find(x => x.id === deleteTargetId)
     if (target) {
       target.scheduledDate = undefined
-      saveArticle(target)
+      await saveArticle(target)
     }
-    setArticles(getAllArticles())
+    setArticles(await getAllArticles())
     setDeleteTargetId(null)
   }
 

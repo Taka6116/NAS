@@ -29,6 +29,7 @@ export default function SchedulePage() {
   const [mounted, setMounted] = useState(false)
   const [publishingId, setPublishingId] = useState<string | null>(null)
   const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null)
+  const [customSlugIds, setCustomSlugIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getAllArticles().then(all => {
@@ -479,8 +480,8 @@ export default function SchedulePage() {
                     </div>
 
                     {(() => {
-                      const autoSlug = generateSlugFromTitle(article.refinedTitle || article.title)
-                      const isCustom = article.slug && article.slug !== autoSlug
+                      const autoSlug = article.slug || ''
+                      const isCustom = customSlugIds.has(article.id)
                       return (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-2">
@@ -491,9 +492,10 @@ export default function SchedulePage() {
                               value={isCustom ? 'custom' : 'auto'}
                               onChange={e => {
                                 if (e.target.value === 'auto') {
+                                  setCustomSlugIds(prev => { const next = new Set(prev); next.delete(article.id); return next })
                                   handleSlugChange(article.id, autoSlug)
                                 } else {
-                                  handleSlugChange(article.id, article.slug || '')
+                                  setCustomSlugIds(prev => new Set(prev).add(article.id))
                                 }
                               }}
                               className="text-xs px-2 py-1 rounded-md border flex-1"
@@ -504,7 +506,7 @@ export default function SchedulePage() {
                                 background: '#FAFBFC',
                               }}
                             >
-                              <option value="auto">{autoSlug}</option>
+                              <option value="auto">{autoSlug || '(AI生成スラッグ)'}</option>
                               <option value="custom">自分で入力</option>
                             </select>
                           </div>
@@ -621,8 +623,4 @@ export default function SchedulePage() {
       </div>
     </div>
   )
-}
-
-function generateSlugFromTitle(_title: string): string {
-  return 'ma-advisor-selection'
 }

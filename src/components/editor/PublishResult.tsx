@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
@@ -48,14 +48,20 @@ export default function PublishResult({
     onRefinedTitleChange?.(value)
   }
 
-  const autoSlug = useMemo(() => generateSlugFromTitle(localTitle.trim() || article.title), [localTitle, article.title])
-  const [slugMode, setSlugMode] = useState<'auto' | 'custom'>(() => slug && slug !== autoSlug ? 'custom' : 'auto')
+  const [geminiSlug, setGeminiSlug] = useState(slug || '')
+  const [slugMode, setSlugMode] = useState<'auto' | 'custom'>('auto')
 
   useEffect(() => {
-    if (slugMode === 'auto' && autoSlug) {
-      onSlugChange?.(autoSlug)
+    if (slug && !geminiSlug) {
+      setGeminiSlug(slug)
     }
-  }, [slugMode, autoSlug])
+  }, [slug, geminiSlug])
+
+  useEffect(() => {
+    if (slugMode === 'auto' && geminiSlug) {
+      onSlugChange?.(geminiSlug)
+    }
+  }, [slugMode, geminiSlug])
 
   const finalTitle = localTitle.trim() || article.title
   const finalContent = article.refinedContent || ''
@@ -158,7 +164,7 @@ export default function PublishResult({
                         onChange={e => {
                           const mode = e.target.value as 'auto' | 'custom'
                           setSlugMode(mode)
-                          if (mode === 'auto') onSlugChange?.(autoSlug)
+                          if (mode === 'auto') onSlugChange?.(geminiSlug)
                         }}
                         className="
                           w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
@@ -167,7 +173,7 @@ export default function PublishResult({
                           transition-all font-mono mb-1.5
                         "
                       >
-                        <option value="auto">{autoSlug}</option>
+                        <option value="auto">{geminiSlug || '(AI生成スラッグ)'}</option>
                         <option value="custom">自分で入力</option>
                       </select>
                       {slugMode === 'custom' && (
@@ -313,8 +319,4 @@ export default function PublishResult({
       )}
     </div>
   )
-}
-
-function generateSlugFromTitle(_title: string): string {
-  return 'ma-advisor-selection'
 }

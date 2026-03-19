@@ -363,6 +363,50 @@ ${targetKeyword?.trim() ? `ターゲットキーワード：${targetKeyword}` : 
   }
 }
 
+/** 記事タイトル・キーワードからSEO向け英語スラッグを生成する */
+export async function generateSlugFromGemini(
+  title: string,
+  targetKeyword?: string
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey?.trim()) return fallbackSlug()
+
+  const kwPart = targetKeyword?.trim() ? `\nTarget keyword: ${targetKeyword.trim()}` : ''
+  const prompt = `You are an SEO specialist. Given the following Japanese article title, generate exactly ONE URL slug in English.
+
+RULES:
+- Use lowercase letters, numbers, and hyphens only
+- 3 to 5 words separated by hyphens (e.g. "ma-advisor-guide", "business-succession-tips")
+- Reflect the specific topic of the article, not generic words
+- Do NOT use Japanese characters
+- Output ONLY the slug, nothing else
+
+Title: ${title.trim()}${kwPart}
+
+Slug:`
+
+  try {
+    const raw = await generateContentWithFallback(apiKey, prompt)
+    const sanitized = raw
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60)
+    return sanitized.length >= 3 ? sanitized : fallbackSlug()
+  } catch (e) {
+    console.warn('Gemini slug generation failed:', (e as Error)?.message)
+    return fallbackSlug()
+  }
+}
+
+function fallbackSlug(): string {
+  const d = new Date()
+  return `article-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+}
+
 /** 記事タイトル・本文から画像生成用の英文プロンプトを1文で生成する（Stable Diffusion用） */
 export async function generateImagePromptFromArticle(
   title: string,

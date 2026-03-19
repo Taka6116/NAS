@@ -176,6 +176,9 @@ function EditorContent() {
         throw new Error('Geminiの推敲結果が空です。再度お試しください。')
       }
       updateArticle({ refinedTitle, refinedContent })
+      if (typeof data.slug === 'string' && data.slug.trim()) {
+        setSlug(data.slug.trim())
+      }
       setGeminiStatus('success')
     } catch (e) {
       setGeminiStatus('error')

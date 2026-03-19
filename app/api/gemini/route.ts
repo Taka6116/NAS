@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { refineArticleWithGemini } from '@/lib/api/gemini'
+import { refineArticleWithGemini, generateSlugFromGemini } from '@/lib/api/gemini'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
       content,
       targetKeywordStr
     )
-    return NextResponse.json({ refinedTitle, refinedContent })
+    const slug = await generateSlugFromGemini(refinedTitle || titleStr, targetKeywordStr)
+    return NextResponse.json({ refinedTitle, refinedContent, slug })
   } catch (error) {
     console.error('Gemini API error:', error)
     const message =

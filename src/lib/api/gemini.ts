@@ -377,19 +377,20 @@ export async function generateImagePromptFromArticle(
 Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English describing a photorealistic business image.
 
 STYLE REFERENCE (M&A / corporate articles) — choose ONE of these; vary across articles so different patterns appear:
-- Option A (handshake): professional handshake between business people in dark suits (navy, grey), clean white or very light grey minimalist background, symbolic of deal or partnership. Upper bodies or hands and suit sleeves visible.
-- Option B (flat-lay): overhead flat-lay of M&A-themed objects on white — wooden or cardboard blocks spelling "M" "&" "A", business documents, laptop, calculator, pen, spread on clean white desk; no people in frame.
-- Option C (stacked blocks): wooden blocks stacked vertically with "M" "&" "A" on each, placed on business documents or reports with graphs and charts, clean light grey or white background, shallow depth of field, professional stock photography.
-- Option D (conceptual hand): businessman hand in dark suit sleeve, palm or hand over business documents and charts, symbolic of M&A or deal-making, professional conceptual corporate photography, clean or soft neutral background, no face visible.
-- Option E (meeting hands): close-up of business meeting table with multiple hands holding tablet, documents, pen, calculator; collaborative discussion, no faces visible, clean white table, natural light, professional corporate stock photography.
-- Option F: two or three business professionals in formal suits, mid-shot, clean uncluttered background, positive professional mood, like high-end stock photography.
-- Avoid: busy conference rooms with many people, cluttered desks, windows with city views, casual or generic office meetings.
-- For non-M&A topics: overhead flat-lay of documents/contracts, or hands with documents/charts, or simple office desk with laptop/documents; same clean, minimal background.
+- Option A (flat-lay): overhead flat-lay of M&A-themed objects on white — wooden or cardboard blocks spelling "M" "&" "A", business documents, laptop, calculator, pen, spread on clean white desk; no people in frame.
+- Option B (stacked blocks): wooden blocks stacked vertically with "M" "&" "A" on each, placed on business documents or reports with graphs and charts, clean light grey or white background, shallow depth of field, professional stock photography, no people.
+- Option C (documents): overhead flat-lay of merger agreement documents, corporate stamps, pen and glasses on clean white desk, professional stock photography, no people.
+- Option D (workspace): overhead view of a clean white desk with business documents, laptop showing charts, coffee cup and pen, professional M&A advisory workspace, corporate stock photography, no people.
+- Option E (letter blocks): wooden letter blocks M and A with ampersand on top of financial reports and bar charts, soft natural light, clean white background, professional corporate photography, no people.
+- Option F (miniature): two miniature wooden building blocks side by side on business documents symbolizing corporate merger, clean light background, shallow depth of field, professional stock photography, no people.
+- Avoid: busy conference rooms, cluttered desks, windows with city views, casual or generic office meetings.
+- For non-M&A topics: overhead flat-lay of documents/contracts, or simple office desk with laptop/documents; same clean, minimal background. No people.
 
 RULES:
+- CRITICAL: Do NOT include human hands, fingers, or any body parts in the image description. Prefer object-only compositions (flat-lay, blocks, documents, desk items).
 - Clean, minimal background (white, light grey, or soft neutral). No text, no watermark, no typography in the image.
 - Photorealistic, professional, navy/grey/white color palette, soft even lighting, 16:9 horizontal.
-- For M&A articles, choose from options A through F so that handshake, flat-lay, stacked blocks, conceptual hand, meeting hands, and group shot are all used over time — do not always pick the same option.
+- For M&A articles, choose from options A through F so that flat-lay, stacked blocks, documents, workspace, letter blocks, and miniature are all used over time — do not always pick the same option.
 
 OUTPUT: ONE English sentence only. No explanation. No quotes. Under 30 words.
 

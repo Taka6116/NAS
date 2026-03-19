@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   if (title.trim() && trimmedContent) {
     try {
       prompt = await generateImagePromptFromArticle(title.trim(), trimmedContent)
-      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9', 'Each human hand must have exactly 5 fingers (1 thumb + 4 fingers) naturally proportioned', 'All limbs must be properly connected to the body with correct joint articulation', 'Objects held in hands must have physically plausible grip and contact points', 'Human body proportions must follow realistic anatomical standards', 'Fingers must have natural spacing length variation and nail placement'].join(', ')
+      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9'].join(', ')
     } catch (e) {
       console.warn('Gemini image prompt failed, using fallback:', (e as Error)?.message)
       prompt = buildPrompt(title, typeof targetKeyword === 'string' ? targetKeyword : undefined)
@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
       'low quality, blurry, distorted, deformed',
       'bright neon colors, colorful',
       'nsfw, inappropriate',
+      'extra fingers, missing fingers, fused fingers, deformed hands, mutated hands',
+      'six fingers, too many fingers, bad hands, malformed hands, extra limbs',
+      'extra digits, fewer digits, cropped hands, poorly drawn hands',
     ].join(', '),
     mode: 'text-to-image',
     aspect_ratio: '16:9',
@@ -153,28 +156,29 @@ function buildPrompt(title: string, targetKeyword?: string): string {
 
   if (isContract) {
     theme =
-      'overhead flat-lay of business contract documents and fountain pen on white desk, professional corporate photography'
+      'overhead flat-lay of business contract documents and fountain pen on white desk, professional corporate photography, no people'
   } else if (isFinance) {
     theme =
-      'overhead view of financial charts, graphs and business reports spread on conference table with hands pointing, no faces visible'
+      'overhead flat-lay of financial charts, graphs and business reports spread on clean white conference table, calculator and pen beside documents, no people, professional corporate stock photography'
   } else if (isPMI) {
     theme =
-      'wide shot of modern Japanese conference room, business team seen from behind gathered around table with documents, integration meeting'
+      'wide shot of modern Japanese conference room, business team seen from behind gathered around table with documents, integration meeting, no hands visible in foreground'
   } else if (isSuccession) {
     theme =
-      'mid shot of two pairs of hands exchanging business documents across a desk, warm office lighting, succession symbolism, no faces'
+      'overhead flat-lay of business succession documents, company seal, pen and notebook on clean wooden desk, warm office lighting, professional corporate photography, no people'
   } else if (isMA) {
     const maThemes = [
-      'professional handshake between two business people in dark navy and grey suits, clean white or light grey minimalist background, symbolic of M&A deal and partnership, corporate stock photography style, upper body and hands visible, photorealistic',
       'overhead flat-lay of M&A themed objects on white desk: wooden or cardboard blocks spelling M and A, business documents, laptop, calculator, pen, professional corporate stock photography, clean minimal style, no people',
-      'wooden blocks stacked vertically with M and A letters on each, placed on business documents with graphs and charts, clean light grey or white background, shallow depth of field, professional corporate stock photography',
-      'businessman hand in dark suit sleeve over business documents and charts, symbolic of M&A or deal-making, professional conceptual corporate photography, clean neutral background, no face visible, photorealistic',
-      'close-up of business meeting table with multiple hands holding tablet and documents, pen and calculator, collaborative discussion, no faces visible, clean white table, natural light, professional corporate stock photography',
+      'wooden blocks stacked vertically with M and A letters on each, placed on business documents with graphs and charts, clean light grey or white background, shallow depth of field, professional corporate stock photography, no people',
+      'overhead flat-lay of merger agreement documents, corporate stamps, pen and glasses on clean white desk, professional stock photography, no people',
+      'two miniature wooden building blocks side by side on business documents symbolizing corporate merger, clean light background, shallow depth of field, professional stock photography, no people',
+      'overhead view of a clean white desk with business documents, laptop showing charts, coffee cup and pen, professional M&A advisory workspace, corporate stock photography, no people',
+      'wooden letter blocks M and A with ampersand on top of financial reports and bar charts, soft natural light, clean white background, professional corporate photography, no people',
     ]
     theme = maThemes[Math.floor(Math.random() * maThemes.length)]!
   } else {
     theme =
-      'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style'
+      'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style, no people'
   }
 
   return [
@@ -187,10 +191,5 @@ function buildPrompt(title: string, targetKeyword?: string): string {
     'NO text NO watermark NO logo',
     'horizontal 16:9 composition',
     'wide or overhead shot',
-    'Each human hand must have exactly 5 fingers (1 thumb + 4 fingers) naturally proportioned',
-    'All limbs must be properly connected to the body with correct joint articulation',
-    'Objects held in hands must have physically plausible grip and contact points',
-    'Human body proportions must follow realistic anatomical standards',
-    'Fingers must have natural spacing length variation and nail placement',
   ].join(', ')
 }

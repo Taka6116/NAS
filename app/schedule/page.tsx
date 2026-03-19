@@ -506,7 +506,7 @@ export default function SchedulePage() {
                                 background: '#FAFBFC',
                               }}
                             >
-                              <option value="auto">{autoSlug || '(AI生成スラッグ)'}</option>
+                              <option value="auto">{autoSlug || '(スラッグ未設定)'}</option>
                               <option value="custom">自分で入力</option>
                             </select>
                           </div>

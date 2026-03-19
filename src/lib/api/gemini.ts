@@ -372,14 +372,21 @@ export async function generateSlugFromGemini(
   if (!apiKey?.trim()) return fallbackSlug()
 
   const kwPart = targetKeyword?.trim() ? `\nTarget keyword: ${targetKeyword.trim()}` : ''
-  const prompt = `You are an SEO specialist. Given the following Japanese article title, generate exactly ONE URL slug in English.
+  const prompt = `You are an SEO specialist. Given the following Japanese article title, generate exactly ONE URL slug in ENGLISH.
+
+CRITICAL: You MUST respond in English only. NEVER use Japanese characters. Output ONLY the slug string, nothing else.
 
 RULES:
-- Use lowercase letters, numbers, and hyphens only
-- 3 to 5 words separated by hyphens (e.g. "ma-advisor-guide", "business-succession-tips")
-- Reflect the specific topic of the article, not generic words
-- Do NOT use Japanese characters
-- Output ONLY the slug, nothing else
+- Use ONLY lowercase English letters (a-z), numbers (0-9), and hyphens (-)
+- 3 to 5 words separated by hyphens
+- Reflect the specific topic of the article
+- Do NOT use Japanese, Chinese, or any non-ASCII characters
+
+EXAMPLES:
+- "M&Aアドバイザーの選び方" → ma-advisor-selection-guide
+- "事業承継の基礎知識" → business-succession-basics
+- "デューデリジェンスの進め方" → due-diligence-process-guide
+- "中小企業M&Aの成功ポイント" → sme-ma-success-tips
 
 Title: ${title.trim()}${kwPart}
 

@@ -52,10 +52,10 @@ export default function PublishResult({
   const [slugMode, setSlugMode] = useState<'auto' | 'custom'>('auto')
 
   useEffect(() => {
-    if (slug && !geminiSlug) {
+    if (slug) {
       setGeminiSlug(slug)
     }
-  }, [slug, geminiSlug])
+  }, [slug])
 
   useEffect(() => {
     if (slugMode === 'auto' && geminiSlug) {
@@ -173,7 +173,7 @@ export default function PublishResult({
                           transition-all font-mono mb-1.5
                         "
                       >
-                        <option value="auto">{geminiSlug || '(AI生成スラッグ)'}</option>
+                        <option value="auto">{geminiSlug || '(推敲完了後に自動生成されます)'}</option>
                         <option value="custom">自分で入力</option>
                       </select>
                       {slugMode === 'custom' && (

@@ -39,36 +39,29 @@ export default function LayoutWithSidebar({
         <nav className="flex-1 px-3 py-4 text-sm space-y-6">
           <div>
             <div className="space-y-1">
-              <Link
-                href="/editor"
-                className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
-              >
-                記事を作成
-              </Link>
-              <Link
-                href="/articles"
-                className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
-              >
-                保存済み記事一覧
-              </Link>
-              <Link
-                href="/published"
-                className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
-              >
-                過去投稿済み記事一覧
-              </Link>
-              <Link
-                href="/schedule"
-                className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
-              >
-                投稿スケジュール
-              </Link>
-              <Link
-                href="/prompts"
-                className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold text-[#E2E8F0] hover:text-white hover:bg-[#0039b3] transition-all"
-              >
-                プロンプト
-              </Link>
+              {[
+                { href: '/editor', label: '記事を作成' },
+                { href: '/articles', label: '保存済み記事一覧' },
+                { href: '/published', label: '過去投稿済み記事一覧' },
+                { href: '/schedule', label: '投稿スケジュール' },
+                { href: '/prompts', label: 'プロンプト' },
+              ].map(({ href, label }) => {
+                const isActive = pathname === href || pathname.startsWith(href + '/')
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center px-3 py-2.5 rounded-lg text-[16px] font-semibold transition-all"
+                    style={{
+                      color: isActive ? '#FFFFFF' : '#E2E8F0',
+                      background: isActive ? '#0039b3' : 'transparent',
+                      boxShadow: isActive ? 'inset 3px 0 0 #60A5FA' : 'none',
+                    }}
+                  >
+                    {label}
+                  </Link>
+                )
+              })}
             </div>
           </div>
 

@@ -52,8 +52,8 @@ export default function PublishedArticlesPage() {
         <h1 className="text-xl font-bold" style={{ color: '#1A1A2E' }}>
           過去投稿済み記事一覧
         </h1>
-        <p className="text-sm mt-1" style={{ color: '#64748B' }}>
-          投稿済みの記事を閲覧できます。複製時は画像を含みません（編集画面で再生成できます）。
+        <p className="text-sm mt-1" style={{ color: '#64748B', whiteSpace: 'pre-line' }}>
+          {`投稿済みの記事を閲覧できます。内容を見たい場合は、保存済み記事一覧に複製をしてからご覧いただけます。\n削除してもWordpress上で過去の記事の内容は確認可能です。`}
         </p>
       </div>
 

@@ -126,6 +126,16 @@ function formatContent(content: string, imageUrl: string): string {
   flushParagraph()
   let bodyHtml = htmlLines.join('\n')
 
+  bodyHtml = bodyHtml
+    .replace(
+      /導入事例はこちらから\s+https?:\/\/nihon-teikei\.co\.jp\/news\/casestudy\/?/g,
+      '<a href="https://nihon-teikei.co.jp/news/casestudy/" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">導入事例はこちらから</a>'
+    )
+    .replace(
+      /待っているだけでオファーが届くM&Aオファーはこちら\s+https?:\/\/nihon-teikei\.com\/ma-offer/g,
+      '<a href="https://nihon-teikei.com/ma-offer" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">待っているだけでオファーが届くM&Aオファーはこちら</a>'
+    )
+
   bodyHtml = insertCtaBannersForPreview(bodyHtml)
 
   return imageHtml + supervisorBlock + bodyHtml

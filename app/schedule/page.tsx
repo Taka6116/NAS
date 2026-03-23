@@ -3,7 +3,18 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SavedArticle } from '@/lib/types'
 import { getAllArticles, saveArticle } from '@/lib/articleStorage'
-import { ChevronLeft, ChevronRight, Send, Pencil, FileText, CalendarDays, Trash2, Clock, Loader2 } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  Pencil,
+  FileText,
+  CalendarDays,
+  Trash2,
+  Clock,
+  Loader2,
+  List,
+} from 'lucide-react'
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
@@ -16,6 +27,43 @@ function toYMD(date: Date) {
 }
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 const MONTH_NAMES = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+
+/** カレンダー／一覧／カード共通の「投稿スケジュール段階」 */
+function getScheduleStage(article: SavedArticle): {
+  key: string
+  label: string
+  color: string
+  bg: string
+} {
+  if (!article.scheduledDate) {
+    return { key: 'unscheduled', label: '投稿日未設定', color: '#94A3B8', bg: '#F1F5F9' }
+  }
+  const hasTime = Boolean(article.scheduledTime?.trim())
+  if (!hasTime) {
+    return { key: 'date_only', label: '投稿日のみ確定', color: '#0369A1', bg: '#E0F2FE' }
+  }
+  if (article.wordpressPostStatus === 'future') {
+    return { key: 'wp_future', label: 'WP予約投稿済み', color: '#6D28D9', bg: '#EDE9FE' }
+  }
+  if (article.wordpressPostStatus === 'publish') {
+    return { key: 'wp_publish', label: 'WP公開済み', color: '#475569', bg: '#F8FAFC' }
+  }
+  if (article.wordpressUrl) {
+    return { key: 'wp_sent', label: 'WordPress送信済み', color: '#64748B', bg: '#F1F5F9' }
+  }
+  return {
+    key: 'datetime_ready',
+    label: '公開日時まで設定（WP未送信）',
+    color: '#15803D',
+    bg: '#DCFCE7',
+  }
+}
+
+function sortKeyForScheduled(a: SavedArticle): string {
+  const d = a.scheduledDate ?? ''
+  const t = a.scheduledTime?.trim() ? a.scheduledTime! : '99:99'
+  return `${d}T${t}`
+}
 
 export default function SchedulePage() {
   const router = useRouter()
@@ -30,6 +78,7 @@ export default function SchedulePage() {
   const [publishingId, setPublishingId] = useState<string | null>(null)
   const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null)
   const [customSlugIds, setCustomSlugIds] = useState<Set<string>>(new Set())
+  const [scheduleListThisMonthOnly, setScheduleListThisMonthOnly] = useState(true)
 
   useEffect(() => {
     getAllArticles().then(all => {
@@ -49,6 +98,19 @@ export default function SchedulePage() {
     })
     return map
   }, [articles])
+
+  const scheduledArticlesSorted = useMemo(() => {
+    const withDate = articles.filter(a => a.scheduledDate)
+    return [...withDate].sort((a, b) => sortKeyForScheduled(a).localeCompare(sortKeyForScheduled(b)))
+  }, [articles])
+
+  const scheduleTableRows = useMemo(() => {
+    if (!scheduleListThisMonthOnly) return scheduledArticlesSorted
+    const y = year
+    const m = month + 1
+    const prefix = `${y}-${String(m).padStart(2, '0')}`
+    return scheduledArticlesSorted.filter(a => a.scheduledDate?.startsWith(prefix))
+  }, [scheduledArticlesSorted, scheduleListThisMonthOnly, year, month])
 
   const selectedArticles = articlesByDate[selectedDate] ?? []
 
@@ -134,6 +196,9 @@ export default function SchedulePage() {
         if (a) {
           a.status = 'published'
           a.wordpressUrl = data.wordpressUrl
+          if (typeof data.status === 'string' && data.status) {
+            a.wordpressPostStatus = data.status
+          }
           await saveArticle(a)
           setArticles(await getAllArticles())
         }
@@ -156,6 +221,7 @@ export default function SchedulePage() {
     const target = all.find(x => x.id === deleteTargetId)
     if (target) {
       target.scheduledDate = undefined
+      target.scheduledTime = undefined
       await saveArticle(target)
     }
     setArticles(await getAllArticles())
@@ -202,6 +268,109 @@ export default function SchedulePage() {
         <p className="text-sm mt-1" style={{ color: '#64748B' }}>
           記事の投稿予定日を設定・管理できます
         </p>
+      </div>
+
+      <div
+        className="rounded-xl mb-5 overflow-hidden"
+        style={{
+          background: 'white',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        }}
+      >
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+          style={{ borderBottom: '1px solid #F1F5F9' }}
+        >
+          <div className="flex items-center gap-2">
+            <List size={18} style={{ color: '#1B2A4A' }} />
+            <h2 className="text-sm font-bold" style={{ color: '#1A1A2E' }}>
+              予定一覧（投稿日が設定されている記事）
+            </h2>
+          </div>
+          <label
+            className="flex items-center gap-2 text-xs cursor-pointer select-none"
+            style={{ color: '#64748B' }}
+          >
+            <input
+              type="checkbox"
+              checked={scheduleListThisMonthOnly}
+              onChange={e => setScheduleListThisMonthOnly(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            <span>
+              {year}年{MONTH_NAMES[month]}のみ表示
+            </span>
+          </label>
+        </div>
+        {scheduleTableRows.length === 0 ? (
+          <p className="text-xs px-5 py-6 text-center" style={{ color: '#94A3B8' }}>
+            {scheduleListThisMonthOnly
+              ? 'この月に予定されている記事はありません'
+              : '投稿日が設定されている記事はありません'}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr style={{ background: '#F8FAFC', color: '#64748B' }}>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">予定日</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">時刻</th>
+                  <th className="px-4 py-2.5 font-semibold min-w-[12rem]">タイトル</th>
+                  <th className="px-4 py-2.5 font-semibold min-w-[7rem]">KW</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">スケジュール段階</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scheduleTableRows.map(article => {
+                  const stage = getScheduleStage(article)
+                  const title = article.refinedTitle || article.title
+                  return (
+                    <tr key={article.id} style={{ borderTop: '1px solid #F1F5F9', color: '#334155' }}>
+                      <td className="px-4 py-2.5 font-mono whitespace-nowrap align-top">
+                        {article.scheduledDate}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono whitespace-nowrap align-top">
+                        {article.scheduledTime?.trim() ? article.scheduledTime : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 align-top max-w-[20rem]">
+                        <div className="line-clamp-2" title={title}>
+                          {title}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 align-top text-[#64748B] max-w-[10rem] truncate" title={article.targetKeyword}>
+                        {article.targetKeyword || '—'}
+                      </td>
+                      <td className="px-4 py-2.5 align-top whitespace-nowrap">
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-full font-medium"
+                          style={{ color: stage.color, background: stage.bg, fontFamily: 'DM Mono' }}
+                        >
+                          {stage.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 align-top whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (article.scheduledDate) setSelectedDate(article.scheduledDate)
+                            setYear(parseInt(article.scheduledDate!.slice(0, 4), 10))
+                            setMonth(parseInt(article.scheduledDate!.slice(5, 7), 10) - 1)
+                          }}
+                          className="text-xs font-semibold px-2 py-1 rounded-lg"
+                          style={{ color: '#1B2A4A', background: '#F0F4FF', border: '1px solid #C7D7FF' }}
+                        >
+                          カレンダーで表示
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-5 items-start">
@@ -289,19 +458,45 @@ export default function SchedulePage() {
             })}
           </div>
 
-          <div className="flex items-center gap-4 mt-4 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
-            {[
-              { color: '#16A34A', label: '投稿準備完了' },
-              { color: '#F59E0B', label: '下書き' },
-              { color: '#64748B', label: '投稿済み' },
-            ].map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-                <span className="text-xs" style={{ color: '#94A3B8' }}>
-                  {label}
-                </span>
-              </div>
-            ))}
+          <div className="mt-4 pt-4 space-y-2" style={{ borderTop: '1px solid #F1F5F9' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#94A3B8' }}>
+              記事の編集状態（ドット）
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {[
+                { color: '#16A34A', label: '投稿準備完了' },
+                { color: '#F59E0B', label: '下書き' },
+                { color: '#64748B', label: '投稿済み' },
+              ].map(({ color, label }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                  <span className="text-xs" style={{ color: '#94A3B8' }}>
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide pt-1" style={{ color: '#94A3B8' }}>
+              スケジュール段階（右の一覧と同じ）
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: '#64748B' }}>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#0369A1' }} />
+                投稿日のみ
+              </span>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#15803D' }} />
+                日時まで設定・WP未送信
+              </span>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#6D28D9' }} />
+                WP予約済み
+              </span>
+              <span>
+                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#64748B' }} />
+                WP送信／公開済み
+              </span>
+            </div>
           </div>
         </div>
 
@@ -356,6 +551,7 @@ export default function SchedulePage() {
                   : article.status === 'ready'
                     ? { label: '投稿準備完了', color: '#16A34A', bg: '#F0FDF4' }
                     : { label: '下書き', color: '#F59E0B', bg: '#FFFBEB' }
+              const scheduleStage = getScheduleStage(article)
 
               return (
                 <div
@@ -367,6 +563,21 @@ export default function SchedulePage() {
                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                   }}
                 >
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#94A3B8' }}>
+                      スケジュール段階
+                    </span>
+                    <span
+                      className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                      style={{
+                        color: scheduleStage.color,
+                        background: scheduleStage.bg,
+                        fontFamily: 'DM Mono',
+                      }}
+                    >
+                      {scheduleStage.label}
+                    </span>
+                  </div>
                   <div className="flex items-start gap-4">
                     {article.imageUrl ? (
                       <img
@@ -385,7 +596,10 @@ export default function SchedulePage() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-[10px] font-medium" style={{ color: '#94A3B8' }}>
+                          記事状態
+                        </span>
                         <span
                           className="text-xs px-2 py-0.5 rounded-full font-medium"
                           style={{ color: st.color, background: st.bg, fontFamily: 'DM Mono' }}

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { ArticleData, Step } from '@/lib/types'
 import { SavedPrompt, getAllPrompts } from '@/lib/promptStorage'
+import { SavedKeyword, getAllKeywords } from '@/lib/keywordStorage'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -32,29 +34,53 @@ export default function ArticleInput({
   const [generatingStep, setGeneratingStep] = useState<string>('loading')
   const [draftError, setDraftError] = useState<string | null>(null)
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([])
+  const [savedKeywords, setSavedKeywords] = useState<SavedKeyword[]>([])
   const [showPromptDropdown, setShowPromptDropdown] = useState(false)
+  const [showKeywordDropdown, setShowKeywordDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+  const keywordDropdownRef = useRef<HTMLDivElement>(null)
+
+  const reloadLibraries = useCallback(() => {
     setSavedPrompts(getAllPrompts())
+    setSavedKeywords(getAllKeywords())
   }, [])
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowPromptDropdown(false)
-      }
+    reloadLibraries()
+  }, [reloadLibraries])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reloadLibraries()
     }
-    if (showPromptDropdown) {
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [reloadLibraries])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const t = event.target as Node
+      if (dropdownRef.current?.contains(t)) return
+      if (keywordDropdownRef.current?.contains(t)) return
+      setShowPromptDropdown(false)
+      setShowKeywordDropdown(false)
+    }
+    if (showPromptDropdown || showKeywordDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showPromptDropdown])
+  }, [showPromptDropdown, showKeywordDropdown])
 
   const handleSelectPrompt = (p: SavedPrompt) => {
     setPrompt(p.content)
     setShowPromptDropdown(false)
+  }
+
+  const handleSelectKeyword = (k: SavedKeyword) => {
+    onTargetKeywordChange(k.content)
+    setShowKeywordDropdown(false)
   }
 
   const hasDraft = Boolean(article.title.trim() || article.originalContent.trim())
@@ -85,7 +111,8 @@ export default function ArticleInput({
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim()
-    if (!trimmed || generating) return
+    const kw = (article.targetKeyword ?? '').trim()
+    if (!trimmed || !kw || generating) return
     setDraftError(null)
     setGenerating(true)
     setGeneratingStep('loading')
@@ -203,27 +230,56 @@ export default function ArticleInput({
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-[#1A1A2E]">
-                    ターゲットキーワード（任意）
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <label className="block text-sm font-semibold text-[#1A1A2E] min-w-0">
+                    ターゲットキーワード
+                    <span className="block mt-0.5 text-xs font-semibold text-red-600">
+                      ※　必須　必ず設定してください！
+                    </span>
                   </label>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full"
-                    style={{
-                      background: '#F0F4FF',
-                      color: '#1B2A4A',
-                      border: '1px solid #C7D7FF',
-                      fontFamily: 'DM Mono',
-                    }}
-                  >
-                    SEO・推敲に使用
-                  </span>
+                  <div className="relative shrink-0" ref={keywordDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowKeywordDropdown(!showKeywordDropdown)}
+                      className="text-xs text-[#002C93] font-medium hover:underline flex items-center gap-1 whitespace-nowrap"
+                    >
+                      保存済みキーワードから入力 <ChevronDown size={14} />
+                    </button>
+                    {showKeywordDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-[320px] bg-white border border-[#E2E8F0] shadow-lg rounded-lg z-10 max-h-[300px] overflow-y-auto">
+                        {savedKeywords.length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-[#64748B] leading-relaxed">
+                            <p className="mb-3">キーワードライブラリに保存されたセットはまだありません。</p>
+                            <Link
+                              href="/keywords"
+                              className="font-medium text-[#002C93] hover:underline"
+                              onClick={() => setShowKeywordDropdown(false)}
+                            >
+                              キーワードページで追加する
+                            </Link>
+                          </div>
+                        ) : (
+                          savedKeywords.map(k => (
+                            <button
+                              key={k.id}
+                              type="button"
+                              onClick={() => handleSelectKeyword(k)}
+                              className="w-full text-left px-4 py-3 border-b border-[#E2E8F0] last:border-0 hover:bg-[#F8FAFC] transition-colors"
+                            >
+                              <div className="font-bold text-sm text-[#1A1A2E] mb-1">{k.title}</div>
+                              <div className="text-xs text-[#64748B] line-clamp-2">{k.content}</div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <input
                   type="text"
                   value={article.targetKeyword ?? ''}
                   onChange={e => onTargetKeywordChange(e.target.value)}
-                  placeholder="例：事業承継 相談"
+                  placeholder="例：事業承継 M&A, 中小企業 事業承継, 後継者不足, M&A 相談, デューデリジェンス, アドバイザー 選び方"
                   className="w-full px-4 py-3 rounded-lg text-sm border border-[#E2E8F0] text-[#1A1A2E] bg-[#FAFBFC] focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30"
                 />
               </div>
@@ -231,7 +287,7 @@ export default function ArticleInput({
               <div className="flex justify-start">
                 <Button
                   variant="primary"
-                  disabled={!prompt.trim() || generating}
+                  disabled={!prompt.trim() || !(article.targetKeyword ?? '').trim() || generating}
                   onClick={handleGenerate}
                   className="py-3 px-6 h-auto"
                 >

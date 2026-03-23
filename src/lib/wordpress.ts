@@ -239,6 +239,27 @@ export function convertToHtml(content: string): string {
       continue;
     }
 
+    // 結論要約：見出しではなく太字段落（【結論要約】も同一扱い）
+    if (/^【?\s*結論要約\s*】?$/.test(trimmed)) {
+      flushParagraph();
+      htmlLines.push(`<p style="${P_STYLE}"><strong>結論要約</strong></p>`);
+      continue;
+    }
+
+    // セクション見出し（単独行）：番号なしでも h2 にする（検索エンジンが見出しとして認識できるように）
+    if (currentParagraph.length === 0) {
+      if (/^日本提携支援ならではの視点(（独自性）)?$/.test(trimmed)) {
+        flushParagraph();
+        htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(trimmed)}</h2>`);
+        continue;
+      }
+      if (/^【?\s*まとめ\s*】?[。．]?$/.test(trimmed)) {
+        flushParagraph();
+        htmlLines.push(`<h2 style="${H2_STYLE}">まとめ</h2>`);
+        continue;
+      }
+    }
+
     // h2 見出し: "1. テキスト" — 直前が空行（段落バッファが空）の場合のみ見出しとして扱う
     // 本文中の番号リスト（"1. ..." が段落の途中にある場合）は通常テキストとして扱う
     if (/^\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
@@ -338,6 +359,60 @@ function extractFaqs(content: string): Array<{ question: string; answer: string 
   return faqs;
 }
 
+/** ターゲットKW文字列をカンマ・読点区切りで分割し、重複を除いた配列にする（JSON-LD keywords 用） */
+function splitTargetKeywordPhrases(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  const parts = raw.split(/[,、，\n]/).map(s => s.trim()).filter(Boolean);
+  return [...new Set(parts)];
+}
+
+/** Article.description 用：文末・読点で切れ目を取り、途中で文が途切れないようにする */
+function buildSchemaDescription(plainContent: string, maxLen = 300): string {
+  const text = plainContent.replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLen) return text;
+
+  const slice = text.slice(0, maxLen);
+  const sentenceEnders = new Set(['。', '！', '？', '.', '!', '?']);
+  let cut = -1;
+  const scanFrom = Math.max(0, slice.length - 140);
+  for (let i = slice.length - 1; i >= scanFrom; i--) {
+    const ch = slice[i];
+    if (ch && sentenceEnders.has(ch)) {
+      cut = i + 1;
+      break;
+    }
+  }
+  if (cut >= 80) {
+    return slice.slice(0, cut).trim();
+  }
+
+  const commaCut = Math.max(slice.lastIndexOf('、'), slice.lastIndexOf('，'), slice.lastIndexOf(','));
+  if (commaCut >= 100) {
+    return slice.slice(0, commaCut + 1).trim();
+  }
+
+  const spaceCut = slice.lastIndexOf(' ');
+  if (spaceCut >= 120) {
+    return `${slice.slice(0, spaceCut).trim()}…`;
+  }
+
+  return `${slice.trim()}…`;
+}
+
+/** about.name：タイトル丸写しを避け、先頭の【…】を除いた短い主題、または KW の先頭フレーズ */
+function buildSchemaAboutName(payload: WordPressPostPayload): string {
+  const phrases = splitTargetKeywordPhrases(payload.targetKeyword);
+  if (phrases.length >= 1) {
+    const primary = phrases[0]!;
+    if (phrases.length >= 2 && primary.length < 14) {
+      return `${primary}、${phrases[1]}`.slice(0, 100);
+    }
+    return primary.slice(0, 100);
+  }
+  let t = payload.title.trim().replace(/^【[^】]+】\s*/, '');
+  return t.slice(0, 80);
+}
+
 /**
  * Article Schema（構造化データ）を生成（AIO/LLMO最適化）
  * image.url には必ず HTTPS のURLのみを使用し、data URL(base64)は入れない
@@ -358,10 +433,13 @@ function buildArticleSchema(
     schemaImageUrl = payload.imageUrl;
   }
 
-  // 記事の最初の200文字程度を description として抽出（監修者・HTML・エンティティ除去）
-  const withoutSupervisor = payload.content.replace(/監修者[\s\S]*?(?=\n\n)/g, '').trim();
-  const plainContent = stripHtmlAndDecodeEntities(withoutSupervisor);
-  const description = plainContent.substring(0, 200).trim();
+  // description：FAQ 前の本文＋監修者除去後からプレーン化（一覧用抜粋と整合）
+  const bodyForDesc = splitFaqSection(stripLeadingSupervisorText(payload.content)).body;
+  const plainContent = stripHtmlAndDecodeEntities(bodyForDesc);
+  const description = buildSchemaDescription(plainContent);
+
+  const keywordPhrases = splitTargetKeywordPhrases(payload.targetKeyword);
+  const keywordsJoined = keywordPhrases.join(', ');
 
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -398,10 +476,13 @@ function buildArticleSchema(
     },
     'about': {
       '@type': 'Thing',
-      'name': payload.targetKeyword || payload.title,
+      'name': buildSchemaAboutName(payload),
     },
-    'keywords': payload.targetKeyword?.trim() || payload.title || '',
   };
+
+  if (keywordsJoined) {
+    schema.keywords = keywordsJoined;
+  }
 
   if (schemaImageUrl) {
     schema.image = {

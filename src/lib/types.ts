@@ -38,6 +38,8 @@ export interface SavedArticle {
   createdAt: string
   scheduledDate?: string
   scheduledTime?: string
+  /** WordPress REST が返す投稿ステータス（予約投稿成功時に保存。future / publish / draft 等） */
+  wordpressPostStatus?: string
   slug?: string
   wordCount: number
 }

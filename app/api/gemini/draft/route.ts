@@ -95,6 +95,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!targetKeywordStr) {
+      return NextResponse.json(
+        { error: 'ターゲットキーワードは必須です。必ず設定してください。' },
+        { status: 400 }
+      )
+    }
+
     const parts: string[] = []
 
     if (ids.length > 0) {

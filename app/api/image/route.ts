@@ -8,6 +8,33 @@ import { generateImagePromptFromArticle } from '@/lib/api/gemini'
 /** Stable Diffusion 3.5 は us-west-2 でのみ利用可能 */
 const BEDROCK_IMAGE_REGION = 'us-west-2'
 
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!
+}
+
+/** buildPrompt 用: 文字・ロゴを要求しないビジネス系アーキタイプ（無地キューブのみ／人物シーンは顔を主にしない） */
+const ARCH_FLATLAY = [
+  'overhead flat-lay of business documents and laptop with abstract colorful charts only no legible text, pen and coffee cup on clean white desk, professional stock photography, no people',
+  'overhead flat-lay of financial printouts and abstract graphs, calculator and pen on white conference table, no readable numbers, no people, corporate photography',
+  'overhead view of clean white desk with documents, laptop showing abstract dashboard graphics, professional M&A advisory workspace, no people',
+  'overhead flat-lay of merger agreement stack, corporate stamp, pen and glasses on white desk, no people, professional stock photo',
+  'overhead flat-lay on white desk: business papers, two plain solid wooden cubes with no letters or engraving, laptop with abstract charts, pen, no people',
+] as const
+
+const ARCH_PEOPLE_DESK = [
+  'two business professionals in suits at bright white desk, open binder with colorful charts and tablet, hands reviewing documents in sharp focus, faces softly blurred or cropped, modern office, no camera-facing portrait',
+  'side view of business colleagues at desk with documents and tablet, emphasis on charts and materials, shallow depth of field, faces not dominant, bright professional office',
+  'modern office collaboration on light wooden desk, hands gesturing over laptop with abstract UI blocks, notebook and smartphone, strong bokeh, casual business shirt, second person blurred in background',
+] as const
+
+const ARCH_SKYLINE = [
+  'dramatic low-angle worm-eye view of modern glass skyscrapers converging toward pale sky, cool blue-grey steel and glass facades, some warm lit windows, financial district, no people visible',
+] as const
+
+const ARCH_MEETING_WIDE = [
+  'wide shot of modern conference table, business team seen from behind with laptops and document binders, strategy meeting atmosphere, silhouettes, no facial close-ups',
+] as const
+
 function getBedrockClient(): BedrockRuntimeClient {
   return new BedrockRuntimeClient({
     region: process.env.BEDROCK_REGION ?? BEDROCK_IMAGE_REGION,
@@ -55,7 +82,14 @@ export async function POST(request: NextRequest) {
   if (title.trim() && trimmedContent) {
     try {
       prompt = await generateImagePromptFromArticle(title.trim(), trimmedContent)
-      prompt = [prompt, 'Professional corporate photography', 'High quality photorealistic', 'No text no typography no watermark', 'Horizontal 16:9'].join(', ')
+      prompt = [
+        prompt,
+        'Professional corporate stock photography',
+        'High quality photorealistic',
+        'No readable text numbers logos or watermarks anywhere',
+        'Abstract charts and screens only without legible labels',
+        'Horizontal 16:9',
+      ].join(', ')
     } catch (e) {
       console.warn('Gemini image prompt failed, using fallback:', (e as Error)?.message)
       prompt = buildPrompt(title, typeof targetKeyword === 'string' ? targetKeyword : undefined)
@@ -67,10 +101,13 @@ export async function POST(request: NextRequest) {
   const requestBody = {
     prompt,
     negative_prompt: [
-      'portrait, headshot, close-up face, selfie',
+      'portrait, headshot, close-up face, selfie, beauty glamor model shot',
       'revealing clothing, cleavage, exposed skin',
       'western faces, caucasian, blonde',
-      'text, typography, watermark, logo',
+      'text, typography, watermark, logo, subtitle, caption',
+      'readable text, legible numbers, gibberish letters, random letters, floating letters',
+      'carved letters on wood, alphabet blocks, letter cubes, engraved symbols on cubes',
+      'garbled UI text, meaningless digits on paper, newspaper headline',
       'cartoon, anime, illustration, painting',
       'low quality, blurry, distorted, deformed',
       'bright neon colors, colorful',
@@ -155,30 +192,39 @@ function buildPrompt(title: string, targetKeyword?: string): string {
   let theme = ''
 
   if (isContract) {
-    theme =
-      'overhead flat-lay of business contract documents and fountain pen on white desk, professional corporate photography, no people'
-  } else if (isFinance) {
-    theme =
-      'overhead flat-lay of financial charts, graphs and business reports spread on clean white conference table, calculator and pen beside documents, no people, professional corporate stock photography'
-  } else if (isPMI) {
-    theme =
-      'wide shot of modern Japanese conference room, business team seen from behind gathered around table with documents, integration meeting, no hands visible in foreground'
-  } else if (isSuccession) {
-    theme =
-      'overhead flat-lay of business succession documents, company seal, pen and notebook on clean wooden desk, warm office lighting, professional corporate photography, no people'
-  } else if (isMA) {
-    const maThemes = [
-      'overhead flat-lay of M&A themed objects on white desk: wooden or cardboard blocks spelling M and A, business documents, laptop, calculator, pen, professional corporate stock photography, clean minimal style, no people',
-      'wooden blocks stacked vertically with M and A letters on each, placed on business documents with graphs and charts, clean light grey or white background, shallow depth of field, professional corporate stock photography, no people',
-      'overhead flat-lay of merger agreement documents, corporate stamps, pen and glasses on clean white desk, professional stock photography, no people',
-      'two miniature wooden building blocks side by side on business documents symbolizing corporate merger, clean light background, shallow depth of field, professional stock photography, no people',
-      'overhead view of a clean white desk with business documents, laptop showing charts, coffee cup and pen, professional M&A advisory workspace, corporate stock photography, no people',
-      'wooden letter blocks M and A with ampersand on top of financial reports and bar charts, soft natural light, clean white background, professional corporate photography, no people',
+    const pool = [
+      ...ARCH_FLATLAY,
+      'overhead flat-lay of stacked business contract documents and fountain pen on white desk, abstract seals only no readable clauses, no people',
     ]
-    theme = maThemes[Math.floor(Math.random() * maThemes.length)]!
+    theme = pickRandom(pool)
+  } else if (isFinance) {
+    const pool = [
+      ...ARCH_FLATLAY,
+      'overhead flat-lay of financial charts and business reports on clean white conference table, calculator and pen, abstract graphs only no legible figures, no people',
+    ]
+    theme = pickRandom(pool)
+  } else if (isPMI) {
+    theme = pickRandom([...ARCH_MEETING_WIDE, ...ARCH_PEOPLE_DESK, ...ARCH_FLATLAY])
+  } else if (isSuccession) {
+    const pool = [
+      'overhead flat-lay of business succession documents, company seal, pen and leather notebook on clean wooden desk, warm office lighting, no readable text, no people',
+      ...ARCH_FLATLAY,
+    ]
+    theme = pickRandom(pool)
+  } else if (isMA) {
+    const pool = [
+      ...ARCH_FLATLAY,
+      ...ARCH_PEOPLE_DESK,
+      ...ARCH_SKYLINE,
+      ...ARCH_MEETING_WIDE,
+    ]
+    theme = pickRandom(pool)
   } else {
-    theme =
-      'overhead flat-lay of Japanese business documents, notebook, pen and laptop on clean office desk, professional corporate style, no people'
+    theme = pickRandom([
+      ...ARCH_FLATLAY,
+      ...ARCH_SKYLINE,
+      'overhead flat-lay of Japanese business documents, notebook, pen and laptop with abstract screen, clean office desk, no people',
+    ])
   }
 
   return [
@@ -187,9 +233,8 @@ function buildPrompt(title: string, targetKeyword?: string): string {
     'photorealistic high quality',
     'navy blue white grey color palette',
     'soft natural window lighting',
-    'NO faces NO close-up portraits NO headshots',
-    'NO text NO watermark NO logo',
+    'corporate editorial stock style, no selfie, avoid extreme glamor portrait close-ups',
+    'no readable text no watermark no logo, abstract charts only',
     'horizontal 16:9 composition',
-    'wide or overhead shot',
   ].join(', ')
 }

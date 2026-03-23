@@ -498,27 +498,33 @@ export async function generateImagePromptFromArticle(
   if (!apiKey?.trim()) throw new Error('GEMINI_API_KEY が設定されていません')
 
   const contentSnippet = content.trim().slice(0, 1800)
-  const prompt = `You are an expert at writing image generation prompts for professional Japanese business article thumbnails. The target style is Adobe Stock–like M&A / corporate imagery: clean, symbolic, trustworthy.
+  const prompt = `You are an expert at writing image generation prompts for professional Japanese business article thumbnails. Style: Adobe Stock–like corporate / M&A imagery — clean, trustworthy, varied compositions.
 
-Given the following article TITLE and CONTENT (in Japanese), output exactly ONE short sentence in English describing a photorealistic business image.
+Given the TITLE and CONTENT (Japanese) below, output exactly ONE English sentence for a photorealistic 16:9 horizontal stock photo.
 
-STYLE REFERENCE (M&A / corporate articles) — choose ONE of these; vary across articles so different patterns appear:
-- Option A (flat-lay): overhead flat-lay of M&A-themed objects on white — wooden or cardboard blocks spelling "M" "&" "A", business documents, laptop, calculator, pen, spread on clean white desk; no people in frame.
-- Option B (stacked blocks): wooden blocks stacked vertically with "M" "&" "A" on each, placed on business documents or reports with graphs and charts, clean light grey or white background, shallow depth of field, professional stock photography, no people.
-- Option C (documents): overhead flat-lay of merger agreement documents, corporate stamps, pen and glasses on clean white desk, professional stock photography, no people.
-- Option D (workspace): overhead view of a clean white desk with business documents, laptop showing charts, coffee cup and pen, professional M&A advisory workspace, corporate stock photography, no people.
-- Option E (letter blocks): wooden letter blocks M and A with ampersand on top of financial reports and bar charts, soft natural light, clean white background, professional corporate photography, no people.
-- Option F (miniature): two miniature wooden building blocks side by side on business documents symbolizing corporate merger, clean light background, shallow depth of field, professional stock photography, no people.
-- Avoid: busy conference rooms, cluttered desks, windows with city views, casual or generic office meetings.
-- For non-M&A topics: overhead flat-lay of documents/contracts, or simple office desk with laptop/documents; same clean, minimal background. No people.
+STEP 1 — Pick EXACTLY ONE archetype at random (use genuine randomness; do not default to the first). Match the article mood when obvious, but still vary across requests.
 
-RULES:
-- CRITICAL: Do NOT include human hands, fingers, or any body parts in the image description. Prefer object-only compositions (flat-lay, blocks, documents, desk items).
-- Clean, minimal background (white, light grey, or soft neutral). No text, no watermark, no typography in the image.
-- Photorealistic, professional, navy/grey/white color palette, soft even lighting, 16:9 horizontal.
-- For M&A articles, choose from options A through F so that flat-lay, stacked blocks, documents, workspace, letter blocks, and miniature are all used over time — do not always pick the same option.
+ARCHETYPES:
+1) Overhead flat-lay: white desk, business documents, laptop with abstract colorful charts only (no legible text), pen, coffee cup, optional two plain solid wooden cubes with NO letters or carving, no people.
+2) Overhead flat-lay: merger-related papers, corporate stamp, pen, reading glasses, minimal desk, no people.
+3) Overhead: financial printouts and abstract bar charts, calculator, pen, clean white table, no people, no readable numbers on paper.
+4) White desk workspace: open laptop with abstract dashboard graphics, scattered documents, shallow depth of field, no people.
+5) Two professionals in suits at bright white desk, open binder with charts, tablet, hands reviewing materials in focus, faces soft blur or cropped out of frame, no camera-facing portrait.
+6) Side angle business meeting: colleagues over documents and tablet, emphasis on desk surface and charts, faces not dominant, bright modern office.
+7) Dramatic low-angle worm-eye view of glass skyscrapers converging upward, cool blue-grey steel and glass, some warm window lights, financial district, no street people.
+8) Modern collaboration: light wooden desk, hands gesturing mid-conversation, laptop with abstract UI blocks, notebook and phone, strong bokeh background, casual business attire, second person blurred.
+9) Conference table wide shot: team from behind or silhouettes, laptops and papers, integration or strategy feel, no clear facial close-ups.
+10) Succession or legacy mood: wooden desk, leather notebook, pen, family-business documents flat-lay, warm light, no people.
+11) Contract / legal mood: neat stack of agreements, fountain pen, white surface, no people, no readable clauses.
+12) Default corporate: clean Japanese office desk with documents and laptop, abstract screen graphics, navy white grey palette, no people.
 
-OUTPUT: ONE English sentence only. No explanation. No quotes. Under 30 words.
+GLOBAL RULES (mandatory):
+- Never ask for letters, numbers, logos, watermarks, subtitles, or readable text. Charts and screens must be abstract / illegible only.
+- Never describe letter blocks, engraved M or A, ampersand on cubes, or spelling words with blocks. Plain unmarked wooden cubes only if any cubes appear.
+- People allowed ONLY in archetypes 5–6 and 8–9. Then: no selfie, no glamor portrait; hands and materials in focus; faces partial or softly blurred.
+- Photorealistic, professional lighting, navy/grey/white friendly palette unless skyscraper night cool tones.
+
+OUTPUT: One English sentence only, max 45 words, no quotation marks, no explanation.
 
 TITLE:
 ${title.trim()}
@@ -530,5 +536,8 @@ Your single English sentence:`
 
   const raw = await generateContentWithFallback(apiKey, prompt)
   const sentence = raw.trim().replace(/^["']|["']$/g, '').trim()
-  return sentence || 'professional Japanese business environment, modern office, photorealistic, 16:9'
+  return (
+    sentence ||
+    'overhead flat-lay of business documents and laptop with abstract charts on white desk, plain unmarked wooden cubes optional, photorealistic corporate stock photo, 16:9'
+  )
 }

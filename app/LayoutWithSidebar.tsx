@@ -45,6 +45,7 @@ export default function LayoutWithSidebar({
                 { href: '/published', label: '過去投稿済み記事一覧' },
                 { href: '/schedule', label: '投稿スケジュール' },
                 { href: '/prompts', label: 'プロンプト' },
+                { href: '/notice', label: '注意書き' },
               ].map(({ href, label }) => {
                 const isActive = pathname === href || pathname.startsWith(href + '/')
                 return (

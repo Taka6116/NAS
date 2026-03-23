@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { generateFirstDraftFromPrompt } from '@/lib/api/gemini'
@@ -27,6 +28,44 @@ function getDraftContextCharLimit(): number {
     if (Number.isFinite(n) && n >= 10_000) return n
   }
   return 100_000
+}
+
+/** pos 以降で始まる行の先頭インデックス（改行の直後、または 0） */
+function lineStartIndex(s: string, pos: number): number {
+  if (pos <= 0) return 0
+  const i = s.lastIndexOf('\n', pos - 1)
+  return i === -1 ? 0 : i + 1
+}
+
+/**
+ * 参照資料が長いとき、先頭固定ではなくランダムな連続範囲を取り込む（改行付近に開始位置をスナップ）。
+ * 毎回似た断片だけが効くのを避けるため。
+ */
+function truncateDataContextToRandomWindow(
+  full: string,
+  contextLimit: number
+): { window: string; originalLen: number; start: number } {
+  const len = full.length
+  if (len <= contextLimit) {
+    return { window: full, originalLen: len, start: 0 }
+  }
+
+  const maxStart = len - contextLimit
+  let start = randomInt(0, maxStart + 1)
+  start = lineStartIndex(full, start)
+  if (start > maxStart) start = maxStart
+
+  if (start + contextLimit > len) {
+    start = len - contextLimit
+    const snapped = lineStartIndex(full, start)
+    start = snapped <= len - contextLimit ? snapped : len - contextLimit
+  }
+
+  return {
+    window: full.slice(start, start + contextLimit),
+    originalLen: len,
+    start,
+  }
 }
 
 async function readFileContentAsText(fileId: string): Promise<{ name: string; content: string } | null> {
@@ -80,13 +119,13 @@ export async function POST(request: NextRequest) {
     let dataContext = parts.join('\n\n')
     const contextLimit = getDraftContextCharLimit()
     if (dataContext.length > contextLimit) {
-      const originalLen = dataContext.length
+      const { window, originalLen, start } = truncateDataContextToRandomWindow(dataContext, contextLimit)
       dataContext =
-        dataContext.slice(0, contextLimit) +
-        `\n\n【システム注記】参照資料が長いため、先頭から約${contextLimit.toLocaleString()}文字のみ取り込みました（元の合計: 約${originalLen.toLocaleString()}文字）。` +
+        window +
+        `\n\n【システム注記】参照資料が長いため、約${contextLimit.toLocaleString()}文字分をランダムな連続範囲から取り込みました（元の合計: 約${originalLen.toLocaleString()}文字）。` +
         '必要な論点が欠ける場合は S3 の対象を絞るか、アップロード資料のみにするか、Google AI Studio で課金を有効にしてください。'
       console.warn(
-        `[gemini/draft] 参照資料を ${contextLimit} 文字で打ち切り (元: ${originalLen} 文字)。GEMINI_DRAFT_MAX_CONTEXT_CHARS で上限変更可。`
+        `[gemini/draft] 参照資料 ランダム窓: offset=${start}, length=${contextLimit}, 元の長さ=${originalLen}。GEMINI_DRAFT_MAX_CONTEXT_CHARS で上限変更可。`
       )
     }
 

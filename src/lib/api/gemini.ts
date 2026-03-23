@@ -3,12 +3,33 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 /** 429/クォータ超過時に順に試すモデル（モデルごとに別枠のことがある） */
 const GEMINI_MODELS = ['gemini-2.5-flash'] as const
 
+/** SDK / Google 側のエラーをログ・ユーザー向け詳細用に1行にまとめる */
+function formatGeminiCaughtError(e: unknown): string {
+  if (e instanceof Error) {
+    const withCause = e as Error & { cause?: unknown }
+    const tail =
+      withCause.cause !== undefined && withCause.cause !== null
+        ? ` | cause: ${formatGeminiCaughtError(withCause.cause)}`
+        : ''
+    return `${e.message}${tail}`
+  }
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message
+  }
+  try {
+    return JSON.stringify(e)
+  } catch {
+    return String(e)
+  }
+}
+
 /**
  * 指定プロンプトで generateContent を実行し、429 の場合は別モデルでリトライする
  */
 async function generateContentWithFallback(apiKey: string, prompt: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
   let lastError: Error | null = null
+  let lastDetail = ''
   for (const modelId of GEMINI_MODELS) {
     try {
       const model = genAI.getGenerativeModel({ model: modelId })
@@ -16,14 +37,20 @@ async function generateContentWithFallback(apiKey: string, prompt: string): Prom
       return result.response.text()
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e))
+      lastDetail = formatGeminiCaughtError(e)
+      console.error(`[Gemini] model=${modelId} 失敗:`, lastDetail)
       const msg = lastError.message
-      const isQuota = /429|quota|Too Many Requests/i.test(msg)
+      const isQuota = /429|quota|Too Many Requests|Resource exhausted|RESOURCE_EXHAUSTED/i.test(msg) ||
+        /429|quota|Resource exhausted|RESOURCE_EXHAUSTED/i.test(lastDetail)
       if (isQuota) continue
       throw lastError
     }
   }
+  const suffix = lastDetail ? ` [詳細: ${lastDetail}]` : ''
+  console.error('[Gemini] クォータ扱いで全モデル失敗', { models: [...GEMINI_MODELS], lastDetail })
   throw new Error(
-    '無料枠のリクエスト上限に達しました。しばらく時間をおくか、Google AI Studio で課金を有効にしてください。'
+    '無料枠のリクエスト上限に達しました。しばらく時間をおくか、Google AI Studio で課金を有効にしてください。' +
+      suffix
   )
 }
 

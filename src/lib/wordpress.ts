@@ -490,6 +490,51 @@ function stripLeadingSupervisorText(content: string): string {
   return lines.slice(i).join('\n').replace(/^\n+/, '');
 }
 
+const EXCERPT_MAX_LENGTH = 120;
+
+/**
+ * 記事本文から抜粋（excerpt）を生成する。
+ * 監修者ブロック用テキストを除き、FAQ より前の本文の先頭段落から最大120文字を返す（一覧のリード表示用）。
+ */
+function generateExcerpt(content: string): string {
+  const withoutSupervisor = stripLeadingSupervisorText(content);
+  const { body } = splitFaqSection(withoutSupervisor);
+  const lines = body.split('\n');
+  const paragraphLines: string[] = [];
+  let inParagraph = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inParagraph) break;
+      continue;
+    }
+    if (/^-{3,}$/.test(trimmed)) {
+      if (inParagraph) break;
+      continue;
+    }
+    if (/^\d+[．.]\s/.test(trimmed) && trimmed.length < 50) {
+      if (inParagraph) break;
+      continue;
+    }
+    if (/^\d+-\d+[．.]\s/.test(trimmed) && trimmed.length < 50) {
+      if (inParagraph) break;
+      continue;
+    }
+    if (/^[■▶◆●▼]\s/.test(trimmed) && trimmed.length < 50) {
+      if (inParagraph) break;
+      continue;
+    }
+    inParagraph = true;
+    paragraphLines.push(trimmed);
+  }
+
+  const plain = stripHtmlAndDecodeEntities(paragraphLines.join(' '));
+  if (!plain) return '';
+  if (plain.length <= EXCERPT_MAX_LENGTH) return plain;
+  return `${plain.slice(0, EXCERPT_MAX_LENGTH).trim()}…`;
+}
+
 /** 本文HTML内の末尾CTAをハイパーリンクに変換（WordPress投稿でクリック可能にする） */
 function linkifyCtaUrls(html: string): string {
   return html
@@ -661,6 +706,7 @@ export async function postToWordPress(
 
   // 投稿コンテンツ構築（本文最上部に記事画像 → 監修者ブロック → 本文）
   const postContent = buildPostContent(payload, { bodyTopImageUrl });
+  const excerpt = generateExcerpt(payload.content);
 
   const requestUrl = `${wpUrl}/wp-json/wp/v2/posts`;
   const authHeaderValue = `Basic ***`; // ログ用（パスワードは出さない）
@@ -675,6 +721,7 @@ export async function postToWordPress(
       body: JSON.stringify({
         title: payload.title,
         content: postContent,
+        excerpt,
         status: status,
         slug: payload.slug || undefined,
         ...(mediaId ? { featured_media: mediaId } : {}),

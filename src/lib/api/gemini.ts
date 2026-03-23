@@ -23,33 +23,70 @@ function formatGeminiCaughtError(e: unknown): string {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/** Google 429 応答の「Please retry in 24.9s」や RetryInfo から待機秒を読む */
+function parseRetryDelaySeconds(detail: string): number | null {
+  const m1 = detail.match(/Please retry in ([\d.]+)\s*s/i)
+  if (m1) {
+    const sec = parseFloat(m1[1]!)
+    if (Number.isFinite(sec) && sec >= 0) return Math.min(sec, 120)
+  }
+  const m2 = detail.match(/"retryDelay"\s*:\s*"(\d+)s"/i)
+  if (m2) {
+    const sec = parseInt(m2[1]!, 10)
+    if (Number.isFinite(sec) && sec >= 0) return Math.min(sec, 120)
+  }
+  return null
+}
+
 /**
- * 指定プロンプトで generateContent を実行し、429 の場合は別モデルでリトライする
+ * 指定プロンプトで generateContent を実行する。
+ * 429（クォータ・分間トークン上限）時は API が示す秒数だけ待って同一モデルを再試行し、
+ * それでもダメなら次モデルへ（現状は1モデルのみ）。
  */
 async function generateContentWithFallback(apiKey: string, prompt: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
+  /** 初回 + 待機後1回のみ（待機25秒×多回は Vercel の関数時間制限に抵触しやすい） */
+  const maxQuotaRetriesPerModel = 2
   let lastError: Error | null = null
   let lastDetail = ''
+
   for (const modelId of GEMINI_MODELS) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelId })
-      const result = await model.generateContent(prompt)
-      return result.response.text()
-    } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e))
-      lastDetail = formatGeminiCaughtError(e)
-      console.error(`[Gemini] model=${modelId} 失敗:`, lastDetail)
-      const msg = lastError.message
-      const isQuota = /429|quota|Too Many Requests|Resource exhausted|RESOURCE_EXHAUSTED/i.test(msg) ||
-        /429|quota|Resource exhausted|RESOURCE_EXHAUSTED/i.test(lastDetail)
-      if (isQuota) continue
-      throw lastError
+    for (let attempt = 0; attempt < maxQuotaRetriesPerModel; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelId })
+        const result = await model.generateContent(prompt)
+        return result.response.text()
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e))
+        lastDetail = formatGeminiCaughtError(e)
+        console.error(`[Gemini] model=${modelId} attempt=${attempt + 1}/${maxQuotaRetriesPerModel} 失敗:`, lastDetail)
+        const msg = lastError.message
+        const isQuota = /429|quota|Too Many Requests|Resource exhausted|RESOURCE_EXHAUSTED/i.test(msg) ||
+          /429|quota|Resource exhausted|RESOURCE_EXHAUSTED/i.test(lastDetail)
+        if (!isQuota) throw lastError
+
+        const waitSec = parseRetryDelaySeconds(lastDetail)
+        const canRetry = attempt < maxQuotaRetriesPerModel - 1
+        if (canRetry && waitSec != null) {
+          const ms = Math.ceil(waitSec * 1000) + 800
+          console.warn(`[Gemini] クォータ緩和のため ${ms}ms 待機して再試行します (${modelId})`)
+          await sleep(ms)
+          continue
+        }
+        break
+      }
     }
   }
+
   const suffix = lastDetail ? ` [詳細: ${lastDetail}]` : ''
   console.error('[Gemini] クォータ扱いで全モデル失敗', { models: [...GEMINI_MODELS], lastDetail })
   throw new Error(
-    '無料枠のリクエスト上限に達しました。しばらく時間をおくか、Google AI Studio で課金を有効にしてください。' +
+    'Gemini API の利用上限（無料枠は「1分あたりの入力トークン」など）に達しています。' +
+      'しばらく待つか、参照資料（S3）を減らすか、Google AI Studio で課金を有効にしてください。' +
       suffix
   )
 }

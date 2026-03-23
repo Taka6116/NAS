@@ -4,6 +4,9 @@ import { generateFirstDraftFromPrompt } from '@/lib/api/gemini'
 import { findFileById, getFilePath } from '@/lib/dataStorage'
 import { getS3ObjectAsText, listS3Objects } from '@/lib/s3Reference'
 
+/** 429 時の待機＋再生成を含められるよう長めに（プランにより上限は異なります） */
+export const maxDuration = 120
+
 const TEXT_MIMES = new Set([
   'text/plain',
   'text/csv',
@@ -11,6 +14,20 @@ const TEXT_MIMES = new Set([
   'text/markdown',
   'application/json',
 ])
+
+/**
+ * 一次執筆用【参照資料】の最大文字数。
+ * システムプロンプトが長いため、S3 全件などをそのまま送ると無料枠の「入力トークン/分」（25万）を超えやすい。
+ * 必要なら環境変数 GEMINI_DRAFT_MAX_CONTEXT_CHARS で調整（例: 180000）。
+ */
+function getDraftContextCharLimit(): number {
+  const raw = process.env.GEMINI_DRAFT_MAX_CONTEXT_CHARS?.trim()
+  if (raw) {
+    const n = parseInt(raw, 10)
+    if (Number.isFinite(n) && n >= 10_000) return n
+  }
+  return 100_000
+}
 
 async function readFileContentAsText(fileId: string): Promise<{ name: string; content: string } | null> {
   const meta = await findFileById(fileId)
@@ -60,7 +77,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const dataContext = parts.join('\n\n')
+    let dataContext = parts.join('\n\n')
+    const contextLimit = getDraftContextCharLimit()
+    if (dataContext.length > contextLimit) {
+      const originalLen = dataContext.length
+      dataContext =
+        dataContext.slice(0, contextLimit) +
+        `\n\n【システム注記】参照資料が長いため、先頭から約${contextLimit.toLocaleString()}文字のみ取り込みました（元の合計: 約${originalLen.toLocaleString()}文字）。` +
+        '必要な論点が欠ける場合は S3 の対象を絞るか、アップロード資料のみにするか、Google AI Studio で課金を有効にしてください。'
+      console.warn(
+        `[gemini/draft] 参照資料を ${contextLimit} 文字で打ち切り (元: ${originalLen} 文字)。GEMINI_DRAFT_MAX_CONTEXT_CHARS で上限変更可。`
+      )
+    }
 
     const { title, content } = await generateFirstDraftFromPrompt(
       promptStr,

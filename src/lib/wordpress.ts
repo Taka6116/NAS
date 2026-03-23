@@ -367,7 +367,7 @@ function splitTargetKeywordPhrases(raw: string | undefined): string[] {
 }
 
 /** Article.description 用：文末・読点で切れ目を取り、途中で文が途切れないようにする */
-function buildSchemaDescription(plainContent: string, maxLen = 300): string {
+function buildSchemaDescription(plainContent: string, maxLen = 160): string {
   const text = plainContent.replace(/\s+/g, ' ').trim();
   if (text.length <= maxLen) return text;
 

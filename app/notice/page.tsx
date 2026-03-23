@@ -10,6 +10,33 @@ export default function NoticePage() {
       </p>
 
       <div
+        className="rounded-xl border border-[#0e357f]/20 bg-[#f8fafc] p-6 sm:p-8 shadow-sm mb-8"
+        style={{ boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)' }}
+      >
+        <h2 className="text-lg font-bold text-[#0e357f] border-b-2 border-[#0e357f] pb-2 mb-4">
+          ■ ターゲットキーワード（必須・構造化データ）
+        </h2>
+        <p className="text-sm text-[#334155] leading-relaxed mb-4">
+          一次執筆の際の<strong className="font-semibold text-[#1A1A2E]">ターゲットキーワードは必ず入れてください</strong>。
+        </p>
+        <p className="text-sm text-[#334155] leading-relaxed mb-4">
+          入力内容は、WordPress 投稿に含まれる構造化データ（JSON-LD）の{' '}
+          <code className="rounded bg-white px-1.5 py-0.5 text-xs font-mono text-[#0e357f] border border-slate-200">
+            keywords
+          </code>{' '}
+          に反映されます。コード（裏側）の記述例は次の通りです。
+        </p>
+        <pre
+          className="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white p-4 text-xs leading-relaxed text-[#1e293b] font-mono"
+          tabIndex={0}
+        >{`"keywords": "M&A 手数料 高い, ma 手数料, M&A手数料, M&A コスト",`}</pre>
+        <p className="text-sm text-[#334155] leading-relaxed">
+          Google でユーザーがそれらの検索をしたときに表示される仕組みになっているため、
+          <strong className="font-semibold text-[#1A1A2E]">とても重要な項目</strong>です。
+        </p>
+      </div>
+
+      <div
         className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"
         style={{ boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)' }}
       >

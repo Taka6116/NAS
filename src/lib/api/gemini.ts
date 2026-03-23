@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { normalizeMaInSlug } from '@/lib/slugNormalize'
 
 /** 429/クォータ超過時に順に試すモデル（モデルごとに別枠のことがある） */
 const GEMINI_MODELS = ['gemini-2.5-flash'] as const
@@ -467,6 +468,7 @@ RULES:
 - 3 to 5 words separated by hyphens
 - Reflect the specific topic of the article
 - Do NOT use Japanese, Chinese, or any non-ASCII characters
+- For mergers & acquisitions, write "ma" as one token (e.g. ma-advisor), NEVER "m-a" (wrong)
 
 EXAMPLES:
 - "M&Aアドバイザーの選び方" → ma-advisor-selection-guide
@@ -480,14 +482,16 @@ Slug:`
 
   try {
     const raw = await generateContentWithFallback(apiKey, prompt)
-    const sanitized = raw
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 60)
+    const sanitized = normalizeMaInSlug(
+      raw
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60)
+    )
     return sanitized.length >= 3 ? sanitized : fallbackSlug()
   } catch (e) {
     console.warn('Gemini slug generation failed:', (e as Error)?.message)

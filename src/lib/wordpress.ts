@@ -17,6 +17,7 @@ export interface WordPressPostResult {
 }
 
 import { getSupervisorBlockHtml } from './supervisorBlock'
+import { normalizeMaInSlug } from './slugNormalize'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
 const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
@@ -675,11 +676,13 @@ export function buildPostContent(
   payload: WordPressPostPayload,
   options?: { bodyTopImageUrl?: string }
 ): string {
-  const slug = payload.slug || payload.title
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .slice(0, 50);
+  const slug = normalizeMaInSlug(
+    (payload.slug || payload.title)
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .slice(0, 50)
+  );
 
   // 0. 本文から先頭の監修者テキストを除去（画像付きブロックのみ表示するため）
   const contentWithoutSupervisorText = stripLeadingSupervisorText(payload.content);

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToText } from '@/lib/internalLinks'
 import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
+import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
@@ -259,23 +260,21 @@ function EditorContent() {
   const handleStepClick = useCallback(
     (step: Step) => {
       if (step === 4) {
-        const content = applyInternalLinksToText(
-          article.refinedContent || article.originalContent || '',
-          article.internalLinks ?? []
-        )
-        sessionStorage.setItem('preview_content', content)
-        if (article.imageUrl) {
-          sessionStorage.setItem('preview_image', article.imageUrl)
-        } else {
-          sessionStorage.removeItem('preview_image')
-        }
-        const params = new URLSearchParams({
-          title: (article.refinedTitle || article.title || '').trim(),
-          category: 'お役立ち情報',
-          date: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.'),
-        })
-        if (currentArticleId) params.set('articleId', currentArticleId)
-        router.push(`/preview?${params.toString()}`)
+        void (async () => {
+          const content = applyInternalLinksToText(
+            article.refinedContent || article.originalContent || '',
+            article.internalLinks ?? []
+          )
+          sessionStorage.setItem('preview_content', content)
+          await setSessionPreviewImage(article.imageUrl || null)
+          const params = new URLSearchParams({
+            title: (article.refinedTitle || article.title || '').trim(),
+            category: 'お役立ち情報',
+            date: new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.'),
+          })
+          if (currentArticleId) params.set('articleId', currentArticleId)
+          router.push(`/preview?${params.toString()}`)
+        })()
       } else {
         setCurrentStep(step)
       }

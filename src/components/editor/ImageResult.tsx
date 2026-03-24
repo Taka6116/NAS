@@ -8,6 +8,7 @@ import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, ArrowRight, Download, RefreshCw, Upload } from 'lucide-react'
+import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 
 interface ImageResultProps {
   article: ArticleData
@@ -49,11 +50,7 @@ export default function ImageResult({
     
     const content = article.refinedContent || article.originalContent || ''
     sessionStorage.setItem('preview_content', content)
-    if (article.imageUrl) {
-      sessionStorage.setItem('preview_image', article.imageUrl)
-    } else {
-      sessionStorage.removeItem('preview_image')
-    }
+    await setSessionPreviewImage(article.imageUrl || null)
     const params = new URLSearchParams({
       title: article.refinedTitle?.trim() || article.title || '',
       category: 'お役立ち情報',

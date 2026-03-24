@@ -450,49 +450,67 @@ ${targetKeyword?.trim() ? `ターゲットキーワード：${targetKeyword}` : 
   }
 }
 
-/** 記事タイトル・キーワードからSEO向け英語スラッグを生成する */
+const SLUG_PREFIX = 'ma-advisor-'
+
+function sanitizeSlugSegment(raw: string): string {
+  return normalizeMaInSlug(
+    raw
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60)
+  )
+}
+
+/** 記事タイトル・本文・キーワードから SEO 向け英語スラッグを生成する（先頭は常に ma-advisor- 固定、続きは本文内容に即した固有部分） */
 export async function generateSlugFromGemini(
   title: string,
-  targetKeyword?: string
+  targetKeyword?: string,
+  articleBody?: string
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey?.trim()) return fallbackSlug()
 
   const kwPart = targetKeyword?.trim() ? `\nTarget keyword: ${targetKeyword.trim()}` : ''
-  const prompt = `You are an SEO specialist. Given the following Japanese article title, generate exactly ONE URL slug in ENGLISH.
+  const bodyExcerpt = (articleBody ?? '').trim().slice(0, 2000)
+  const bodyPart = bodyExcerpt
+    ? `\nArticle body (Japanese excerpt — use this to capture the specific topic and wording):\n${bodyExcerpt}`
+    : ''
 
-CRITICAL: You MUST respond in English only. NEVER use Japanese characters. Output ONLY the slug string, nothing else.
+  const prompt = `You are an SEO specialist. The URL slug MUST start with the fixed prefix "ma-advisor-" followed by a UNIQUE English segment for this article.
 
-RULES:
+You will output ONLY the variable segment: the part that comes AFTER "ma-advisor-". Do NOT include "ma-advisor" or "ma-advisor-" in your output.
+
+CRITICAL: Respond in English only. NEVER use Japanese characters. Output ONLY that segment, nothing else.
+
+RULES for the variable segment (after the fixed prefix):
 - Use ONLY lowercase English letters (a-z), numbers (0-9), and hyphens (-)
 - 3 to 5 words separated by hyphens
-- Reflect the specific topic of the article
+- Reflect the SPECIFIC topic using BOTH the title AND the article body excerpt below (body is primary for uniqueness)
 - Do NOT use Japanese, Chinese, or any non-ASCII characters
-- For mergers & acquisitions, write "ma" as one token (e.g. ma-advisor), NEVER "m-a" (wrong)
+- For mergers & acquisitions concepts in the segment, use "ma" as one token, NEVER "m-a"
 
-EXAMPLES:
-- "M&Aアドバイザーの選び方" → ma-advisor-selection-guide
-- "事業承継の基礎知識" → business-succession-basics
-- "デューデリジェンスの進め方" → due-diligence-process-guide
-- "中小企業M&Aの成功ポイント" → sme-ma-success-tips
+EXAMPLES (output = variable segment only):
+- Title/body about choosing M&A advisors → selection-guide
+- Title/body about business succession basics → business-succession-basics
+- Title/body about due diligence steps → due-diligence-process-guide
 
-Title: ${title.trim()}${kwPart}
+Title: ${title.trim()}${kwPart}${bodyPart}
 
-Slug:`
+Variable segment after "ma-advisor-":`
 
   try {
     const raw = await generateContentWithFallback(apiKey, prompt)
-    const sanitized = normalizeMaInSlug(
-      raw
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 60)
-    )
-    return sanitized.length >= 3 ? sanitized : fallbackSlug()
+    let segment = sanitizeSlugSegment(raw)
+    if (segment.startsWith('ma-advisor-')) {
+      segment = segment.slice('ma-advisor-'.length).replace(/^-+/, '')
+    }
+    segment = segment.replace(/^ma-advisor-?/, '').replace(/^-+/, '')
+    const full = segment.length >= 3 ? `${SLUG_PREFIX}${segment}` : fallbackSlug()
+    return normalizeMaInSlug(full)
   } catch (e) {
     console.warn('Gemini slug generation failed:', (e as Error)?.message)
     return fallbackSlug()
@@ -501,7 +519,8 @@ Slug:`
 
 function fallbackSlug(): string {
   const d = new Date()
-  return `article-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+  const tail = `article-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+  return `${SLUG_PREFIX}${tail}`
 }
 
 /** 記事タイトル・本文から画像生成用の英文プロンプトを1文で生成する（Stable Diffusion用） */

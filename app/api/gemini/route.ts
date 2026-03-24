@@ -19,7 +19,11 @@ export async function POST(request: NextRequest) {
       content,
       targetKeywordStr
     )
-    const slug = await generateSlugFromGemini(refinedTitle || titleStr, targetKeywordStr)
+    const slug = await generateSlugFromGemini(
+      refinedTitle || titleStr,
+      targetKeywordStr,
+      refinedContent
+    )
     return NextResponse.json({ refinedTitle, refinedContent, slug })
   } catch (error) {
     console.error('Gemini API error:', error)

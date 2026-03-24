@@ -7,6 +7,9 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon } from 'lucide-react'
 
+/** 投稿URLスラッグの固定先頭（続きは本文ベースで生成・編集） */
+const SLUG_PREFIX = 'ma-advisor-'
+
 interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
@@ -48,20 +51,38 @@ export default function PublishResult({
     onRefinedTitleChange?.(value)
   }
 
-  const [geminiSlug, setGeminiSlug] = useState(slug || '')
-  const [slugMode, setSlugMode] = useState<'auto' | 'custom'>('auto')
+  const [slugSuffix, setSlugSuffix] = useState(() =>
+    slug.startsWith(SLUG_PREFIX) ? slug.slice(SLUG_PREFIX.length) : slug
+  )
 
   useEffect(() => {
-    if (slug) {
-      setGeminiSlug(slug)
+    if (!slug) {
+      setSlugSuffix('')
+      return
     }
+    setSlugSuffix(slug.startsWith(SLUG_PREFIX) ? slug.slice(SLUG_PREFIX.length) : slug)
   }, [slug])
 
   useEffect(() => {
-    if (slugMode === 'auto' && geminiSlug) {
-      onSlugChange?.(geminiSlug)
+    if (!slug?.trim() || !onSlugChange) return
+    if (!slug.startsWith(SLUG_PREFIX)) {
+      const migrated = `${SLUG_PREFIX}${slug.replace(/^-+/, '')}`
+      if (migrated !== slug) onSlugChange(migrated)
     }
-  }, [slugMode, geminiSlug])
+  }, [slug, onSlugChange])
+
+  const sanitizeSuffixInput = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+
+  const handleSlugSuffixChange = (value: string) => {
+    const next = sanitizeSuffixInput(value)
+    setSlugSuffix(next)
+    onSlugChange?.(next ? `${SLUG_PREFIX}${next}` : '')
+  }
 
   const finalTitle = localTitle.trim() || article.title
   const finalContent = article.refinedContent || ''
@@ -159,37 +180,26 @@ export default function PublishResult({
                     <LinkIcon size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
                     <div className="w-full">
                       <p className="text-xs font-mono text-[#64748B] mb-0.5">スラッグ（URL末尾）</p>
-                      <select
-                        value={slugMode}
-                        onChange={e => {
-                          const mode = e.target.value as 'auto' | 'custom'
-                          setSlugMode(mode)
-                          if (mode === 'auto') onSlugChange?.(geminiSlug)
-                        }}
-                        className="
-                          w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
-                          text-sm text-[#1A1A2E] bg-white
-                          focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
-                          transition-all font-mono mb-1.5
-                        "
-                      >
-                        <option value="auto">{geminiSlug || '(推敲完了後に自動生成されます)'}</option>
-                        <option value="custom">自分で入力</option>
-                      </select>
-                      {slugMode === 'custom' && (
+                      <p className="text-[11px] text-[#94A3B8] mb-1.5">
+                        先頭は固定 <span className="font-mono text-[#64748B]">{SLUG_PREFIX}</span>
+                        続きは推敲時に本文に合わせて自動生成されます（半角英数字・ハイフンで編集可）
+                      </p>
+                      <div className="flex w-full items-stretch rounded-lg border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#1B2A4A]/30 focus-within:border-[#1B2A4A] transition-all">
+                        <span
+                          className="flex items-center px-3 py-2.5 text-sm font-mono text-[#64748B] bg-[#F1F5F9] border-r border-[#E2E8F0] flex-shrink-0 select-none"
+                          aria-hidden
+                        >
+                          {SLUG_PREFIX}
+                        </span>
                         <input
                           type="text"
-                          value={slug}
-                          onChange={e => onSlugChange?.(e.target.value)}
-                          className="
-                            w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
-                            text-sm text-[#1A1A2E]
-                            focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
-                            transition-all font-mono
-                          "
-                          placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
+                          value={slugSuffix}
+                          onChange={e => handleSlugSuffixChange(e.target.value)}
+                          className="flex-1 min-w-0 px-3 py-2.5 text-sm text-[#1A1A2E] font-mono border-0 focus:outline-none focus:ring-0"
+                          placeholder="例: selection-guide"
+                          aria-label="スラッグ（ma-advisor- の後ろ）"
                         />
-                      )}
+                      </div>
                     </div>
                   </div>
 

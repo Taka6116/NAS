@@ -86,7 +86,11 @@ export async function POST(request: NextRequest) {
     const ids = Array.isArray(fileIds) ? fileIds.filter((id): id is string => typeof id === 'string') : []
     const explicitS3Keys = Array.isArray(s3Keys) ? s3Keys.filter((k): k is string => typeof k === 'string') : []
     // s3Keys が無い or 空 → S3の全オブジェクトを参照。指定があればそのキーのみ。
-    const keys = explicitS3Keys.length > 0 ? explicitS3Keys : (await listS3Objects()).map(o => o.key)
+    // articles/, pictures/, Whitepapers/ 内の非テキスト資料は参照対象外（トークン浪費・個人情報混入防止）
+    const EXCLUDED_PREFIXES = ['articles/', 'pictures/']
+    const allKeys = explicitS3Keys.length > 0
+      ? explicitS3Keys
+      : (await listS3Objects()).map(o => o.key).filter(k => !EXCLUDED_PREFIXES.some(p => k.startsWith(p)))
 
     if (!promptStr) {
       return NextResponse.json(
@@ -113,8 +117,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (keys.length > 0) {
-      for (const key of keys) {
+    if (allKeys.length > 0) {
+      for (const key of allKeys) {
         const result = await getS3ObjectAsText(key)
         if (result) {
           const name = key.split('/').pop() ?? key

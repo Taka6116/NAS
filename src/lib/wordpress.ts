@@ -199,6 +199,77 @@ function emphasizeListLabel(line: string): string {
 const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;";
 const H3_STYLE = 'font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;';
 const P_STYLE = 'margin-bottom:1.6em;';
+const UL_LIST_STYLE = 'list-style:none;padding-left:0;margin:16px 0;';
+const LI_LIST_STYLE = 'margin-bottom:1.2em;padding-left:1em;text-indent:-1em;';
+
+/** 番号なしで単独行となる h2 見出しパターン（SEO: セクション構造を明示） */
+const STANDALONE_H2_REGEXES: RegExp[] = [
+  /^まとめ[：:]\s*.+/,
+  /^まとめ[：:\s]*$/,
+  /^【?\s*まとめ\s*】?[。．]?$/,
+  /^【?\s*結論要約\s*】?$/,
+  /^結論要約$/,
+  /^よくある質問/,
+  /^FAQ\b/i,
+  /^日本提携支援(?:（NTS）)?ならではの視点(（独自性）)?$/,
+];
+
+/** 【まとめ】等の h2 表示テキスト（装飾括弧のみ除去。見出しに本文が続く行はそのまま） */
+function normalizeStandaloneH2PlainText(trimmed: string): string {
+  if (/^【?\s*まとめ\s*】?[。．]?$/.test(trimmed)) return 'まとめ';
+  if (/^【?\s*結論要約\s*】?$/.test(trimmed)) return '結論要約';
+  return trimmed;
+}
+
+function isStandaloneH2Candidate(trimmed: string, lineIndex: number, prevRaw: string, paragraphLen: number): boolean {
+  if (paragraphLen !== 0) return false;
+  if (STANDALONE_H2_REGEXES.some(re => re.test(trimmed))) return true;
+  // 短文タイトル行: 直前行が空行または区切り線のときのみ（先頭行は対象外）
+  if (
+    lineIndex > 0 &&
+    trimmed.length > 0 &&
+    trimmed.length <= 30 &&
+    !/[。、．！？]$/.test(trimmed) &&
+    !/(?:です|ます|ません|でしょう|ました)$/.test(trimmed)
+  ) {
+    const pt = prevRaw.trim();
+    if (pt === '' || pt === '---' || /^-{3,}$/.test(pt)) return true;
+  }
+  return false;
+}
+
+/** 箇条書き行（・/-）の1項目をHTML化（既存の「ラベル: 説明」太字とインライン記法を維持） */
+function formatListItemHtml(item: string): string {
+  const t = item.trim();
+  const colonMatch = t.match(/^([^：:]+)([：:])\s*(.*)$/s);
+  if (colonMatch) {
+    const [, label, colon, rest] = colonMatch;
+    const safeLabel = label!.trim().replace(/\*\*/g, '');
+    const safeRest = applyInlineFormatting(rest ?? '');
+    return `<strong>${safeLabel}</strong>${colon} ${safeRest}`;
+  }
+  return applyInlineFormatting(t);
+}
+
+/**
+ * <strong> が <p> をまたぐ不正ネストを修正（タグの順序のみ。style は保持）
+ */
+function fixStrongParagraphNesting(html: string): string {
+  let out = html;
+  out = out.replace(
+    /<strong([^>]*)>\s*<p([^>]*)>([\s\S]*?)<\/p>\s*<\/strong>/gi,
+    '<p$2><strong$1>$3</strong></p>'
+  );
+  out = out.replace(
+    /<strong([^>]*)>\s*<p([^>]*)>([\s\S]*?)<\/strong>\s*(?:<\/p>)?/gi,
+    '<p$2><strong$1>$3</strong></p>'
+  );
+  out = out.replace(
+    /<p([^>]*)><strong([^>]*)>([\s\S]*?)<\/p>\s*<\/strong>/gi,
+    '<p$1><strong$2>$3</strong></p>'
+  );
+  return out;
+}
 
 /**
  * プレーンテキストの本文をHTMLに変換する
@@ -212,53 +283,59 @@ export function convertToHtml(content: string): string {
   let currentParagraph: string[] = [];
 
   function flushParagraph() {
-    if (currentParagraph.length > 0) {
-      const raw = currentParagraph.join('<br>').trim();
-      if (raw) {
-        const text = raw
-          .split('<br>')
+    if (currentParagraph.length === 0) return;
+    const rawLines = currentParagraph.map(s => s.trim());
+    let i = 0;
+    while (i < rawLines.length) {
+      const row = rawLines[i]!;
+      if (/^[・\-]\s/.test(row)) {
+        const items: string[] = [];
+        while (i < rawLines.length && /^[・\-]\s/.test(rawLines[i]!)) {
+          items.push(rawLines[i]!.replace(/^[・\-]\s*/, ''));
+          i++;
+        }
+        const liBlocks = items
+          .map(it => `<li style="${LI_LIST_STYLE}">${formatListItemHtml(it)}</li>`)
+          .join('\n');
+        htmlLines.push(`<ul style="${UL_LIST_STYLE}">\n${liBlocks}\n</ul>`);
+      } else {
+        const plines: string[] = [];
+        while (i < rawLines.length && !/^[・\-]\s/.test(rawLines[i]!)) {
+          plines.push(rawLines[i]!);
+          i++;
+        }
+        const text = plines
           .map(emphasizeListLabel)
-          .join('<br>');
-
-        // 既にブロック要素(<p>, <h2> など)で始まっている場合は二重に <p> で囲まない
-        const isBlockElement = /^<(p|h[1-6]|div|ul|ol|li|table|script|!--)/i.test(text.trim());
-        if (isBlockElement) {
-          htmlLines.push(text);
-        } else {
-          htmlLines.push(`<p style="${P_STYLE}">${text}</p>`);
+          .join('<br>')
+          .trim();
+        if (text) {
+          const isBlockElement = /^<(p|h[1-6]|div|ul|ol|li|table|script|!--)/i.test(text.trim());
+          if (isBlockElement) {
+            htmlLines.push(text);
+          } else {
+            htmlLines.push(`<p style="${P_STYLE}">${text}</p>`);
+          }
         }
       }
-      currentParagraph = [];
     }
+    currentParagraph = [];
   }
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
     const trimmed = line.trim();
+    const prevRaw = i > 0 ? lines[i - 1]! : '';
 
     if (!trimmed) {
       flushParagraph();
       continue;
     }
 
-    // 結論要約：見出しではなく太字段落（【結論要約】も同一扱い）
-    if (/^【?\s*結論要約\s*】?$/.test(trimmed)) {
+    if (isStandaloneH2Candidate(trimmed, i, prevRaw, currentParagraph.length)) {
       flushParagraph();
-      htmlLines.push(`<p style="${P_STYLE}"><strong>結論要約</strong></p>`);
+      const h2Plain = normalizeStandaloneH2PlainText(trimmed);
+      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(h2Plain)}</h2>`);
       continue;
-    }
-
-    // セクション見出し（単独行）：番号なしでも h2 にする（検索エンジンが見出しとして認識できるように）
-    if (currentParagraph.length === 0) {
-      if (/^日本提携支援ならではの視点(（独自性）)?$/.test(trimmed)) {
-        flushParagraph();
-        htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(trimmed)}</h2>`);
-        continue;
-      }
-      if (/^【?\s*まとめ\s*】?[。．]?$/.test(trimmed)) {
-        flushParagraph();
-        htmlLines.push(`<h2 style="${H2_STYLE}">まとめ</h2>`);
-        continue;
-      }
     }
 
     // h2 見出し: "1. テキスト" — 直前が空行（段落バッファが空）の場合のみ見出しとして扱う
@@ -293,7 +370,7 @@ export function convertToHtml(content: string): string {
   }
 
   flushParagraph();
-  return htmlLines.join('\n');
+  return fixStrongParagraphNesting(htmlLines.join('\n'));
 }
 
 /** HTMLタグ・マークダウン記法除去と主要なHTMLエンティティのデコード（Schema/FAQ用プレーンテキスト化） */

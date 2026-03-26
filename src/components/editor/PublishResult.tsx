@@ -6,6 +6,7 @@ import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon } from 'lucide-react'
+import { maAdvisorDateFallbackSlug, resolveCanonicalPostSlug } from '@/lib/slugNormalize'
 
 /** 投稿URLスラッグの固定先頭（続きは本文ベースで生成・編集） */
 const SLUG_PREFIX = 'ma-advisor-'
@@ -16,13 +17,15 @@ interface PublishResultProps {
   wordpressError?: string | null
   onBack: () => void
   onSaveDraft: () => Promise<string | undefined> | void
-  onPublish: () => void
+  onPublish: (wpStatus: 'draft' | 'publish') => void
   onReset: () => void
   onStepClick?: (step: Step) => void
   onRefinedTitleChange?: (title: string) => void
   onRefinedContentChange?: (content: string) => void
   slug?: string
   onSlugChange?: (slug: string) => void
+  /** 推敲APIが返した英語スラッグ（全体）。ユーザーが空欄にしてもここは上書きしない */
+  refineSlugSuggestion?: string
 }
 
 export default function PublishResult({
@@ -38,7 +41,10 @@ export default function PublishResult({
   onRefinedContentChange,
   slug = '',
   onSlugChange,
+  refineSlugSuggestion = '',
 }: PublishResultProps) {
+  const [wpChoiceOpen, setWpChoiceOpen] = useState(false)
+
   // Ctrl+A で全選択→削除が効くよう、タイトルをローカル state で保持して即反映する
   const [localTitle, setLocalTitle] = useState(() => article.refinedTitle ?? article.title)
   // 別記事を開いたときだけ親から同期（article.title が変わる＝記事の差し替え）
@@ -51,25 +57,40 @@ export default function PublishResult({
     onRefinedTitleChange?.(value)
   }
 
+  const [slugMode, setSlugMode] = useState<'auto' | 'custom'>('auto')
+
   const [slugSuffix, setSlugSuffix] = useState(() =>
     slug.startsWith(SLUG_PREFIX) ? slug.slice(SLUG_PREFIX.length) : slug
   )
 
+  const autoFullSlug = resolveCanonicalPostSlug(
+    refineSlugSuggestion.trim() ? refineSlugSuggestion : maAdvisorDateFallbackSlug()
+  )
+
   useEffect(() => {
+    if (!onSlugChange || slugMode !== 'auto') return
+    const next = resolveCanonicalPostSlug(
+      refineSlugSuggestion.trim() ? refineSlugSuggestion : maAdvisorDateFallbackSlug()
+    )
+    onSlugChange(next)
+  }, [slugMode, refineSlugSuggestion, onSlugChange])
+
+  useEffect(() => {
+    if (slugMode !== 'custom') return
     if (!slug) {
       setSlugSuffix('')
       return
     }
     setSlugSuffix(slug.startsWith(SLUG_PREFIX) ? slug.slice(SLUG_PREFIX.length) : slug)
-  }, [slug])
+  }, [slug, slugMode])
 
   useEffect(() => {
-    if (!slug?.trim() || !onSlugChange) return
+    if (slugMode !== 'custom' || !slug?.trim() || !onSlugChange) return
     if (!slug.startsWith(SLUG_PREFIX)) {
       const migrated = `${SLUG_PREFIX}${slug.replace(/^-+/, '')}`
       if (migrated !== slug) onSlugChange(migrated)
     }
-  }, [slug, onSlugChange])
+  }, [slug, onSlugChange, slugMode])
 
   const sanitizeSuffixInput = (value: string) =>
     value
@@ -103,10 +124,14 @@ export default function PublishResult({
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#1A1A2E] mb-1">
-                記事を投稿しました
+                {article.wordpressPostStatus === 'draft'
+                  ? 'WordPressに下書き保存しました'
+                  : '記事を投稿しました'}
               </h2>
               <p className="text-sm text-[#64748B]">
-                WordPressに正常に投稿されました
+                {article.wordpressPostStatus === 'draft'
+                  ? 'WordPressの下書きとして保存されています。管理画面から公開できます。'
+                  : 'WordPressに正常に投稿されました'}
               </p>
             </div>
 
@@ -182,24 +207,47 @@ export default function PublishResult({
                       <p className="text-xs font-mono text-[#64748B] mb-0.5">スラッグ（URL末尾）</p>
                       <p className="text-[11px] text-[#94A3B8] mb-1.5">
                         先頭は固定 <span className="font-mono text-[#64748B]">{SLUG_PREFIX}</span>
-                        続きは推敲時に本文に合わせて自動生成されます（半角英数字・ハイフンで編集可）
+                        。「推敲で自動生成」はタイトル・本文に合わせた英語スラッグを使います。空のまま投稿しても WordPress 側で日本語化されず、英語スラッグが付与されます。
                       </p>
-                      <div className="flex w-full items-stretch rounded-lg border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#1B2A4A]/30 focus-within:border-[#1B2A4A] transition-all">
-                        <span
-                          className="flex items-center px-3 py-2.5 text-sm font-mono text-[#64748B] bg-[#F1F5F9] border-r border-[#E2E8F0] flex-shrink-0 select-none"
-                          aria-hidden
-                        >
-                          {SLUG_PREFIX}
-                        </span>
-                        <input
-                          type="text"
-                          value={slugSuffix}
-                          onChange={e => handleSlugSuffixChange(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2.5 text-sm text-[#1A1A2E] font-mono border-0 focus:outline-none focus:ring-0"
-                          placeholder="例: selection-guide"
-                          aria-label="スラッグ（ma-advisor- の後ろ）"
-                        />
-                      </div>
+                      <select
+                        value={slugMode}
+                        onChange={e => {
+                          const mode = e.target.value as 'auto' | 'custom'
+                          setSlugMode(mode)
+                          if (mode === 'auto' && onSlugChange) {
+                            onSlugChange(autoFullSlug)
+                          }
+                        }}
+                        className="w-full mb-2 px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm text-[#1A1A2E] bg-white focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]"
+                        aria-label="スラッグの決め方"
+                      >
+                        <option value="auto">
+                          推敲で自動生成（推奨）: {autoFullSlug}
+                        </option>
+                        <option value="custom">自分で入力（半角英数字・ハイフン）</option>
+                      </select>
+                      {slugMode === 'auto' ? (
+                        <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm font-mono text-[#1A1A2E] break-all">
+                          {autoFullSlug}
+                        </div>
+                      ) : (
+                        <div className="flex w-full items-stretch rounded-lg border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#1B2A4A]/30 focus-within:border-[#1B2A4A] transition-all">
+                          <span
+                            className="flex items-center px-3 py-2.5 text-sm font-mono text-[#64748B] bg-[#F1F5F9] border-r border-[#E2E8F0] flex-shrink-0 select-none"
+                            aria-hidden
+                          >
+                            {SLUG_PREFIX}
+                          </span>
+                          <input
+                            type="text"
+                            value={slugSuffix}
+                            onChange={e => handleSlugSuffixChange(e.target.value)}
+                            className="flex-1 min-w-0 px-3 py-2.5 text-sm text-[#1A1A2E] font-mono border-0 focus:outline-none focus:ring-0"
+                            placeholder="例: selection-tax-guide"
+                            aria-label="スラッグ（ma-advisor- の後ろ）"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -316,7 +364,7 @@ export default function PublishResult({
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={onPublish}
+                  onClick={() => setWpChoiceOpen(true)}
                   className="justify-center"
                 >
                   <CheckCircle size={18} />
@@ -325,6 +373,59 @@ export default function PublishResult({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {wpChoiceOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wp-publish-choice-title"
+          onClick={() => setWpChoiceOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl max-w-md w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id="wp-publish-choice-title" className="text-base font-bold text-[#1A1A2E] mb-2">
+              WordPressへ投稿する
+            </h3>
+            <p className="text-sm text-[#64748B] mb-5">
+              WordPress側で下書きにするか、すぐ公開するかを選んでください。
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="navy"
+                size="lg"
+                className="justify-center w-full"
+                onClick={() => {
+                  setWpChoiceOpen(false)
+                  onPublish('draft')
+                }}
+              >
+                下書きとして送信
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                className="justify-center w-full"
+                onClick={() => {
+                  setWpChoiceOpen(false)
+                  onPublish('publish')
+                }}
+              >
+                すぐ公開する
+              </Button>
+              <button
+                type="button"
+                onClick={() => setWpChoiceOpen(false)}
+                className="text-sm text-[#64748B] py-2 hover:text-[#1A1A2E] transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SavedArticle } from '@/lib/types'
+import { resolveCanonicalPostSlug } from '@/lib/slugNormalize'
 import { getAllArticles, saveArticle } from '@/lib/articleStorage'
 import {
   ChevronLeft,
@@ -184,7 +185,7 @@ export default function SchedulePage() {
           imageUrl: article.imageUrl,
           status: 'future',
           scheduledDate,
-          slug: article.slug?.trim() || undefined,
+          slug: resolveCanonicalPostSlug(article.slug?.trim() ?? ''),
         }),
       })
 
@@ -736,7 +737,7 @@ export default function SchedulePage() {
                                 fontFamily: 'DM Mono',
                                 background: '#FAFBFC',
                               }}
-                              placeholder="例: ma-advisor-selection（半角英数字とハイフン）"
+                              placeholder="例: ma-advisor-selection-tax-guide（半角英数字とハイフン）"
                             />
                           )}
                         </div>

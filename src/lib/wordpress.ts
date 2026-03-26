@@ -17,7 +17,7 @@ export interface WordPressPostResult {
 }
 
 import { getSupervisorBlockHtml } from './supervisorBlock'
-import { normalizeMaInSlug } from './slugNormalize'
+import { resolveCanonicalPostSlug } from './slugNormalize'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
 const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
@@ -753,13 +753,7 @@ export function buildPostContent(
   payload: WordPressPostPayload,
   options?: { bodyTopImageUrl?: string }
 ): string {
-  const slug = normalizeMaInSlug(
-    (payload.slug || payload.title)
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .slice(0, 50)
-  );
+  const slug = resolveCanonicalPostSlug(payload.slug);
 
   // 0. 本文から先頭の監修者テキストを除去（画像付きブロックのみ表示するため）
   const contentWithoutSupervisorText = stripLeadingSupervisorText(payload.content);
@@ -866,7 +860,9 @@ export async function postToWordPress(
   }
 
   // 投稿コンテンツ構築（本文最上部に記事画像 → 監修者ブロック → 本文）
-  const postContent = buildPostContent(payload, { bodyTopImageUrl });
+  const canonicalSlug = resolveCanonicalPostSlug(payload.slug);
+  const payloadWithSlug: WordPressPostPayload = { ...payload, slug: canonicalSlug };
+  const postContent = buildPostContent(payloadWithSlug, { bodyTopImageUrl });
   const excerpt = generateExcerpt(payload.content);
 
   const requestUrl = `${wpUrl}/wp-json/wp/v2/posts`;
@@ -884,7 +880,7 @@ export async function postToWordPress(
         content: postContent,
         excerpt,
         status: status,
-        slug: payload.slug || undefined,
+        slug: canonicalSlug,
         ...(mediaId ? { featured_media: mediaId } : {}),
         ...(status === 'future' && options?.scheduledDate ? { date: options.scheduledDate } : {}),
         categories: [safeCategoryId],

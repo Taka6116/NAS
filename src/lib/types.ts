@@ -21,6 +21,8 @@ export interface ArticleData {
   internalLinks: InternalLinkEntry[]
   imageUrl: string
   wordpressUrl?: string
+  /** WordPress REST が返した直近の投稿ステータス（下書き投稿成功時など） */
+  wordpressPostStatus?: string
 }
 
 export type ArticleStatus = 'draft' | 'ready' | 'published'

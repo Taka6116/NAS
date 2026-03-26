@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { normalizeMaInSlug } from '@/lib/slugNormalize'
+import { normalizeMaInSlug, maAdvisorDateFallbackSlug } from '@/lib/slugNormalize'
 
 /** 429/クォータ超過時に順に試すモデル（モデルごとに別枠のことがある） */
 const GEMINI_MODELS = ['gemini-2.5-flash'] as const
@@ -508,6 +508,7 @@ EXAMPLES (output = variable segment only):
 - Title/body about choosing M&A advisors → selection-guide
 - Title/body about business succession basics → business-succession-basics
 - Title/body about due diligence steps → due-diligence-process-guide
+- Title/body about M&A taxes, net proceeds, or tax types/calculation → selection-tax-guide
 
 Title: ${title.trim()}${kwPart}${bodyPart}
 
@@ -529,9 +530,7 @@ Variable segment after "ma-advisor-":`
 }
 
 function fallbackSlug(): string {
-  const d = new Date()
-  const tail = `article-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
-  return `${SLUG_PREFIX}${tail}`
+  return maAdvisorDateFallbackSlug()
 }
 
 /** 記事タイトル・本文から画像生成用の英文プロンプトを1文で生成する（Stable Diffusion用） */

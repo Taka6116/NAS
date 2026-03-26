@@ -30,6 +30,8 @@ interface SavedState {
   currentStep: Step
   geminiStatus: ProcessingState
   fireflyStatus: ProcessingState
+  slug?: string
+  refineSlugSuggestion?: string
 }
 
 function loadState(): SavedState | null {
@@ -71,6 +73,7 @@ function EditorContent() {
   const [mounted, setMounted] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [slug, setSlug] = useState('')
+  const [refineSlugSuggestion, setRefineSlugSuggestion] = useState('')
   const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
@@ -90,9 +93,11 @@ function EditorContent() {
           imageUrl: savedArticle.imageUrl,
           internalLinks: [],
           wordpressUrl: savedArticle.wordpressUrl,
+          wordpressPostStatus: savedArticle.wordpressPostStatus,
         })
         setCurrentArticleId(savedArticle.id)
         setSlug(savedArticle.slug || '')
+        setRefineSlugSuggestion(savedArticle.slug || '')
         const parsedStep = Number(stepParam)
         if (parsedStep === 4) {
           const content = applyInternalLinksToText(
@@ -132,6 +137,8 @@ function EditorContent() {
       setGeminiStatus(saved.geminiStatus === 'loading' ? 'idle' : saved.geminiStatus)
       setFireflyStatus(saved.fireflyStatus === 'loading' ? 'idle' : saved.fireflyStatus)
       setGeminiToastShown(Boolean(saved.article?.refinedContent))
+      if (typeof saved.slug === 'string') setSlug(saved.slug)
+      if (typeof saved.refineSlugSuggestion === 'string') setRefineSlugSuggestion(saved.refineSlugSuggestion)
     }
     // プレビューから「投稿画面へ」で飛んできたときなど、URLの step を優先する
     const parsedStepFromUrl = Number(stepParam)
@@ -145,8 +152,8 @@ function EditorContent() {
 
   useEffect(() => {
     if (!mounted) return
-    saveState({ article, currentStep, geminiStatus, fireflyStatus })
-  }, [article, currentStep, geminiStatus, fireflyStatus, mounted])
+    saveState({ article, currentStep, geminiStatus, fireflyStatus, slug, refineSlugSuggestion })
+  }, [article, currentStep, geminiStatus, fireflyStatus, mounted, slug, refineSlugSuggestion])
 
   const updateArticle = useCallback((updates: Partial<ArticleData>) => {
     setArticle(prev => ({ ...prev, ...updates }))
@@ -178,7 +185,11 @@ function EditorContent() {
       }
       updateArticle({ refinedTitle, refinedContent })
       if (typeof data.slug === 'string' && data.slug.trim()) {
-        setSlug(data.slug.trim())
+        const s = data.slug.trim()
+        setRefineSlugSuggestion(s)
+        setSlug(s)
+      } else {
+        setRefineSlugSuggestion('')
       }
       setGeminiStatus('success')
     } catch (e) {
@@ -343,7 +354,7 @@ function EditorContent() {
     }
   }, [article.title, article.refinedTitle, article.refinedContent, article.targetKeyword, updateArticle])
 
-  const handlePublish = useCallback(async () => {
+  const handlePublish = useCallback(async (wpStatus: 'draft' | 'publish') => {
     setWordpressStatus('loading')
     setWordpressError(null)
     try {
@@ -361,13 +372,23 @@ function EditorContent() {
           imageUrl: article.imageUrl,
           targetKeyword: article.targetKeyword?.trim() || undefined,
           slug: slug.trim() || undefined,
+          status: wpStatus,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      updateArticle({ wordpressUrl: data.wordpressUrl })
+      updateArticle({
+        wordpressUrl: data.wordpressUrl,
+        wordpressPostStatus: data.status,
+      })
+      const nextArticleStatus = wpStatus === 'publish' ? 'published' : 'ready'
       if (currentArticleId) {
-        await updateArticleStatus(currentArticleId, 'published', data.wordpressUrl)
+        await updateArticleStatus(
+          currentArticleId,
+          nextArticleStatus,
+          data.wordpressUrl,
+          data.status
+        )
       } else {
         const newId = String(Date.now())
         setCurrentArticleId(newId)
@@ -380,7 +401,8 @@ function EditorContent() {
           refinedContent: article.refinedContent,
           imageUrl: article.imageUrl,
           wordpressUrl: data.wordpressUrl,
-          status: 'published',
+          wordpressPostStatus: data.status,
+          status: nextArticleStatus,
           createdAt: new Date().toISOString(),
           wordCount: article.refinedContent.length,
           slug: slug.trim() || undefined,
@@ -414,6 +436,8 @@ function EditorContent() {
     setFireflyStatus('idle')
     setWordpressStatus('idle')
     setWordpressError(null)
+    setSlug('')
+    setRefineSlugSuggestion('')
   }, [])
 
   const handleClearArticle = useCallback(() => {
@@ -425,6 +449,8 @@ function EditorContent() {
     setWordpressStatus('idle')
     setWordpressError(null)
     setCurrentStep(1)
+    setSlug('')
+    setRefineSlugSuggestion('')
   }, [])
 
   /** どのステップからでも一次執筆のまっさらな状態で始める */
@@ -440,6 +466,8 @@ function EditorContent() {
     setWordpressStatus('idle')
     setWordpressError(null)
     setCurrentStep(1)
+    setSlug('')
+    setRefineSlugSuggestion('')
     router.replace('/editor')
   }, [router])
 
@@ -517,6 +545,7 @@ function EditorContent() {
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
           slug={slug}
           onSlugChange={setSlug}
+          refineSlugSuggestion={refineSlugSuggestion}
         />
       )}
 

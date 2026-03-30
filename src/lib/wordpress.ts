@@ -7,6 +7,8 @@ export interface WordPressPostPayload {
   imageBase64MimeType?: string; // 例：'image/png'
   category?: string;        // カテゴリ名（任意）
   slug?: string;            // URLスラッグ（任意・空の場合はWPが自動生成）
+  /** 正規化済みタグ名（post_tag）。空ならタグを付けない */
+  wordpressTags?: string[];
 }
 
 export interface WordPressPostResult {
@@ -18,6 +20,7 @@ export interface WordPressPostResult {
 
 import { getSupervisorBlockHtml } from './supervisorBlock'
 import { resolveCanonicalPostSlug } from './slugNormalize'
+import { normalizeWordPressTagsFromRequest } from './wordpressTags'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
 const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
@@ -812,6 +815,68 @@ export function buildPostContent(
   return parts.join('\n\n');
 }
 
+interface WpTagRow {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+async function findOrCreateWordPressTagId(
+  name: string,
+  credentials: string,
+  wpUrl: string
+): Promise<number> {
+  const searchUrl = `${wpUrl}/wp-json/wp/v2/tags?search=${encodeURIComponent(name)}&per_page=30`;
+  const searchRes = await fetch(searchUrl, {
+    headers: { Authorization: `Basic ${credentials}` },
+  });
+  if (searchRes.ok) {
+    const tags = (await searchRes.json()) as WpTagRow[];
+    const exact = tags.find((t) => t.name === name);
+    if (exact) return exact.id;
+  }
+
+  const createRes = await fetch(`${wpUrl}/wp-json/wp/v2/tags`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (createRes.ok) {
+    const created = (await createRes.json()) as { id: number };
+    return created.id;
+  }
+
+  const errBody = (await createRes.json().catch(() => ({}))) as {
+    code?: string;
+    message?: string;
+    data?: { status?: number; term_id?: number };
+  };
+  if (errBody.code === 'term_exists' && errBody.data?.term_id) {
+    return errBody.data.term_id;
+  }
+
+  throw new Error(
+    errBody.message || `タグ「${name}」の取得・作成に失敗しました (${createRes.status})`
+  );
+}
+
+async function resolveWordPressTagIds(
+  names: string[],
+  credentials: string,
+  wpUrl: string
+): Promise<number[]> {
+  const ids: number[] = [];
+  for (const name of names) {
+    const id = await findOrCreateWordPressTagId(name, credentials, wpUrl);
+    ids.push(id);
+  }
+  return ids;
+}
+
 /**
  * WordPress REST APIに投稿する
  */
@@ -865,6 +930,12 @@ export async function postToWordPress(
   const postContent = buildPostContent(payloadWithSlug, { bodyTopImageUrl });
   const excerpt = generateExcerpt(payload.content);
 
+  const tagNames = normalizeWordPressTagsFromRequest(payload.wordpressTags ?? []);
+  let tagIds: number[] | undefined;
+  if (tagNames.length > 0) {
+    tagIds = await resolveWordPressTagIds(tagNames, credentials, wpUrl);
+  }
+
   const requestUrl = `${wpUrl}/wp-json/wp/v2/posts`;
   const authHeaderValue = `Basic ***`; // ログ用（パスワードは出さない）
 
@@ -884,6 +955,7 @@ export async function postToWordPress(
         ...(mediaId ? { featured_media: mediaId } : {}),
         ...(status === 'future' && options?.scheduledDate ? { date: options.scheduledDate } : {}),
         categories: [safeCategoryId],
+        ...(tagIds && tagIds.length > 0 ? { tags: tagIds } : {}),
       }),
     });
 

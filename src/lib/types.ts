@@ -23,6 +23,8 @@ export interface ArticleData {
   wordpressUrl?: string
   /** WordPress REST が返した直近の投稿ステータス（下書き投稿成功時など） */
   wordpressPostStatus?: string
+  /** WordPress の post_tag 用（パース済みのタグ名の配列） */
+  wordpressTags?: string[]
 }
 
 export type ArticleStatus = 'draft' | 'ready' | 'published'
@@ -43,6 +45,8 @@ export interface SavedArticle {
   /** WordPress REST が返す投稿ステータス（予約投稿成功時に保存。future / publish / draft 等） */
   wordpressPostStatus?: string
   slug?: string
+  /** WordPress post_tag 用タグ名（保存・予約投稿で引き継ぎ） */
+  wordpressTags?: string[]
   wordCount: number
 }
 

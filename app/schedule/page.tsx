@@ -66,6 +66,21 @@ function sortKeyForScheduled(a: SavedArticle): string {
   return `${d}T${t}`
 }
 
+/** 予定日時が「いま」より後か（過去の予約・送信済みは一覧から除外） */
+function getScheduledInstant(article: SavedArticle): number {
+  const d = article.scheduledDate!
+  if (article.scheduledTime?.trim()) {
+    return new Date(`${d}T${article.scheduledTime.trim()}:00`).getTime()
+  }
+  const [y, mo, day] = d.split('-').map(Number)
+  return new Date(y, mo - 1, day, 23, 59, 59, 999).getTime()
+}
+
+function isUpcomingScheduled(article: SavedArticle): boolean {
+  if (!article.scheduledDate) return false
+  return getScheduledInstant(article) > Date.now()
+}
+
 export default function SchedulePage() {
   const router = useRouter()
   const today = new Date()
@@ -106,11 +121,12 @@ export default function SchedulePage() {
   }, [articles])
 
   const scheduleTableRows = useMemo(() => {
-    if (!scheduleListThisMonthOnly) return scheduledArticlesSorted
+    const upcoming = scheduledArticlesSorted.filter(isUpcomingScheduled)
+    if (!scheduleListThisMonthOnly) return upcoming
     const y = year
     const m = month + 1
     const prefix = `${y}-${String(m).padStart(2, '0')}`
-    return scheduledArticlesSorted.filter(a => a.scheduledDate?.startsWith(prefix))
+    return upcoming.filter(a => a.scheduledDate?.startsWith(prefix))
   }, [scheduledArticlesSorted, scheduleListThisMonthOnly, year, month])
 
   const selectedArticles = articlesByDate[selectedDate] ?? []
@@ -186,6 +202,7 @@ export default function SchedulePage() {
           status: 'future',
           scheduledDate,
           slug: resolveCanonicalPostSlug(article.slug?.trim() ?? ''),
+          wordpressTags: article.wordpressTags?.length ? article.wordpressTags : undefined,
         }),
       })
 
@@ -286,7 +303,7 @@ export default function SchedulePage() {
           <div className="flex items-center gap-2">
             <List size={18} style={{ color: '#1B2A4A' }} />
             <h2 className="text-sm font-bold" style={{ color: '#1A1A2E' }}>
-              予定一覧（投稿日が設定されている記事）
+              予定一覧（これから投稿する予定・日時が未来の記事）
             </h2>
           </div>
           <label
@@ -307,8 +324,8 @@ export default function SchedulePage() {
         {scheduleTableRows.length === 0 ? (
           <p className="text-xs px-5 py-6 text-center" style={{ color: '#94A3B8' }}>
             {scheduleListThisMonthOnly
-              ? 'この月に予定されている記事はありません'
-              : '投稿日が設定されている記事はありません'}
+              ? 'この月に、今後投稿予定の記事はありません'
+              : '今後投稿予定の記事はありません（過去の予定は表示しません）'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -476,27 +493,6 @@ export default function SchedulePage() {
                   </span>
                 </div>
               ))}
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide pt-1" style={{ color: '#94A3B8' }}>
-              スケジュール段階（右の一覧と同じ）
-            </p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: '#64748B' }}>
-              <span>
-                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#0369A1' }} />
-                投稿日のみ
-              </span>
-              <span>
-                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#15803D' }} />
-                日時まで設定・WP未送信
-              </span>
-              <span>
-                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#6D28D9' }} />
-                WP予約済み
-              </span>
-              <span>
-                <span className="inline-block w-2 h-2 rounded-full align-middle mr-1" style={{ background: '#64748B' }} />
-                WP送信／公開済み
-              </span>
             </div>
           </div>
         </div>

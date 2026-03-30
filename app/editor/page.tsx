@@ -6,6 +6,7 @@ import { Step, ArticleData, ProcessingState } from '@/lib/types'
 import { applyInternalLinksToText } from '@/lib/internalLinks'
 import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
+import { parseWordPressTagsInput } from '@/lib/wordpressTags'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
@@ -23,6 +24,7 @@ const initialArticle: ArticleData = {
   internalLinks: [],
   imageUrl: '',
   wordpressUrl: undefined,
+  wordpressTags: [],
 }
 
 interface SavedState {
@@ -32,6 +34,8 @@ interface SavedState {
   fireflyStatus: ProcessingState
   slug?: string
   refineSlugSuggestion?: string
+  /** WordPressタグ入力の生文字列（編集中の区切りを保持） */
+  wordpressTagsInput?: string
 }
 
 function loadState(): SavedState | null {
@@ -74,6 +78,7 @@ function EditorContent() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [slug, setSlug] = useState('')
   const [refineSlugSuggestion, setRefineSlugSuggestion] = useState('')
+  const [wordpressTagsInput, setWordpressTagsInput] = useState('')
   const prevStepRef = useRef<Step>(1)
 
   useEffect(() => {
@@ -94,10 +99,12 @@ function EditorContent() {
           internalLinks: [],
           wordpressUrl: savedArticle.wordpressUrl,
           wordpressPostStatus: savedArticle.wordpressPostStatus,
+          wordpressTags: savedArticle.wordpressTags ?? [],
         })
         setCurrentArticleId(savedArticle.id)
         setSlug(savedArticle.slug || '')
         setRefineSlugSuggestion(savedArticle.slug || '')
+        setWordpressTagsInput((savedArticle.wordpressTags ?? []).join('、'))
         const parsedStep = Number(stepParam)
         if (parsedStep === 4) {
           const content = applyInternalLinksToText(
@@ -129,7 +136,11 @@ function EditorContent() {
 
     const saved = loadState()
     if (saved) {
-      setArticle(saved.article)
+      setArticle({
+        ...saved.article,
+        internalLinks: saved.article.internalLinks ?? [],
+        wordpressTags: saved.article.wordpressTags ?? [],
+      })
       // 旧4ステップの「投稿」は新ステップ5にマッピング
       const step = saved.currentStep as number
       const mappedStep = step === 4 ? 5 : step
@@ -139,6 +150,11 @@ function EditorContent() {
       setGeminiToastShown(Boolean(saved.article?.refinedContent))
       if (typeof saved.slug === 'string') setSlug(saved.slug)
       if (typeof saved.refineSlugSuggestion === 'string') setRefineSlugSuggestion(saved.refineSlugSuggestion)
+      if (typeof saved.wordpressTagsInput === 'string') {
+        setWordpressTagsInput(saved.wordpressTagsInput)
+      } else {
+        setWordpressTagsInput((saved.article.wordpressTags ?? []).join('、'))
+      }
     }
     // プレビューから「投稿画面へ」で飛んできたときなど、URLの step を優先する
     const parsedStepFromUrl = Number(stepParam)
@@ -152,8 +168,16 @@ function EditorContent() {
 
   useEffect(() => {
     if (!mounted) return
-    saveState({ article, currentStep, geminiStatus, fireflyStatus, slug, refineSlugSuggestion })
-  }, [article, currentStep, geminiStatus, fireflyStatus, mounted, slug, refineSlugSuggestion])
+    saveState({
+      article,
+      currentStep,
+      geminiStatus,
+      fireflyStatus,
+      slug,
+      refineSlugSuggestion,
+      wordpressTagsInput,
+    })
+  }, [article, currentStep, geminiStatus, fireflyStatus, mounted, slug, refineSlugSuggestion, wordpressTagsInput])
 
   const updateArticle = useCallback((updates: Partial<ArticleData>) => {
     setArticle(prev => ({ ...prev, ...updates }))
@@ -298,6 +322,9 @@ function EditorContent() {
     const id = currentArticleId ?? idFromUrl ?? String(Date.now())
     setCurrentArticleId(id)
 
+    const tags = parseWordPressTagsInput(wordpressTagsInput)
+    updateArticle({ wordpressTags: tags })
+
     const existing = await getArticleById(id)
     try {
       await saveArticle({
@@ -313,6 +340,7 @@ function EditorContent() {
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         scheduledDate: existing?.scheduledDate,
         slug: slug.trim() || existing?.slug || undefined,
+        wordpressTags: tags.length ? tags : undefined,
         wordCount: article.refinedContent.length,
       })
     } catch (e) {
@@ -322,7 +350,7 @@ function EditorContent() {
 
     setToastMessage('下書きを保存しました')
     return id
-  }, [article, currentArticleId, searchParams, slug])
+  }, [article, currentArticleId, searchParams, slug, wordpressTagsInput, updateArticle])
 
   const handleRegenerate = useCallback(async () => {
     setFireflyStatus('loading')
@@ -357,6 +385,7 @@ function EditorContent() {
   const handlePublish = useCallback(async (wpStatus: 'draft' | 'publish') => {
     setWordpressStatus('loading')
     setWordpressError(null)
+    const tags = parseWordPressTagsInput(wordpressTagsInput)
     try {
       const contentWithLinks = applyInternalLinksToText(
         article.refinedContent,
@@ -373,6 +402,7 @@ function EditorContent() {
           targetKeyword: article.targetKeyword?.trim() || undefined,
           slug: slug.trim() || undefined,
           status: wpStatus,
+          wordpressTags: tags.length ? tags : undefined,
         }),
       })
       const data = await res.json()
@@ -380,15 +410,27 @@ function EditorContent() {
       updateArticle({
         wordpressUrl: data.wordpressUrl,
         wordpressPostStatus: data.status,
+        wordpressTags: tags,
       })
       const nextArticleStatus = wpStatus === 'publish' ? 'published' : 'ready'
       if (currentArticleId) {
-        await updateArticleStatus(
-          currentArticleId,
-          nextArticleStatus,
-          data.wordpressUrl,
-          data.status
-        )
+        const existing = await getArticleById(currentArticleId)
+        if (existing) {
+          await saveArticle({
+            ...existing,
+            status: nextArticleStatus,
+            wordpressUrl: data.wordpressUrl,
+            wordpressPostStatus: data.status,
+            wordpressTags: tags.length ? tags : undefined,
+          })
+        } else {
+          await updateArticleStatus(
+            currentArticleId,
+            nextArticleStatus,
+            data.wordpressUrl,
+            data.status
+          )
+        }
       } else {
         const newId = String(Date.now())
         setCurrentArticleId(newId)
@@ -406,6 +448,7 @@ function EditorContent() {
           createdAt: new Date().toISOString(),
           wordCount: article.refinedContent.length,
           slug: slug.trim() || undefined,
+          wordpressTags: tags.length ? tags : undefined,
         })
       }
       setWordpressStatus('success')
@@ -421,6 +464,7 @@ function EditorContent() {
     article.refinedContent,
     article.internalLinks,
     article.imageUrl,
+    wordpressTagsInput,
     currentArticleId,
     slug,
     updateArticle,
@@ -429,7 +473,7 @@ function EditorContent() {
   const handleReset = useCallback(() => {
     clearState()
     setCurrentStep(1)
-    setArticle(initialArticle)
+    setArticle({ ...initialArticle })
     setGeminiStatus('idle')
     setGeminiToastShown(false)
     setGeminiError(null)
@@ -438,10 +482,11 @@ function EditorContent() {
     setWordpressError(null)
     setSlug('')
     setRefineSlugSuggestion('')
+    setWordpressTagsInput('')
   }, [])
 
   const handleClearArticle = useCallback(() => {
-    setArticle(initialArticle)
+    setArticle({ ...initialArticle })
     setGeminiStatus('idle')
     setGeminiToastShown(false)
     setGeminiError(null)
@@ -451,13 +496,14 @@ function EditorContent() {
     setCurrentStep(1)
     setSlug('')
     setRefineSlugSuggestion('')
+    setWordpressTagsInput('')
   }, [])
 
   /** どのステップからでも一次執筆のまっさらな状態で始める */
   const handleNewArticle = useCallback(() => {
     clearState()
     setCurrentArticleId(null)
-    setArticle(initialArticle)
+    setArticle({ ...initialArticle })
     setGeminiStatus('idle')
     setGeminiToastShown(false)
     setGeminiError(null)
@@ -468,6 +514,7 @@ function EditorContent() {
     setCurrentStep(1)
     setSlug('')
     setRefineSlugSuggestion('')
+    setWordpressTagsInput('')
     router.replace('/editor')
   }, [router])
 
@@ -543,6 +590,8 @@ function EditorContent() {
           onStepClick={handleStepClick}
           onRefinedTitleChange={title => updateArticle({ refinedTitle: title })}
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
+          wordpressTagsInput={wordpressTagsInput}
+          onWordpressTagsInputChange={setWordpressTagsInput}
           slug={slug}
           onSlugChange={setSlug}
           refineSlugSuggestion={refineSlugSuggestion}

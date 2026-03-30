@@ -16,6 +16,7 @@ import {
   Loader2,
   List,
 } from 'lucide-react'
+import { snapScheduledTimeToQuarterHour } from '@/lib/scheduledTimeQuarterHour'
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
@@ -97,8 +98,24 @@ export default function SchedulePage() {
   const [scheduleListThisMonthOnly, setScheduleListThisMonthOnly] = useState(true)
 
   useEffect(() => {
-    getAllArticles().then(all => {
-      setArticles(all)
+    getAllArticles().then(async all => {
+      const toFix = all.filter(a => {
+        if (!a.scheduledTime?.trim()) return false
+        return snapScheduledTimeToQuarterHour(a.scheduledTime) !== a.scheduledTime.trim()
+      })
+      if (toFix.length) {
+        await Promise.all(
+          toFix.map(a =>
+            saveArticle({
+              ...a,
+              scheduledTime: snapScheduledTimeToQuarterHour(a.scheduledTime!),
+            })
+          )
+        )
+        setArticles(await getAllArticles())
+      } else {
+        setArticles(all)
+      }
       setMounted(true)
     })
   }, [])
@@ -163,10 +180,11 @@ export default function SchedulePage() {
   }
 
   const handleTimeChange = async (articleId: string, time: string) => {
+    const normalized = snapScheduledTimeToQuarterHour(time)
     const all = await getAllArticles()
     const a = all.find(x => x.id === articleId)
     if (a) {
-      a.scheduledTime = time
+      a.scheduledTime = normalized
       await saveArticle(a)
       setArticles(await getAllArticles())
     }
@@ -336,6 +354,7 @@ export default function SchedulePage() {
                   <th className="px-4 py-2.5 font-semibold whitespace-nowrap">時刻</th>
                   <th className="px-4 py-2.5 font-semibold min-w-[12rem]">タイトル</th>
                   <th className="px-4 py-2.5 font-semibold min-w-[7rem]">KW</th>
+                  <th className="px-4 py-2.5 font-semibold min-w-[10rem]">タグ</th>
                   <th className="px-4 py-2.5 font-semibold whitespace-nowrap">スケジュール段階</th>
                   <th className="px-4 py-2.5 font-semibold whitespace-nowrap">操作</th>
                 </tr>
@@ -359,6 +378,35 @@ export default function SchedulePage() {
                       </td>
                       <td className="px-4 py-2.5 align-top text-[#64748B] max-w-[10rem] truncate" title={article.targetKeyword}>
                         {article.targetKeyword || '—'}
+                      </td>
+                      <td
+                        className="px-4 py-2.5 align-top max-w-[14rem]"
+                        title={
+                          article.wordpressTags?.length
+                            ? article.wordpressTags.join('、')
+                            : undefined
+                        }
+                      >
+                        {article.wordpressTags && article.wordpressTags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {article.wordpressTags.map((tag, i) => (
+                              <span
+                                key={`${article.id}-tag-${i}-${tag}`}
+                                className="text-[10px] px-1.5 py-0.5 rounded-md max-w-[8rem] truncate inline-block align-middle"
+                                style={{
+                                  color: '#334155',
+                                  background: '#F1F5F9',
+                                  border: '1px solid #CBD5E1',
+                                }}
+                                title={tag}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[#94A3B8]">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 align-top whitespace-nowrap">
                         <span
@@ -678,8 +726,11 @@ export default function SchedulePage() {
                       <Clock size={14} style={{ color: '#94A3B8', marginLeft: 4 }} />
                       <input
                         type="time"
+                        step={900}
                         value={article.scheduledTime ?? ''}
                         onChange={e => handleTimeChange(article.id, e.target.value)}
+                        title="15分刻み（00・15・30・45分）"
+                        aria-label="投稿予定時刻（15分刻み）"
                         className="text-xs px-2 py-1 rounded-md border"
                         style={{
                           border: '1px solid #E2E8F0',
@@ -688,6 +739,9 @@ export default function SchedulePage() {
                           background: '#FAFBFC',
                         }}
                       />
+                      <span className="text-[10px] text-[#94A3B8] whitespace-nowrap">
+                        15分単位
+                      </span>
                     </div>
 
                     {(() => {

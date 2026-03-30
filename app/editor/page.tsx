@@ -7,6 +7,7 @@ import { applyInternalLinksToText } from '@/lib/internalLinks'
 import { getArticleById, saveArticle, updateArticleStatus } from '@/lib/articleStorage'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 import { parseWordPressTagsInput } from '@/lib/wordpressTags'
+import type { WordPressPublishChoice } from '@/lib/wordpressPublishChoice'
 import ArticleInput from '@/components/editor/ArticleInput'
 import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
@@ -382,7 +383,7 @@ function EditorContent() {
     }
   }, [article.title, article.refinedTitle, article.refinedContent, article.targetKeyword, updateArticle])
 
-  const handlePublish = useCallback(async (wpStatus: 'draft' | 'publish') => {
+  const handlePublish = useCallback(async (choice: WordPressPublishChoice) => {
     setWordpressStatus('loading')
     setWordpressError(null)
     const tags = parseWordPressTagsInput(wordpressTagsInput)
@@ -392,18 +393,27 @@ function EditorContent() {
         article.internalLinks ?? []
       )
       const publishTitle = article.refinedTitle?.trim() || article.title
+
+      const wpStatus: 'draft' | 'publish' | 'future' =
+        choice.type === 'future' ? 'future' : choice.type
+
+      const body: Record<string, unknown> = {
+        title: publishTitle,
+        content: contentWithLinks,
+        imageUrl: article.imageUrl,
+        targetKeyword: article.targetKeyword?.trim() || undefined,
+        slug: slug.trim() || undefined,
+        status: wpStatus,
+        wordpressTags: tags.length ? tags : undefined,
+      }
+      if (choice.type === 'future') {
+        body.scheduledDate = choice.scheduledDateTime
+      }
+
       const res = await fetch('/api/wordpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: publishTitle,
-          content: contentWithLinks,
-          imageUrl: article.imageUrl,
-          targetKeyword: article.targetKeyword?.trim() || undefined,
-          slug: slug.trim() || undefined,
-          status: wpStatus,
-          wordpressTags: tags.length ? tags : undefined,
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -412,7 +422,17 @@ function EditorContent() {
         wordpressPostStatus: data.status,
         wordpressTags: tags,
       })
-      const nextArticleStatus = wpStatus === 'publish' ? 'published' : 'ready'
+
+      const nextArticleStatus = choice.type === 'draft' ? 'ready' : 'published'
+
+      const scheduleFields =
+        choice.type === 'future'
+          ? (() => {
+              const [dPart, tPart] = choice.scheduledDateTime.split('T')
+              return { scheduledDate: dPart, scheduledTime: tPart.slice(0, 5) }
+            })()
+          : { scheduledDate: undefined, scheduledTime: undefined }
+
       if (currentArticleId) {
         const existing = await getArticleById(currentArticleId)
         if (existing) {
@@ -422,6 +442,7 @@ function EditorContent() {
             wordpressUrl: data.wordpressUrl,
             wordpressPostStatus: data.status,
             wordpressTags: tags.length ? tags : undefined,
+            ...scheduleFields,
           })
         } else {
           await updateArticleStatus(
@@ -449,6 +470,7 @@ function EditorContent() {
           wordCount: article.refinedContent.length,
           slug: slug.trim() || undefined,
           wordpressTags: tags.length ? tags : undefined,
+          ...scheduleFields,
         })
       }
       setWordpressStatus('success')

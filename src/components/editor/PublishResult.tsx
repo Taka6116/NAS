@@ -7,6 +7,12 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon, Tag } from 'lucide-react'
 import { maAdvisorDateFallbackSlug, resolveCanonicalPostSlug } from '@/lib/slugNormalize'
+import type { WordPressPublishChoice } from '@/lib/wordpressPublishChoice'
+import {
+  getDefaultFutureScheduleInputs,
+  isLocalScheduleInFuture,
+  snapScheduledTimeToQuarterHour,
+} from '@/lib/scheduledTimeQuarterHour'
 
 /** 投稿URLスラッグの固定先頭（続きは本文ベースで生成・編集） */
 const SLUG_PREFIX = 'ma-advisor-'
@@ -17,7 +23,7 @@ interface PublishResultProps {
   wordpressError?: string | null
   onBack: () => void
   onSaveDraft: () => Promise<string | undefined> | void
-  onPublish: (wpStatus: 'draft' | 'publish') => void
+  onPublish: (choice: WordPressPublishChoice) => void
   onReset: () => void
   onStepClick?: (step: Step) => void
   onRefinedTitleChange?: (title: string) => void
@@ -48,6 +54,10 @@ export default function PublishResult({
   refineSlugSuggestion = '',
 }: PublishResultProps) {
   const [wpChoiceOpen, setWpChoiceOpen] = useState(false)
+  const [wpScheduleOpen, setWpScheduleOpen] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
 
   // Ctrl+A で全選択→削除が効くよう、タイトルをローカル state で保持して即反映する
   const [localTitle, setLocalTitle] = useState(() => article.refinedTitle ?? article.title)
@@ -130,12 +140,16 @@ export default function PublishResult({
               <h2 className="text-xl font-bold text-[#1A1A2E] mb-1">
                 {article.wordpressPostStatus === 'draft'
                   ? 'WordPressに下書き保存しました'
-                  : '記事を投稿しました'}
+                  : article.wordpressPostStatus === 'future'
+                    ? 'WordPressに予約投稿しました'
+                    : '記事を投稿しました'}
               </h2>
               <p className="text-sm text-[#64748B]">
                 {article.wordpressPostStatus === 'draft'
                   ? 'WordPressの下書きとして保存されています。管理画面から公開できます。'
-                  : 'WordPressに正常に投稿されました'}
+                  : article.wordpressPostStatus === 'future'
+                    ? '指定した日時に公開されるようWordPressへ登録されました。投稿スケジュールからも確認できます。'
+                    : 'WordPressに正常に投稿されました'}
               </p>
             </div>
 
@@ -420,7 +434,7 @@ export default function PublishResult({
               WordPressへ投稿する
             </h3>
             <p className="text-sm text-[#64748B] mb-5">
-              WordPress側で下書きにするか、すぐ公開するかを選んでください。
+              下書き・すぐ公開・日時を指定した予約投稿から選べます。
             </p>
             <div className="flex flex-col gap-3">
               <Button
@@ -429,7 +443,7 @@ export default function PublishResult({
                 className="justify-center w-full"
                 onClick={() => {
                   setWpChoiceOpen(false)
-                  onPublish('draft')
+                  onPublish({ type: 'draft' })
                 }}
               >
                 下書きとして送信
@@ -440,14 +454,117 @@ export default function PublishResult({
                 className="justify-center w-full"
                 onClick={() => {
                   setWpChoiceOpen(false)
-                  onPublish('publish')
+                  onPublish({ type: 'publish' })
                 }}
               >
                 すぐ公開する
               </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="justify-center w-full !border-[#C7D7FF] !text-[#1B2A4A] bg-[#F0F4FF]"
+                onClick={() => {
+                  setWpChoiceOpen(false)
+                  const init = getDefaultFutureScheduleInputs()
+                  setScheduleDate(init.date)
+                  setScheduleTime(init.time)
+                  setScheduleError(null)
+                  setWpScheduleOpen(true)
+                }}
+              >
+                予約投稿する
+              </Button>
               <button
                 type="button"
                 onClick={() => setWpChoiceOpen(false)}
+                className="text-sm text-[#64748B] py-2 hover:text-[#1A1A2E] transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {wpScheduleOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wp-schedule-title"
+          onClick={() => setWpScheduleOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl max-w-md w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id="wp-schedule-title" className="text-base font-bold text-[#1A1A2E] mb-2">
+              予約投稿の日時を指定
+            </h3>
+            <p className="text-sm text-[#64748B] mb-4">
+              公開予定の日付と時刻を選んでください。時刻は15分刻み（00・15・30・45分）です。
+            </p>
+            <div className="flex flex-col gap-3 mb-4">
+              <label className="block">
+                <span className="text-xs font-semibold text-[#64748B] mb-1 block">日付</span>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={e => {
+                    setScheduleDate(e.target.value)
+                    setScheduleError(null)
+                  }}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-[#64748B] mb-1 block">時刻</span>
+                <input
+                  type="time"
+                  step={900}
+                  value={scheduleTime}
+                  onChange={e => {
+                    setScheduleTime(snapScheduledTimeToQuarterHour(e.target.value))
+                    setScheduleError(null)
+                  }}
+                  title="15分刻み（00・15・30・45分）"
+                  aria-label="予約投稿時刻（15分刻み）"
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E] font-mono"
+                />
+              </label>
+            </div>
+            {scheduleError && (
+              <p className="text-sm text-red-600 mb-3" role="alert">
+                {scheduleError}
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="primary"
+                size="lg"
+                className="justify-center w-full"
+                onClick={() => {
+                  if (!scheduleDate.trim() || !scheduleTime.trim()) {
+                    setScheduleError('日付と時刻を入力してください')
+                    return
+                  }
+                  const t = snapScheduledTimeToQuarterHour(scheduleTime)
+                  if (!isLocalScheduleInFuture(scheduleDate, t)) {
+                    setScheduleError('現在より後の日時を指定してください')
+                    return
+                  }
+                  setWpScheduleOpen(false)
+                  onPublish({ type: 'future', scheduledDateTime: `${scheduleDate.trim()}T${t}:00` })
+                }}
+              >
+                この日時で予約投稿する
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWpScheduleOpen(false)
+                  setScheduleError(null)
+                }}
                 className="text-sm text-[#64748B] py-2 hover:text-[#1A1A2E] transition-colors"
               >
                 キャンセル

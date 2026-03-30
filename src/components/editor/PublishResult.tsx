@@ -17,6 +17,15 @@ import {
 /** 投稿URLスラッグの固定先頭（続きは本文ベースで生成・編集） */
 const SLUG_PREFIX = 'ma-advisor-'
 
+const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const SCHEDULE_MINUTES_QUARTER = ['00', '15', '30', '45'] as const
+
+function splitScheduleTimeToHm(timeHm: string): { h: string; m: string } {
+  const s = snapScheduledTimeToQuarterHour(timeHm.trim() || '09:00')
+  const [h, m] = s.split(':')
+  return { h: h ?? '09', m: m ?? '00' }
+}
+
 interface PublishResultProps {
   article: ArticleData
   wordpressStatus: ProcessingState
@@ -124,6 +133,8 @@ export default function PublishResult({
   const charCount = finalContent.length
   const previewExcerpt =
     finalContent.replace(/\s+/g, ' ').trim().slice(0, 120) + (finalContent.length > 120 ? '…' : '')
+
+  const scheduleSelectHm = splitScheduleTimeToHm(scheduleTime)
 
   return (
     <div className="w-full pt-6 pb-12">
@@ -517,21 +528,49 @@ export default function PublishResult({
                   className="w-full text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E]"
                 />
               </label>
-              <label className="block">
+              <div className="block">
                 <span className="text-xs font-semibold text-[#64748B] mb-1 block">時刻</span>
-                <input
-                  type="time"
-                  step={900}
-                  value={scheduleTime}
-                  onChange={e => {
-                    setScheduleTime(snapScheduledTimeToQuarterHour(e.target.value))
-                    setScheduleError(null)
-                  }}
-                  title="15分刻み（00・15・30・45分）"
-                  aria-label="予約投稿時刻（15分刻み）"
-                  className="w-full text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E] font-mono"
-                />
-              </label>
+                <div className="flex items-center gap-2">
+                  <select
+                    id="wp-schedule-hour"
+                    value={scheduleSelectHm.h}
+                    onChange={e => {
+                      setScheduleTime(`${e.target.value}:${scheduleSelectHm.m}`)
+                      setScheduleError(null)
+                    }}
+                    title="時（0〜23）"
+                    aria-label="予約投稿の時"
+                    className="flex-1 min-w-0 text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E] font-mono bg-white"
+                  >
+                    {SCHEDULE_HOURS.map(hr => (
+                      <option key={hr} value={hr}>
+                        {hr}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-sm font-mono text-[#64748B] shrink-0" aria-hidden>
+                    :
+                  </span>
+                  <select
+                    id="wp-schedule-minute"
+                    value={scheduleSelectHm.m}
+                    onChange={e => {
+                      setScheduleTime(`${scheduleSelectHm.h}:${e.target.value}`)
+                      setScheduleError(null)
+                    }}
+                    title="分（15分刻み）"
+                    aria-label="予約投稿の分（15分刻み：00・15・30・45）"
+                    className="flex-1 min-w-0 text-sm px-3 py-2 rounded-lg border border-[#E2E8F0] text-[#1A1A2E] font-mono bg-white"
+                  >
+                    {SCHEDULE_MINUTES_QUARTER.map(min => (
+                      <option key={min} value={min}>
+                        {min}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-[#94A3B8] mt-1">分は 00・15・30・45 のみ選択できます。</p>
+              </div>
             </div>
             {scheduleError && (
               <p className="text-sm text-red-600 mb-3" role="alert">

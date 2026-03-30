@@ -66,14 +66,6 @@ export default function LayoutWithSidebar({
               })}
             </div>
           </div>
-
-          <div>
-            <div className="space-y-1">
-              <div className="px-3 py-2 text-[16px] font-semibold text-[#E2E8F0]">
-                設定
-              </div>
-            </div>
-          </div>
         </nav>
 
         <div className="px-5 py-3 text-[10px] text-[#94A3B8] border-t" style={{ borderColor: '#0039b3' }}>

@@ -8,7 +8,7 @@ import { SavedKeyword, getAllKeywords } from '@/lib/keywordStorage'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Trash2, Sparkles, ChevronDown } from 'lucide-react'
+import { ArrowRight, Trash2, Sparkles, ChevronDown, Check } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
@@ -373,137 +373,190 @@ export default function ArticleInput({
   )
 }
 
+const GENERATING_CHECKLIST: { id: string; label: string }[] = [
+  { id: 'research', label: '参照・リサーチ準備' },
+  { id: 'outline', label: '構成・論点の整理' },
+  { id: 'draft', label: '本文ドラフト生成' },
+  { id: 'finish', label: '反映・仕上げ' },
+]
+
+function checklistRowState(
+  step: string,
+  index: number
+): 'done' | 'active' | 'pending' {
+  if (step === 'loading') {
+    if (index === 0) return 'active'
+    return 'pending'
+  }
+  if (step === 'writing') {
+    if (index <= 1) return 'done'
+    if (index === 2) return 'active'
+    return 'pending'
+  }
+  if (step === 'done') return 'done'
+  return 'pending'
+}
+
 function GeneratingLoader({ step }: { step: string }) {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    let timer: NodeJS.Timeout
+    let timer: ReturnType<typeof setInterval> | undefined
     if (step === 'loading') {
-      setProgress(10)
+      setProgress(18)
     } else if (step === 'writing') {
-      let currentProgress = 10
+      let currentProgress = 28
+      setProgress(currentProgress)
       timer = setInterval(() => {
-        currentProgress += (95 - currentProgress) * 0.05
-        setProgress(Math.floor(currentProgress))
-      }, 500)
+        currentProgress += (96 - currentProgress) * 0.06
+        setProgress(Math.min(96, Math.floor(currentProgress)))
+      }, 450)
     } else if (step === 'done') {
       setProgress(100)
     }
-    return () => clearInterval(timer)
+    return () => {
+      if (timer) clearInterval(timer)
+    }
   }, [step])
 
-  const steps = [
-    { key: 'loading', label: '資料を読み込んでいます' },
-    { key: 'writing', label: 'Geminiが執筆しています' },
-    { key: 'done', label: '完了' },
-  ]
-
-  const currentIndex = steps.findIndex(s => s.key === step)
-
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 50,
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: 16,
-        padding: '40px 48px',
-        textAlign: 'center',
-        maxWidth: 360,
-        width: '100%',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-      }}>
-        {/* アイコン */}
-        <div style={{
-          width: 56, height: 56,
-          backgroundColor: '#f0fdf4',
-          borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 20px',
-          fontSize: 24,
-        }}>
-          ✦
-        </div>
-
-        {/* メインテキスト */}
-        <div style={{
-          fontSize: 16, fontWeight: 600, color: '#111827',
-          marginBottom: 6,
-        }}>
-          {steps[currentIndex]?.label ?? '処理中'}
-        </div>
-        <div style={{
-          fontSize: 13, color: '#9ca3af',
-          marginBottom: 20,
-        }}>
-          しばらくお待ちください
-        </div>
-
-        {/* プログレスバー */}
-        <div style={{ marginBottom: 28, textAlign: 'left' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#111827', fontWeight: 600, marginBottom: 6 }}>
-            <span>進行状況</span>
-            <span>{progress}%</span>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 backdrop-blur-md p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="generating-loader-title"
+      aria-busy="true"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-md w-full p-6 sm:p-8 text-left">
+        <div className="flex items-start gap-4 mb-6">
+          <div
+            className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border border-indigo-100"
+            style={{
+              background: '#EEF2FF',
+              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+            }}
+          >
+            <Sparkles className="w-5 h-5 text-[#1B2A4A]" aria-hidden />
           </div>
-          <div style={{ width: '100%', height: 6, backgroundColor: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ 
-              width: `${progress}%`, 
-              height: '100%', 
-              backgroundColor: '#059669', 
-              transition: 'width 0.5s ease-out' 
-            }} />
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h2 id="generating-loader-title" className="text-base font-bold text-[#1A1A2E] leading-snug">
+              Gemini が執筆しています
+            </h2>
+            <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">
+              編集方針に沿って下書きを生成しています
+            </p>
+          </div>
+          <div
+            className="flex-shrink-0 text-2xl font-bold tabular-nums leading-none pt-0.5"
+            style={{ color: '#1B2A4A' }}
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`生成進捗 ${progress} パーセント`}
+          >
+            {progress}%
           </div>
         </div>
 
-        {/* ステップインジケーター */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
-          {steps.slice(0, -1).map((s, i) => {
-            const isDone = i < currentIndex
-            const isActive = i === currentIndex
+        <div className="mb-6">
+          <div className="h-2 rounded-full overflow-hidden bg-[#E2E8F0]">
+            <div
+              className="h-full rounded-full transition-[width] duration-500 ease-out"
+              style={{
+                width: `${progress}%`,
+                backgroundColor: '#1B2A4A',
+              }}
+            />
+          </div>
+          <div className="flex justify-between mt-2 text-[10px] tracking-[0.08em] font-semibold uppercase text-[#94A3B8]">
+            <span>準備</span>
+            <span>仕上げ</span>
+          </div>
+        </div>
+
+        <ul className="space-y-3 mb-6 list-none p-0 m-0">
+          {GENERATING_CHECKLIST.map((item, i) => {
+            const state = checklistRowState(step, i)
             return (
-              <div key={s.key} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-              }}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700,
-                  backgroundColor: isDone ? '#059669' : isActive ? '#111827' : '#f3f4f6',
-                  color: isDone || isActive ? 'white' : '#9ca3af',
-                  transition: 'all 0.3s',
-                }}>
-                  {isDone ? '✓' : i + 1}
-                </div>
-                <span style={{
-                  fontSize: 13,
-                  color: isDone ? '#059669' : isActive ? '#111827' : '#9ca3af',
-                  fontWeight: isActive ? 600 : 400,
-                }}>
-                  {s.label}
-                </span>
-                {isActive && (
-                  <span style={{
-                    marginLeft: 'auto',
-                    width: 16, height: 16,
-                    border: '2px solid #e5e7eb',
-                    borderTopColor: '#111827',
-                    borderRadius: '50%',
-                    display: 'inline-block',
-                    animation: 'spin 0.8s linear infinite',
-                    flexShrink: 0,
-                  }} />
+              <li key={item.id} className="flex items-center gap-3">
+                {state === 'done' && (
+                  <span
+                    className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: '#DBEAFE' }}
+                  >
+                    <Check className="w-3 h-3 text-blue-700" strokeWidth={2.5} aria-hidden />
+                  </span>
                 )}
-              </div>
+                {state === 'active' && (
+                  <span
+                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                    style={{ borderColor: '#1B2A4A' }}
+                    aria-current="step"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: '#1B2A4A' }}
+                    />
+                  </span>
+                )}
+                {state === 'pending' && (
+                  <span
+                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-[#E2E8F0] bg-white"
+                    aria-hidden
+                  />
+                )}
+                <span
+                  className={`text-xs sm:text-sm flex-1 min-w-0 leading-snug ${
+                    state === 'pending' ? 'text-[#94A3B8]' : 'text-[#334155]'
+                  } ${state === 'active' ? 'font-semibold text-[#1A1A2E]' : ''}`}
+                >
+                  {item.label}
+                  {state === 'active' && (
+                    <span className="inline-flex gap-0.5 ml-1 align-middle" aria-hidden>
+                      <span
+                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
+                        style={{ animationDelay: '0ms' }}
+                      />
+                      <span
+                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
+                        style={{ animationDelay: '150ms' }}
+                      />
+                      <span
+                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
+                        style={{ animationDelay: '300ms' }}
+                      />
+                    </span>
+                  )}
+                </span>
+              </li>
             )
           })}
+        </ul>
+
+        <div className="flex items-center justify-between pt-5 border-t border-[#F1F5F9]">
+          <div className="flex items-center -space-x-2" aria-hidden>
+            <div
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#64748B]"
+              style={{ background: '#F1F5F9' }}
+            >
+              You
+            </div>
+            <div
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#1B2A4A]"
+              style={{ background: '#EEF2FF' }}
+            >
+              AI
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="text-[11px] font-semibold tracking-wide text-[#94A3B8] cursor-not-allowed"
+            title="現在はキャンセルできません"
+          >
+            生成をキャンセル
+          </button>
         </div>
       </div>
     </div>

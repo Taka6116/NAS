@@ -7,7 +7,7 @@ import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Download, RefreshCw, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Sparkles, Upload } from 'lucide-react'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 
 interface ImageResultProps {
@@ -103,34 +103,6 @@ export default function ImageResult({
               <p className="mt-1 break-all">{fireflyError}</p>
             </div>
           )}
-          {/* ローディング */}
-          {fireflyStatus === 'loading' && (
-            <div className="rounded-lg bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 px-5 py-4 flex items-center gap-3">
-              <svg
-                className="animate-spin h-5 w-5 text-[#1B2A4A] flex-shrink-0"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              <p className="text-sm text-[#1B2A4A] font-medium">
-                画像生成中です（30秒～1分ほどかかります）
-              </p>
-            </div>
-          )}
 
           {/* 画像カード：常に3ボタン（アップロード・保存・別の画像を生成）を表示 */}
           <Card>
@@ -147,8 +119,9 @@ export default function ImageResult({
                   </Button>
                 </div>
               )}
-              {/* 画像があるとき：画像表示 */}
-              {article.imageUrl && (
+              {fireflyStatus === 'loading' && <ImageGenerationLoader />}
+              {/* 画像があるとき：画像表示（生成中はローダーを優先） */}
+              {article.imageUrl && fireflyStatus !== 'loading' && (
                 <div className="w-full max-w-[640px] rounded-lg overflow-hidden border border-[#E2E8F0]">
                   <Image
                     src={article.imageUrl}
@@ -161,7 +134,9 @@ export default function ImageResult({
                 </div>
               )}
 
-              <div className="flex items-center gap-3 flex-wrap justify-center">
+              <div
+                className={`flex items-center gap-3 flex-wrap justify-center ${fireflyStatus === 'loading' ? 'opacity-50 pointer-events-none' : ''}`}
+              >
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -169,7 +144,12 @@ export default function ImageResult({
                   className="hidden"
                   onChange={handleFileChange}
                 />
-                <Button variant="ghost" size="md" onClick={handleUploadClick}>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={handleUploadClick}
+                  disabled={fireflyStatus === 'loading'}
+                >
                   <Upload size={15} />
                   画像をアップロード
                 </Button>
@@ -177,7 +157,7 @@ export default function ImageResult({
                   variant="ghost"
                   size="md"
                   onClick={handleDownload}
-                  disabled={!article.imageUrl}
+                  disabled={!article.imageUrl || fireflyStatus === 'loading'}
                 >
                   <Download size={15} />
                   画像を保存する
@@ -229,6 +209,76 @@ export default function ImageResult({
           <ArrowLeft size={16} />
           Gemini推敲に戻る
         </Button>
+      </div>
+    </div>
+  )
+}
+
+/** 画像生成 API 待ち：円形リング + Sparkle・コピー（モダンカード） */
+function ImageGenerationLoader() {
+  const ringR = 44
+  const c = 2 * Math.PI * ringR
+  const dash = Math.round(c * 0.28)
+
+  return (
+    <div className="w-full max-w-[640px] flex flex-col gap-4" role="status" aria-live="polite">
+      <div
+        className="w-full rounded-2xl border border-[#E2E8F0] bg-white px-8 py-10 flex flex-col items-center text-center"
+        style={{ boxShadow: '0 10px 40px rgba(15, 23, 42, 0.08), 0 2px 12px rgba(15, 23, 42, 0.04)' }}
+      >
+        <div className="relative w-[100px] h-[100px] mb-6 flex items-center justify-center">
+          <svg
+            className="absolute inset-0 w-[100px] h-[100px] text-[#1B2A4A] motion-reduce:animate-none animate-[spin_1.35s_linear_infinite]"
+            viewBox="0 0 100 100"
+            fill="none"
+            aria-hidden
+          >
+            <circle
+              cx="50"
+              cy="50"
+              r={ringR}
+              stroke="#E2E8F0"
+              strokeWidth="5"
+              fill="none"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r={ringR}
+              stroke="currentColor"
+              strokeWidth="5"
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${dash} ${Math.round(c)}`}
+              transform="rotate(-90 50 50)"
+            />
+          </svg>
+          <Sparkles className="relative w-9 h-9 text-[#1B2A4A]" strokeWidth={1.75} aria-hidden />
+        </div>
+
+        <h2 className="text-lg sm:text-xl font-bold text-[#1A1A2E] leading-snug tracking-tight">
+          記事に最適なイメージを構築中
+        </h2>
+        <p className="text-sm text-[#64748B] mt-2 max-w-md leading-relaxed">
+          AIが文脈に合わせたビジュアルを生成しています
+        </p>
+        <p className="mt-5 flex items-center justify-center gap-2 text-xs sm:text-sm text-[#64748B]">
+          <Clock className="w-4 h-4 flex-shrink-0 text-[#1B2A4A]/70" aria-hidden />
+          <span>約30秒〜1分で完了することが多いです</span>
+        </p>
+      </div>
+
+      <div
+        className="rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 flex gap-3 text-left"
+        style={{ boxShadow: '0 1px 3px rgba(14, 116, 144, 0.06)' }}
+      >
+        <span className="text-lg flex-shrink-0" aria-hidden>
+          💡
+        </span>
+        <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
+          <span className="font-semibold text-[#0C4A6E]">Tips: </span>
+          高品質な画像は読了率の向上に効くことがあります。AIは記事本文の内容を踏まえて画像を生成しています。
+        </p>
       </div>
     </div>
   )

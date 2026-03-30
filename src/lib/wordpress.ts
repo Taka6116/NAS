@@ -284,6 +284,8 @@ export function convertToHtml(content: string): string {
   const lines = content.split('\n');
   const htmlLines: string[] = [];
   let currentParagraph: string[] = [];
+  let h2Count = 0;
+  let h3Count = 0;
 
   function flushParagraph() {
     if (currentParagraph.length === 0) return;
@@ -336,36 +338,42 @@ export function convertToHtml(content: string): string {
 
     if (isStandaloneH2Candidate(trimmed, i, prevRaw, currentParagraph.length)) {
       flushParagraph();
+      h2Count++;
+      h3Count = 0;
       const h2Plain = normalizeStandaloneH2PlainText(trimmed);
-      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(h2Plain)}</h2>`);
+      htmlLines.push(`<h2 id="section-${h2Count}" style="${H2_STYLE}">${applyInlineFormatting(h2Plain)}</h2>`);
       continue;
     }
 
     // h2 見出し: "1. テキスト" — 直前が空行（段落バッファが空）の場合のみ見出しとして扱う
     // 本文中の番号リスト（"1. ..." が段落の途中にある場合）は通常テキストとして扱う
     if (/^\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
+      h2Count++;
+      h3Count = 0;
       const text = trimmed.replace(/^\d+[．.]\s*/, '');
-      htmlLines.push(`<h2 style="${H2_STYLE}">${applyInlineFormatting(text)}</h2>`);
+      htmlLines.push(`<h2 id="section-${h2Count}" style="${H2_STYLE}">${applyInlineFormatting(text)}</h2>`);
       continue;
     }
 
     // h3 小見出し: "1-1. テキスト" — 同様に直前が空行の場合のみ
     if (/^\d+-\d+[．.]\s/.test(trimmed) && currentParagraph.length === 0) {
+      h3Count++;
       const text = trimmed
         .replace(/^\d+-\d+[．.]\s*/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/\*\*/g, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
+      htmlLines.push(`<h3 id="section-${h2Count}-${h3Count}" style="${H3_STYLE}">${text}</h3>`);
       continue;
     }
 
     if (/^[■▶◆●▼]\s/.test(trimmed)) {
       flushParagraph();
+      h3Count++;
       const text = trimmed
         .replace(/^[■▶◆●▼]\s*/, '')
         .replace(/\*\*(.+?)\*\*/g, '$1')
         .replace(/\*\*/g, '');
-      htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`);
+      htmlLines.push(`<h3 id="section-${h2Count}-${h3Count}" style="${H3_STYLE}">${text}</h3>`);
       continue;
     }
 
@@ -501,7 +509,7 @@ function buildSchemaAboutName(payload: WordPressPostPayload): string {
 function buildArticleSchema(
   payload: WordPressPostPayload,
   slug: string,
-  options?: { bodyTopImageUrl?: string }
+  options?: { bodyTopImageUrl?: string; scheduledDate?: string }
 ): string {
   // Schema用の画像URL決定ロジック
   // 1. WordPressメディアにアップロード済みのURL（bodyTopImageUrl）があれば最優先
@@ -509,9 +517,9 @@ function buildArticleSchema(
   // 3. どちらも無ければ image プロパティ自体を省略
   let schemaImageUrl: string | null = null;
   if (options?.bodyTopImageUrl) {
-    schemaImageUrl = options.bodyTopImageUrl;
+    schemaImageUrl = forceHttps(options.bodyTopImageUrl);
   } else if (payload.imageUrl && !payload.imageUrl.startsWith('data:')) {
-    schemaImageUrl = payload.imageUrl;
+    schemaImageUrl = forceHttps(payload.imageUrl);
   }
 
   // description：FAQ 前の本文＋監修者除去後からプレーン化（一覧用抜粋と整合）
@@ -527,8 +535,8 @@ function buildArticleSchema(
     '@type': 'Article',
     'headline': payload.title,
     'description': description,
-    'datePublished': new Date().toISOString().split('T')[0],
-    'dateModified': new Date().toISOString().split('T')[0],
+    'datePublished': options?.scheduledDate?.slice(0, 10) || new Date().toISOString().split('T')[0],
+    'dateModified': options?.scheduledDate?.slice(0, 10) || new Date().toISOString().split('T')[0],
     'author': [
       {
         '@type': 'Person',
@@ -553,7 +561,7 @@ function buildArticleSchema(
     },
     'mainEntityOfPage': {
       '@type': 'WebPage',
-      '@id': `https://nihon-teikei.co.jp/news/column/${slug}`,
+      '@id': `https://nihon-teikei.co.jp/news/${slug}/`,
     },
     'about': {
       '@type': 'Thing',
@@ -601,7 +609,7 @@ function buildFaqAccordionHtml(faqs: Array<{ question: string; answer: string }>
 
   return `
 <div class="nts-faq" style="margin:40px 0;">
-  <h2 style="${H2_STYLE}">よくある質問（FAQ）</h2>
+  <h2 id="faq" style="${H2_STYLE}">よくある質問（FAQ）</h2>
   <div class="nts-faq-list" style="display:flex;flex-direction:column;gap:12px;">
 ${itemsHtml}
   </div>
@@ -754,7 +762,7 @@ function stripTextFaqFromHtml(html: string): string {
  */
 export function buildPostContent(
   payload: WordPressPostPayload,
-  options?: { bodyTopImageUrl?: string }
+  options?: { bodyTopImageUrl?: string; scheduledDate?: string }
 ): string {
   const slug = resolveCanonicalPostSlug(payload.slug);
 
@@ -775,9 +783,10 @@ export function buildPostContent(
   htmlBody = stripTextFaqFromHtml(htmlBody);
 
   // 1-1. 本文最上部：記事画像（プレビューと同じスタイル）
+  const escapedTitle = payload.title.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const bodyTopImageBlock =
     options?.bodyTopImageUrl
-      ? `<img src="${options.bodyTopImageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="" />`
+      ? `<img src="${options.bodyTopImageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="${escapedTitle} — 株式会社日本提携支援" />`
       : '';
 
   // 1-2. 監修者ブロック（プレビューと同一HTML＝supervisorBlock.tsで単一ソース化）
@@ -786,18 +795,25 @@ export function buildPostContent(
 
   const fullBody = [bodyTopImageBlock, supervisorBlock, htmlBody].filter(Boolean).join('');
 
-  // 2. FAQを抽出（分離したFAQセクション or 全文から）
+  // 2. FAQを抽出（分離したFAQセクション or 全文から）＋ question 重複除去
   const faqSource = faqSection || payload.content;
-  const faqs = extractFaqs(faqSource);
+  const rawFaqs = extractFaqs(faqSource);
+  const seenQuestions = new Set<string>();
+  const faqs = rawFaqs.filter(f => {
+    const key = f.question.trim();
+    if (seenQuestions.has(key)) return false;
+    seenQuestions.add(key);
+    return true;
+  });
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[FAQ] Extracted ${faqs.length} FAQs from ${faqSection ? 'faqSection' : 'fullContent'}`);
+    console.log(`[FAQ] Extracted ${faqs.length} FAQs (deduped from ${rawFaqs.length}) from ${faqSection ? 'faqSection' : 'fullContent'}`);
   }
 
   // 2-1. FAQアコーディオンHTML
   const faqAccordionHtml = buildFaqAccordionHtml(faqs);
 
   // 3. Schema生成（投稿には必ず含める）
-  const articleSchema = buildArticleSchema(payload, slug, { bodyTopImageUrl: options?.bodyTopImageUrl });
+  const articleSchema = buildArticleSchema(payload, slug, { bodyTopImageUrl: options?.bodyTopImageUrl, scheduledDate: options?.scheduledDate });
   const faqSchema = buildFaqSchema(faqs);
   if (process.env.NODE_ENV === 'development' && faqs.length > 0) {
     console.log(`[FAQ] Schema generated: ${faqSchema ? 'yes' : 'no'}`);
@@ -812,7 +828,7 @@ export function buildPostContent(
     faqSchema,
   ].filter(Boolean);
 
-  return parts.join('\n\n');
+  return parts.join('\n\n').replace(/<p[^>]*>\s*<\/p>/g, '');
 }
 
 interface WpTagRow {
@@ -927,7 +943,7 @@ export async function postToWordPress(
   // 投稿コンテンツ構築（本文最上部に記事画像 → 監修者ブロック → 本文）
   const canonicalSlug = resolveCanonicalPostSlug(payload.slug);
   const payloadWithSlug: WordPressPostPayload = { ...payload, slug: canonicalSlug };
-  const postContent = buildPostContent(payloadWithSlug, { bodyTopImageUrl });
+  const postContent = buildPostContent(payloadWithSlug, { bodyTopImageUrl, scheduledDate: options?.scheduledDate });
   const excerpt = generateExcerpt(payload.content);
 
   const tagNames = normalizeWordPressTagsFromRequest(payload.wordpressTags ?? []);

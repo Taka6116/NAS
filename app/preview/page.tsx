@@ -149,30 +149,45 @@ function PreviewContent() {
   const contentFromUrl = searchParams.get('content') || ''
   const [storageContent, setStorageContent] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [wordpressUrl, setWordpressUrl] = useState<string | null>(null)
+
+  const isPublishedPreview = searchParams.get('source') === 'published'
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setStorageContent(sessionStorage.getItem('preview_content') || '')
-      // articleIdがある場合はローカルストレージから最新の画像を引っ張る
-      const id = searchParams.get('articleId')
-      if (id) {
-        try {
-          const raw = localStorage.getItem('nas_articles')
-          if (raw) {
-            const articles = JSON.parse(raw)
-            const match = articles.find((a: any) => a.id === id)
-            if (match && match.imageUrl) {
-              setImageUrl(match.imageUrl)
-              return
+    if (typeof window === 'undefined') return
+
+    setStorageContent(sessionStorage.getItem('preview_content') || '')
+    const id = searchParams.get('articleId')
+    let storedImage = ''
+    let wp: string | null = null
+
+    if (id) {
+      try {
+        const raw = localStorage.getItem('nas_articles')
+        if (raw) {
+          const articles = JSON.parse(raw)
+          const match = articles.find((a: { id?: string }) => a.id === id)
+          if (match) {
+            if (typeof match.wordpressUrl === 'string' && match.wordpressUrl.trim()) {
+              wp = match.wordpressUrl.trim()
             }
+            if (match.imageUrl) storedImage = match.imageUrl
           }
-        } catch {}
+        }
+      } catch {
+        /* ignore */
       }
-      // フォールバックとして sessionStorage と URL から画像を取得
+    }
+
+    setWordpressUrl(wp)
+    if (storedImage) {
+      setImageUrl(storedImage)
+    } else {
       const sessionImage = sessionStorage.getItem('preview_image')
       setImageUrl(sessionImage || searchParams.get('imageUrl') || '')
     }
   }, [searchParams])
-  
+
   const content = contentFromUrl || storageContent
   const category = searchParams.get('category') || 'お役立ち情報'
   const date = searchParams.get('date') || new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\//g, '.')
@@ -233,43 +248,89 @@ function PreviewContent() {
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>プレビューモード</div>
             <div style={{ fontSize: 12, opacity: 0.8 }}>
-              実際のサイトでの表示イメージを確認しています
+              {isPublishedPreview
+                ? '投稿済み記事の表示確認（編集はできません）'
+                : '実際のサイトでの表示イメージを確認しています'}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={() => (articleId ? router.push(`/editor?articleId=${articleId}&step=3`) : router.push('/editor?step=3'))}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.5)',
-              color: 'white',
-              padding: '10px 20px',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            ← 戻る
-          </button>
-          <button
-            type="button"
-            onClick={handlePublish}
-            style={{
-              backgroundColor: '#e63946',
-              border: 'none',
-              color: 'white',
-              padding: '10px 24px',
-              borderRadius: 6,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontSize: 14,
-            }}
-          >
-            投稿画面へ
-          </button>
+        <div style={{ display: 'flex', gap: 12, flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
+          {isPublishedPreview ? (
+            <>
+              <button
+                type="button"
+                onClick={() => router.push('/published')}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ← 一覧に戻る
+              </button>
+              {wordpressUrl && (
+                <a
+                  href={wordpressUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    backgroundColor: '#1a9a7b',
+                    border: 'none',
+                    color: 'white',
+                    padding: '10px 24px',
+                    borderRadius: 6,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                  }}
+                >
+                  WordPressで開く
+                </a>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => (articleId ? router.push(`/editor?articleId=${articleId}&step=3`) : router.push('/editor?step=3'))}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ← 戻る
+              </button>
+              <button
+                type="button"
+                onClick={handlePublish}
+                style={{
+                  backgroundColor: '#e63946',
+                  border: 'none',
+                  color: 'white',
+                  padding: '10px 24px',
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                投稿画面へ
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -839,10 +900,11 @@ function PreviewContent() {
         </p>
       </footer>
         </div>
-        {/* 右：プロセス表示（一次執筆→…→プレビュー→投稿） */}
-        <div style={{ flexShrink: 0, width: 140, position: 'sticky', top: 72, paddingTop: 8 }}>
-          <StepIndicator currentStep={4} onStepClick={handleStepClick} />
-        </div>
+        {!isPublishedPreview && (
+          <div style={{ flexShrink: 0, width: 140, position: 'sticky', top: 72, paddingTop: 8 }}>
+            <StepIndicator currentStep={4} onStepClick={handleStepClick} />
+          </div>
+        )}
       </div>
     </div>
   )

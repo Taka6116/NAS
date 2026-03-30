@@ -272,9 +272,6 @@ function ImageGenerationLoader() {
         className="rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 flex gap-3 text-left"
         style={{ boxShadow: '0 1px 3px rgba(14, 116, 144, 0.06)' }}
       >
-        <span className="text-lg flex-shrink-0" aria-hidden>
-          💡
-        </span>
         <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
           <span className="font-semibold text-[#0C4A6E]">Tips: </span>
           高品質な画像は読了率の向上に効くことがあります。AIは記事本文の内容を踏まえて画像を生成しています。

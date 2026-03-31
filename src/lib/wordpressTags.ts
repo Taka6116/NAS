@@ -3,6 +3,18 @@
 export const MAX_WORDPRESS_TAGS = 20
 export const MAX_WORDPRESS_TAG_LENGTH = 50
 
+/** タグ候補リストで最初に見せる行数（それ以上は展開で表示） */
+export const TAG_SUGGESTIONS_COLLAPSED_COUNT = 3
+
+/** 候補一覧に出さない開発用・サンプル系タグ（選択済みチップはそのまま） */
+export function isNoiseWordPressTagName(name: string): boolean {
+  const t = name.trim()
+  if (!t) return false
+  if (t.includes('サンプル')) return true
+  if (t.toLowerCase().includes('sample')) return true
+  return false
+}
+
 const SEPARATOR_PATTERN = /[,、]/g
 
 /**

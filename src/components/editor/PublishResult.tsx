@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon, Tag } from 'lucide-react'
 import { maAdvisorDateFallbackSlug, resolveCanonicalPostSlug } from '@/lib/slugNormalize'
 import type { WordPressPublishChoice } from '@/lib/wordpressPublishChoice'
+import WordPressTagsField from '@/components/editor/WordPressTagsField'
 import {
   getDefaultFutureScheduleInputs,
   isLocalScheduleInFuture,
@@ -282,24 +283,11 @@ export default function PublishResult({
 
                   <div className="flex items-start gap-3">
                     <Tag size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
-                    <div className="w-full">
-                      <p className="text-xs font-mono text-[#64748B] mb-0.5">WordPressタグ</p>
-                      <p className="text-[11px] text-[#94A3B8] mb-1.5">
-                        半角・全角のカンマ（, または 、）だけで複数指定。スペースでは分かれません。
-                        例: 事業承継、PMI、失敗
-                      </p>
-                      <input
-                        type="text"
+                    <div className="w-full min-w-0">
+                      <p className="text-xs font-mono text-[#64748B] mb-1">WordPressタグ</p>
+                      <WordPressTagsField
                         value={wordpressTagsInput}
-                        onChange={e => onWordpressTagsInputChange?.(e.target.value)}
-                        className="
-                          w-full px-4 py-2.5 rounded-lg border border-[#E2E8F0]
-                          text-sm text-[#1A1A2E]
-                          focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]/30 focus:border-[#1B2A4A]
-                          transition-all
-                        "
-                        placeholder="例: 事業承継、tips"
-                        autoComplete="off"
+                        onChange={v => onWordpressTagsInputChange?.(v)}
                       />
                     </div>
                   </div>

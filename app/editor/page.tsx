@@ -613,7 +613,10 @@ function EditorContent() {
           onRefinedTitleChange={title => updateArticle({ refinedTitle: title })}
           onRefinedContentChange={content => updateArticle({ refinedContent: content })}
           wordpressTagsInput={wordpressTagsInput}
-          onWordpressTagsInputChange={setWordpressTagsInput}
+          onWordpressTagsInputChange={v => {
+            setWordpressTagsInput(v)
+            updateArticle({ wordpressTags: parseWordPressTagsInput(v) })
+          }}
           slug={slug}
           onSlugChange={setSlug}
           refineSlugSuggestion={refineSlugSuggestion}

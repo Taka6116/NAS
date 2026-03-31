@@ -380,43 +380,93 @@ const GENERATING_CHECKLIST: { id: string; label: string }[] = [
   { id: 'finish', label: '反映・仕上げ' },
 ]
 
+/** loadingPhase: 0=1行目 active, 1=2行目 active（準備の視覚的進行）／writing は progress で擬似ステップ */
 function checklistRowState(
   step: string,
-  index: number
+  index: number,
+  loadingPhase: number,
+  progress: number
 ): 'done' | 'active' | 'pending' {
+  if (step === 'done') return 'done'
   if (step === 'loading') {
-    if (index === 0) return 'active'
+    if (index < loadingPhase) return 'done'
+    if (index === loadingPhase) return 'active'
     return 'pending'
   }
   if (step === 'writing') {
-    if (index <= 1) return 'done'
-    if (index === 2) return 'active'
+    if (progress < 40) {
+      if (index <= 1) return 'done'
+      if (index === 2) return 'active'
+      return 'pending'
+    }
+    if (progress < 82) {
+      if (index <= 2) return 'done'
+      if (index === 3) return 'active'
+      return 'pending'
+    }
+    if (index <= 2) return 'done'
+    if (index === 3) return 'active'
     return 'pending'
   }
-  if (step === 'done') return 'done'
   return 'pending'
+}
+
+function checklistActiveHint(
+  step: string,
+  index: number,
+  loadingPhase: number,
+  progress: number
+): string | null {
+  const state = checklistRowState(step, index, loadingPhase, progress)
+  if (state !== 'active') return null
+  if (step === 'loading' && loadingPhase === 0) return '参照資料を読み込んでいます…'
+  if (step === 'loading' && loadingPhase === 1) return '論点を整理しています…'
+  if (step === 'writing' && index === 2) return '本文ドラフトを生成しています…'
+  if (step === 'writing' && index === 3) return '形式を整え、仕上げています…'
+  return '処理しています…'
 }
 
 function GeneratingLoader({ step }: { step: string }) {
   const [progress, setProgress] = useState(0)
+  const [loadingPhase, setLoadingPhase] = useState(0)
+  const [reduceMotion, setReduceMotion] = useState(false)
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined
-    if (step === 'loading') {
-      setProgress(18)
-    } else if (step === 'writing') {
-      let currentProgress = 28
-      setProgress(currentProgress)
-      timer = setInterval(() => {
-        currentProgress += (96 - currentProgress) * 0.06
-        setProgress(Math.min(96, Math.floor(currentProgress)))
-      }, 450)
-    } else if (step === 'done') {
-      setProgress(100)
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduceMotion(mq.matches)
+    const onChange = () => setReduceMotion(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    if (step !== 'loading') {
+      setLoadingPhase(0)
+      return
     }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
+    setLoadingPhase(0)
+    const t = window.setTimeout(() => setLoadingPhase(1), 420)
+    return () => window.clearTimeout(t)
+  }, [step])
+
+  useEffect(() => {
+    if (step !== 'loading') return
+    setProgress(12 + loadingPhase * 6)
+  }, [step, loadingPhase])
+
+  useEffect(() => {
+    if (step !== 'writing') return
+    let currentProgress = 28
+    setProgress(currentProgress)
+    const timer = setInterval(() => {
+      currentProgress += (96 - currentProgress) * 0.06
+      setProgress(Math.min(96, Math.floor(currentProgress)))
+    }, 450)
+    return () => clearInterval(timer)
+  }, [step])
+
+  useEffect(() => {
+    if (step === 'done') setProgress(100)
   }, [step])
 
   return (
@@ -436,7 +486,10 @@ function GeneratingLoader({ step }: { step: string }) {
               boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
             }}
           >
-            <Sparkles className="w-5 h-5 text-[#1B2A4A]" aria-hidden />
+            <Sparkles
+              className={`w-5 h-5 text-[#1B2A4A] ${reduceMotion ? '' : 'motion-safe:opacity-90 motion-safe:animate-pulse'}`}
+              aria-hidden
+            />
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
             <h2 id="generating-loader-title" className="text-base font-bold text-[#1A1A2E] leading-snug">
@@ -475,14 +528,22 @@ function GeneratingLoader({ step }: { step: string }) {
           </div>
         </div>
 
-        <ul className="space-y-3 mb-6 list-none p-0 m-0">
+        <ul className="space-y-2 mb-6 list-none p-0 m-0">
           {GENERATING_CHECKLIST.map((item, i) => {
-            const state = checklistRowState(step, i)
+            const state = checklistRowState(step, i, loadingPhase, progress)
+            const hint = checklistActiveHint(step, i, loadingPhase, progress)
             return (
-              <li key={item.id} className="flex items-center gap-3">
+              <li
+                key={item.id}
+                className={`flex items-start gap-3 rounded-xl transition-all duration-300 ${
+                  state === 'active'
+                    ? 'bg-[#F8FAFC] shadow-[inset_0_0_0_1px_rgba(226,232,240,0.9)] -mx-1 px-3 py-2.5'
+                    : 'py-1 px-1'
+                }`}
+              >
                 {state === 'done' && (
                   <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
+                    className="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: '#DBEAFE' }}
                   >
                     <Check className="w-3 h-3 text-blue-700" strokeWidth={2.5} aria-hidden />
@@ -490,45 +551,58 @@ function GeneratingLoader({ step }: { step: string }) {
                 )}
                 {state === 'active' && (
                   <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                    className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center bg-white ${
+                      reduceMotion ? '' : 'animate-loader-ring'
+                    }`}
                     style={{ borderColor: '#1B2A4A' }}
                     aria-current="step"
                   >
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className={`w-2 h-2 rounded-full ${reduceMotion ? '' : 'animate-loader-dot-soft'}`}
                       style={{ backgroundColor: '#1B2A4A' }}
                     />
                   </span>
                 )}
                 {state === 'pending' && (
                   <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-[#E2E8F0] bg-white"
+                    className="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 border-[#E2E8F0] bg-white"
                     aria-hidden
                   />
                 )}
-                <span
-                  className={`text-xs sm:text-sm flex-1 min-w-0 leading-snug ${
-                    state === 'pending' ? 'text-[#94A3B8]' : 'text-[#334155]'
-                  } ${state === 'active' ? 'font-semibold text-[#1A1A2E]' : ''}`}
-                >
-                  {item.label}
-                  {state === 'active' && (
-                    <span className="inline-flex gap-0.5 ml-1 align-middle" aria-hidden>
-                      <span
-                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
-                        style={{ animationDelay: '0ms' }}
-                      />
-                      <span
-                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
-                        style={{ animationDelay: '150ms' }}
-                      />
-                      <span
-                        className="inline-block w-1 h-1 rounded-full bg-[#1B2A4A] animate-pulse"
-                        style={{ animationDelay: '300ms' }}
-                      />
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0">
+                    <span
+                      className={`text-xs sm:text-sm leading-snug ${
+                        state === 'pending' ? 'text-[#94A3B8]' : 'text-[#334155]'
+                      } ${state === 'active' ? 'font-semibold text-[#1A1A2E]' : ''}`}
+                    >
+                      {item.label}
                     </span>
+                    {state === 'active' && !reduceMotion && (
+                      <span className="inline-flex gap-1 items-center" aria-hidden>
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft" />
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft"
+                          style={{ animationDelay: '120ms' }}
+                        />
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft"
+                          style={{ animationDelay: '240ms' }}
+                        />
+                      </span>
+                    )}
+                    {state === 'active' && reduceMotion && (
+                      <span className="text-xs font-semibold text-[#1B2A4A]" aria-hidden>
+                        …
+                      </span>
+                    )}
+                  </div>
+                  {hint && (
+                    <p className="text-[10px] sm:text-[11px] text-[#64748B] mt-1.5 leading-relaxed motion-safe:transition-opacity">
+                      {hint}
+                    </p>
                   )}
-                </span>
+                </div>
               </li>
             )
           })}

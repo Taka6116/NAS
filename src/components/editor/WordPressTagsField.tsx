@@ -12,6 +12,11 @@ import {
   loadWordPressTagHistory,
   saveWordPressTagHistory,
 } from '@/lib/wordpressTagHistory'
+import {
+  addWordPressTagHidden,
+  loadWordPressTagHidden,
+  removeWordPressTagHidden,
+} from '@/lib/wordpressTagHidden'
 import type { WpTagListItem } from '@/lib/wpTagList'
 
 interface WordPressTagsFieldProps {
@@ -40,6 +45,8 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
   const [history, setHistory] = useState<string[]>([])
   const [historyExpanded, setHistoryExpanded] = useState(false)
   const [wpListExpanded, setWpListExpanded] = useState(false)
+  const [hiddenList, setHiddenList] = useState<string[]>([])
+  const [hiddenPanelOpen, setHiddenPanelOpen] = useState(false)
   const historyDebounce = useRef<ReturnType<typeof setTimeout> | undefined>()
 
   const applyTags = useCallback(
@@ -102,8 +109,35 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
 
   useEffect(() => {
     setHistory(loadWordPressTagHistory())
+    setHiddenList(loadWordPressTagHidden())
     loadWpTags()
   }, [loadWpTags])
+
+  const hiddenSet = useMemo(() => new Set(hiddenList), [hiddenList])
+
+  const hideFromCandidates = useCallback(
+    (name: string) => {
+      const t = name.trim()
+      if (!t) return
+      const next = addWordPressTagHidden(t, hiddenList)
+      setHiddenList(next)
+      if (selected.includes(t)) {
+        applyTags(selected.filter(s => s !== t))
+      }
+    },
+    [hiddenList, selected, applyTags]
+  )
+
+  const restoreHiddenTag = useCallback((name: string) => {
+    const t = name.trim()
+    if (!t) return
+    setHiddenList(removeWordPressTagHidden(t, hiddenList))
+  }, [hiddenList])
+
+  const hiddenSorted = useMemo(
+    () => [...hiddenList].sort((a, b) => a.localeCompare(b, 'ja')),
+    [hiddenList]
+  )
 
   useEffect(() => {
     if (historyDebounce.current) clearTimeout(historyDebounce.current)
@@ -134,15 +168,21 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
   const historyCandidates = useMemo(() => {
     return history.filter(
       h =>
-        !isNoiseWordPressTagName(h) && matchesFilter(h) && !wpNames.has(h)
+        !isNoiseWordPressTagName(h) &&
+        !hiddenSet.has(h) &&
+        matchesFilter(h) &&
+        !wpNames.has(h)
     )
-  }, [history, filterLower, wpNames])
+  }, [history, filterLower, wpNames, hiddenSet])
 
   const wpFiltered = useMemo(() => {
     return wpTags.filter(
-      t => !isNoiseWordPressTagName(t.name) && matchesFilter(t.name)
+      t =>
+        !isNoiseWordPressTagName(t.name) &&
+        !hiddenSet.has(t.name) &&
+        matchesFilter(t.name)
     )
-  }, [wpTags, filterLower])
+  }, [wpTags, filterLower, hiddenSet])
 
   const historyVisible = useMemo(
     () =>
@@ -176,7 +216,7 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
     <div className="w-full space-y-3">
       <p className="text-[11px] text-[#94A3B8] leading-relaxed">
         リストから複数選択するか、下の入力でカンマ区切り追加。最大 {MAX_WORDPRESS_TAGS}
-        件。スペースでは分割されません。
+        件。スペースでは分割されません。行末の × はこの端末の候補から隠します（WordPress のタグそのものは削除されません）。
       </p>
 
       <div className="flex flex-wrap gap-2 min-h-[2rem]">
@@ -256,15 +296,30 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
                     const checked = selected.includes(name)
                     return (
                       <li key={`h-${name}`}>
-                        <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white cursor-pointer text-sm text-[#334155]">
+                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white text-sm text-[#334155]">
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleTag(name)}
-                            className="rounded border-[#CBD5E1] text-[#1B2A4A] focus:ring-[#1B2A4A]/30"
+                            className="rounded border-[#CBD5E1] text-[#1B2A4A] focus:ring-[#1B2A4A]/30 flex-shrink-0"
+                            aria-label={`「${name}」を選択`}
                           />
-                          <span className="flex-1 min-w-0">{name}</span>
-                        </label>
+                          <button
+                            type="button"
+                            className="flex-1 min-w-0 text-left cursor-pointer hover:underline"
+                            onClick={() => toggleTag(name)}
+                          >
+                            {name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => hideFromCandidates(name)}
+                            className="p-1 rounded-md hover:bg-red-50 text-[#94A3B8] hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200 flex-shrink-0"
+                            aria-label={`「${name}」を候補一覧から隠す`}
+                          >
+                            <X size={14} strokeWidth={2.5} />
+                          </button>
+                        </div>
                       </li>
                     )
                   })}
@@ -314,18 +369,35 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
                       const checked = selected.includes(name)
                       return (
                         <li key={t.id}>
-                          <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white cursor-pointer text-sm text-[#334155]">
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white text-sm text-[#334155]">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleTag(name)}
-                              className="rounded border-[#CBD5E1] text-[#1B2A4A] focus:ring-[#1B2A4A]/30"
+                              className="rounded border-[#CBD5E1] text-[#1B2A4A] focus:ring-[#1B2A4A]/30 flex-shrink-0"
+                              aria-label={`「${name}」を選択`}
                             />
-                            <span className="flex-1 min-w-0">{name}</span>
+                            <button
+                              type="button"
+                              className="flex-1 min-w-0 text-left cursor-pointer hover:underline"
+                              onClick={() => toggleTag(name)}
+                            >
+                              {name}
+                            </button>
                             {typeof t.count === 'number' ? (
-                              <span className="text-[10px] text-[#94A3B8] tabular-nums">{t.count}</span>
+                              <span className="text-[10px] text-[#94A3B8] tabular-nums flex-shrink-0">
+                                {t.count}
+                              </span>
                             ) : null}
-                          </label>
+                            <button
+                              type="button"
+                              onClick={() => hideFromCandidates(name)}
+                              className="p-1 rounded-md hover:bg-red-50 text-[#94A3B8] hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-200 flex-shrink-0"
+                              aria-label={`「${name}」を候補一覧から隠す`}
+                            >
+                              <X size={14} strokeWidth={2.5} />
+                            </button>
+                          </div>
                         </li>
                       )
                     })}
@@ -355,6 +427,38 @@ export default function WordPressTagsField({ value, onChange }: WordPressTagsFie
               )}
             </li>
           </ul>
+        )}
+        {hiddenList.length > 0 && (
+          <div className="border-t border-[#E2E8F0] px-2 py-2 bg-[#F8FAFC]">
+            <button
+              type="button"
+              aria-expanded={hiddenPanelOpen}
+              onClick={() => setHiddenPanelOpen(v => !v)}
+              className="flex w-full items-center gap-1 text-xs font-semibold text-[#64748B] hover:text-[#1B2A4A]"
+            >
+              {hiddenPanelOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+              一覧から隠したタグ（{hiddenList.length}）{hiddenPanelOpen ? 'を閉じる' : 'を表示'}
+            </button>
+            {hiddenPanelOpen && (
+              <ul className="mt-2 space-y-1 list-none m-0 p-0 max-h-[180px] overflow-y-auto">
+                {hiddenSorted.map(name => (
+                  <li
+                    key={`hidden-${name}`}
+                    className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white border border-[#E2E8F0] text-xs text-[#334155]"
+                  >
+                    <span className="min-w-0 break-all">{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => restoreHiddenTag(name)}
+                      className="flex-shrink-0 px-2 py-0.5 rounded border border-[#CBD5E1] text-[#1B2A4A] hover:bg-[#F1F5F9] font-semibold"
+                    >
+                      候補に戻す
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
 

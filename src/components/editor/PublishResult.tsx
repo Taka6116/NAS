@@ -237,7 +237,7 @@ export default function PublishResult({
                       <p className="text-xs font-mono text-[#64748B] mb-0.5">スラッグ（URL末尾）</p>
                       <p className="text-[11px] text-[#94A3B8] mb-1.5">
                         先頭は固定 <span className="font-mono text-[#64748B]">{SLUG_PREFIX}</span>
-                        。「推敲で自動生成」はタイトル・本文に合わせた英語スラッグを使います。空のまま投稿しても WordPress 側で日本語化されず、英語スラッグが付与されます。
+                        。「推敲で自動生成」はタイトル・本文に合わせた英語スラッグを使います（略語より small-business など読みやすい表記を優先）。「自分で入力」では内容を自由に指定できます。空のまま投稿しても WordPress 側で日本語化されず、英語スラッグが付与されます。
                       </p>
                       <select
                         value={slugMode}

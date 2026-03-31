@@ -5,6 +5,22 @@ import { generateFirstDraftFromPrompt } from '@/lib/api/gemini'
 import { findFileById, getFilePath } from '@/lib/dataStorage'
 import { getS3ObjectAsText, listS3Objects } from '@/lib/s3Reference'
 
+/** 一次執筆で参照する S3 のプレフィックス（md / csv / txt のみ突合）。末尾スラッシュなしでも可 */
+const DRAFT_MATERIAL_EXTS = new Set(['.md', '.csv', '.txt'])
+
+function getDraftMaterialsPrefix(): string {
+  const raw = process.env.S3_DRAFT_MATERIALS_PREFIX?.trim()
+  const p = raw && raw.length > 0 ? raw : 'materials_for_articles/'
+  return p.endsWith('/') ? p : `${p}/`
+}
+
+function isDraftMaterialKey(key: string, prefix: string): boolean {
+  if (!key.startsWith(prefix) || key.length <= prefix.length) return false
+  if (key.endsWith('/')) return false
+  const ext = key.includes('.') ? key.slice(key.lastIndexOf('.')).toLowerCase() : ''
+  return DRAFT_MATERIAL_EXTS.has(ext)
+}
+
 /** 429 時の待機＋再生成を含められるよう長めに（プランにより上限は異なります） */
 export const maxDuration = 120
 
@@ -85,12 +101,12 @@ export async function POST(request: NextRequest) {
     const targetKeywordStr = typeof targetKeyword === 'string' ? targetKeyword.trim() || undefined : undefined
     const ids = Array.isArray(fileIds) ? fileIds.filter((id): id is string => typeof id === 'string') : []
     const explicitS3Keys = Array.isArray(s3Keys) ? s3Keys.filter((k): k is string => typeof k === 'string') : []
-    // s3Keys が無い or 空 → S3の全オブジェクトを参照。指定があればそのキーのみ。
-    // articles/, pictures/, Whitepapers/ 内の非テキスト資料は参照対象外（トークン浪費・個人情報混入防止）
-    const EXCLUDED_PREFIXES = ['articles/', 'pictures/']
-    const allKeys = explicitS3Keys.length > 0
-      ? explicitS3Keys
-      : (await listS3Objects()).map(o => o.key).filter(k => !EXCLUDED_PREFIXES.some(p => k.startsWith(p)))
+    const materialsPrefix = getDraftMaterialsPrefix()
+    // s3Keys 未指定時: materials_for_articles/ 配下の .md / .csv / .txt のみ（他プレフィックスは参照しない）
+    const allKeys =
+      explicitS3Keys.length > 0
+        ? explicitS3Keys.filter(k => isDraftMaterialKey(k, materialsPrefix))
+        : (await listS3Objects(materialsPrefix)).map(o => o.key).filter(k => isDraftMaterialKey(k, materialsPrefix))
 
     if (!promptStr) {
       return NextResponse.json(

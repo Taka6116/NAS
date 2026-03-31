@@ -24,20 +24,28 @@ export interface S3ObjectItem {
 export async function listS3Objects(prefix?: string): Promise<S3ObjectItem[]> {
   const client = getClient()
   if (!client) return []
-  const command = new ListObjectsV2Command({
-    Bucket: BUCKET!,
-    Prefix: prefix || undefined,
-    MaxKeys: 200,
-  })
-  const out = await client.send(command)
-  const list = out.Contents ?? []
-  return list
-    .filter((o): o is { Key: string; Size?: number; LastModified?: Date } => !!o.Key)
-    .map(o => ({
-      key: o.Key!,
-      size: o.Size ?? 0,
-      lastModified: o.LastModified?.toISOString() ?? '',
-    }))
+  const items: S3ObjectItem[] = []
+  let continuationToken: string | undefined
+  do {
+    const out = await client.send(
+      new ListObjectsV2Command({
+        Bucket: BUCKET!,
+        Prefix: prefix || undefined,
+        MaxKeys: 1000,
+        ContinuationToken: continuationToken,
+      })
+    )
+    for (const o of out.Contents ?? []) {
+      if (!o.Key) continue
+      items.push({
+        key: o.Key,
+        size: o.Size ?? 0,
+        lastModified: o.LastModified?.toISOString() ?? '',
+      })
+    }
+    continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined
+  } while (continuationToken)
+  return items
 }
 
 /** S3オブジェクトをテキストとして取得。テキスト系拡張子のみ対応 */

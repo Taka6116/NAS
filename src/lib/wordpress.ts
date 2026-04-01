@@ -21,6 +21,7 @@ export interface WordPressPostResult {
 import { getSupervisorBlockHtml } from './supervisorBlock'
 import { resolveCanonicalPostSlug } from './slugNormalize'
 import { normalizeWordPressTagsFromRequest } from './wordpressTags'
+import { decodeHtmlEntities } from './wpTagList'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
 const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
@@ -848,7 +849,7 @@ async function findOrCreateWordPressTagId(
   });
   if (searchRes.ok) {
     const tags = (await searchRes.json()) as WpTagRow[];
-    const exact = tags.find((t) => t.name === name);
+    const exact = tags.find((t) => decodeHtmlEntities(t.name) === name);
     if (exact) return exact.id;
   }
 

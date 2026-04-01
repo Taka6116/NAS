@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { WpTagListItem } from '@/lib/wpTagList'
+import { decodeHtmlEntities, type WpTagListItem } from '@/lib/wpTagList'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,8 +58,12 @@ export async function GET(request: NextRequest) {
     const total = res.headers.get('X-WP-Total')
     const totalPages = res.headers.get('X-WP-TotalPages')
 
+    const tags: WpTagListItem[] = Array.isArray(rows)
+      ? rows.map(t => ({ ...t, name: decodeHtmlEntities(String(t.name ?? '')) }))
+      : []
+
     return NextResponse.json({
-      tags: Array.isArray(rows) ? rows : [],
+      tags,
       total: total ? parseInt(total, 10) : undefined,
       totalPages: totalPages ? parseInt(totalPages, 10) : undefined,
     })

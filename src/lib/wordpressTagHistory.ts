@@ -1,5 +1,7 @@
 /** ブラウザに保存する「最近使った WordPress タグ」候補 */
 
+import { decodeHtmlEntities } from './wpTagList'
+
 export const WORDPRESS_TAG_HISTORY_KEY = 'nas-wordpress-tag-history'
 export const MAX_WORDPRESS_TAG_HISTORY = 80
 
@@ -10,7 +12,7 @@ export function loadWordPressTagHistory(): string[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed.map(t => String(t).trim()).filter(Boolean)
+    return parsed.map(t => decodeHtmlEntities(String(t).trim())).filter(Boolean)
   } catch {
     return []
   }
@@ -22,7 +24,7 @@ export function mergeIntoWordPressTagHistory(current: string[], prev?: string[])
   const seen = new Set<string>()
   const out: string[] = []
   for (const t of [...current, ...fromStorage]) {
-    const s = t.trim()
+    const s = decodeHtmlEntities(t.trim())
     if (!s || seen.has(s)) continue
     seen.add(s)
     out.push(s)

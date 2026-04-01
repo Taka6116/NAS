@@ -1,5 +1,7 @@
 /** WordPress 投稿用タグ入力のパース・正規化（設計書準拠） */
 
+import { decodeHtmlEntities } from './wpTagList'
+
 export const MAX_WORDPRESS_TAGS = 20
 export const MAX_WORDPRESS_TAG_LENGTH = 50
 
@@ -31,7 +33,7 @@ export function parseWordPressTagsInput(input: string): string[] {
   const out: string[] = []
 
   for (const segment of segments) {
-    let t = segment.trim()
+    let t = decodeHtmlEntities(segment.trim())
     if (!t) continue
     if (t.length > MAX_WORDPRESS_TAG_LENGTH) {
       t = t.slice(0, MAX_WORDPRESS_TAG_LENGTH)

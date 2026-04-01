@@ -380,7 +380,10 @@ const GENERATING_CHECKLIST: { id: string; label: string }[] = [
   { id: 'finish', label: '反映・仕上げ' },
 ]
 
-/** loadingPhase: 0=1行目 active, 1=2行目 active（準備の視覚的進行）／writing は progress で擬似ステップ */
+/**
+ * チェックリスト各行の状態を progress % に応じて均等に遷移させる。
+ * 4ステップを 0→30→55→78→100 で区切り、各ステップに体感上の時間を持たせる。
+ */
 function checklistRowState(
   step: string,
   index: number,
@@ -394,18 +397,13 @@ function checklistRowState(
     return 'pending'
   }
   if (step === 'writing') {
-    if (progress < 40) {
-      if (index <= 1) return 'done'
-      if (index === 2) return 'active'
-      return 'pending'
+    const thresholds = [30, 55, 78]
+    let activeIdx = 0
+    for (const t of thresholds) {
+      if (progress >= t) activeIdx++
     }
-    if (progress < 82) {
-      if (index <= 2) return 'done'
-      if (index === 3) return 'active'
-      return 'pending'
-    }
-    if (index <= 2) return 'done'
-    if (index === 3) return 'active'
+    if (index < activeIdx) return 'done'
+    if (index === activeIdx) return 'active'
     return 'pending'
   }
   return 'pending'
@@ -421,6 +419,8 @@ function checklistActiveHint(
   if (state !== 'active') return null
   if (step === 'loading' && loadingPhase === 0) return '参照資料を読み込んでいます…'
   if (step === 'loading' && loadingPhase === 1) return '論点を整理しています…'
+  if (step === 'writing' && index === 0) return '参照資料を確認しています…'
+  if (step === 'writing' && index === 1) return '構成・論点を整理しています…'
   if (step === 'writing' && index === 2) return '本文ドラフトを生成しています…'
   if (step === 'writing' && index === 3) return '形式を整え、仕上げています…'
   return '処理しています…'
@@ -451,17 +451,17 @@ function GeneratingLoader({ step }: { step: string }) {
 
   useEffect(() => {
     if (step !== 'loading') return
-    setProgress(12 + loadingPhase * 6)
+    setProgress(3 + loadingPhase * 4)
   }, [step, loadingPhase])
 
   useEffect(() => {
     if (step !== 'writing') return
-    let currentProgress = 28
+    let currentProgress = 8
     setProgress(currentProgress)
     const timer = setInterval(() => {
-      currentProgress += (96 - currentProgress) * 0.06
+      currentProgress += (96 - currentProgress) * 0.03
       setProgress(Math.min(96, Math.floor(currentProgress)))
-    }, 450)
+    }, 500)
     return () => clearInterval(timer)
   }, [step])
 

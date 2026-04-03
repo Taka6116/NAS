@@ -318,27 +318,38 @@ export default function AhrefsPage() {
       {/* Dataset badges */}
       {index.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-5">
-          {index.map(meta => (
-            <span
-              key={meta.id}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"
-              style={{
-                backgroundColor: meta.type === 'keywords' ? '#EFF6FF' : '#FFF7ED',
-                borderColor: meta.type === 'keywords' ? '#BFDBFE' : '#FED7AA',
-                color: meta.type === 'keywords' ? '#1D4ED8' : '#C2410C',
-              }}
-            >
-              <FileText size={12} />
-              {meta.fileName} ({meta.rowCount})
-              <button
-                onClick={() => handleDeleteDataset(meta.id)}
-                className="ml-1 hover:opacity-70"
-                aria-label={`${meta.fileName} を削除`}
+          {index.map(meta => {
+            const isKw = meta.type === 'keywords'
+            const dateStr = (() => {
+              try {
+                const d = new Date(meta.uploadedAt)
+                return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+              } catch { return '' }
+            })()
+            return (
+              <span
+                key={meta.id}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border"
+                style={{
+                  backgroundColor: isKw ? '#EFF6FF' : '#FFF7ED',
+                  borderColor: isKw ? '#BFDBFE' : '#FED7AA',
+                  color: isKw ? '#1D4ED8' : '#C2410C',
+                }}
               >
-                <X size={12} />
-              </button>
-            </span>
-          ))}
+                <span className="font-bold">{isKw ? 'KW' : '競合'}</span>
+                <span className="font-medium truncate max-w-[180px]">{meta.fileName}</span>
+                <span className="font-medium">{meta.rowCount}件</span>
+                {dateStr && <span className="text-[10px] opacity-70">{dateStr}</span>}
+                <button
+                  onClick={() => handleDeleteDataset(meta.id)}
+                  className="ml-0.5 hover:opacity-70"
+                  aria-label={`${meta.fileName} を削除`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )
+          })}
         </div>
       )}
 
@@ -364,28 +375,6 @@ export default function AhrefsPage() {
             <SummaryCard label="★★★ 即攻め" value={p3Count} color="#D97706" />
             <SummaryCard label="★★ 有望" value={p2Count} color="#2563EB" />
             <SummaryCard label="トレンドKW" value={trendUpCount} icon={<TrendingUp size={16} />} color="#16A34A" />
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 bg-[#F1F5F9] rounded-lg p-1">
-            {([
-              { key: 'opportunity', label: '狙い目KW' },
-              { key: 'organic', label: '競合KW' },
-              { key: 'trends', label: 'トレンド' },
-              { key: 'all', label: '全データ' },
-            ] as { key: TabKey; label: string }[]).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-white text-[#1A1A2E] shadow-sm'
-                    : 'text-[#64748B] hover:text-[#1A1A2E]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
           </div>
 
           {/* Priority filter */}
@@ -439,6 +428,28 @@ export default function AhrefsPage() {
               ))}
             </div>
           )}
+
+          {/* Tabs */}
+          <div className="flex gap-6 mb-4 border-b border-[#E2E8F0]">
+            {([
+              { key: 'opportunity', label: '狙い目KW' },
+              { key: 'organic', label: '競合KW' },
+              { key: 'trends', label: 'トレンド' },
+              { key: 'all', label: '全データ' },
+            ] as { key: TabKey; label: string }[]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`pb-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+                  activeTab === tab.key
+                    ? 'text-[#002C93] border-[#002C93]'
+                    : 'text-[#64748B] border-transparent hover:text-[#1A1A2E]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
           {/* Search */}
           <div className="relative mb-4">

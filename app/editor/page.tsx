@@ -135,6 +135,20 @@ function EditorContent() {
       }
     }
 
+    // KW分析ダッシュボードからの遷移: kwPrompt / kwTarget
+    const kwPrompt = searchParams.get('kwPrompt')
+    const kwTarget = searchParams.get('kwTarget')
+    if (kwPrompt || kwTarget) {
+      const fresh = { ...initialArticle }
+      if (kwTarget) fresh.targetKeyword = kwTarget
+      setArticle(fresh)
+      setCurrentStep(1)
+      setMounted(true)
+      // kwPrompt はArticleInputのprompt stateに渡す必要があるため sessionStorage 経由
+      if (kwPrompt) sessionStorage.setItem('nas_kw_prompt', kwPrompt)
+      return
+    }
+
     const saved = loadState()
     if (saved) {
       setArticle({

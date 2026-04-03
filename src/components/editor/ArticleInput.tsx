@@ -47,7 +47,15 @@ export default function ArticleInput({
 
   useEffect(() => {
     reloadLibraries()
-  }, [reloadLibraries])
+    // KW分析ダッシュボードからのプロンプト自動セット
+    try {
+      const kwPrompt = sessionStorage.getItem('nas_kw_prompt')
+      if (kwPrompt && !prompt) {
+        setPrompt(kwPrompt)
+        sessionStorage.removeItem('nas_kw_prompt')
+      }
+    } catch { /* SSR guard */ }
+  }, [reloadLibraries]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onVisible = () => {

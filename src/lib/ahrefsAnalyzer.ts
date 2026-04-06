@@ -1,4 +1,5 @@
 import type { AhrefsKeywordRow } from './ahrefsCsvParser'
+import { ahrefsCategoryDisplayJa } from './ahrefsCategoryJa'
 
 export type PriorityLevel = 3 | 2 | 1 | 0
 
@@ -57,6 +58,16 @@ function detectCategory(keyword: string): string {
   return 'その他'
 }
 
+/** Ahrefs Category 列を日本語化し、空ならキーワードから推定 */
+function resolvedDetectedCategory(csvCategory: string | undefined, keyword: string): string {
+  const csv = csvCategory?.trim() ?? ''
+  if (csv) {
+    const ja = ahrefsCategoryDisplayJa(csv)
+    if (ja) return ja
+  }
+  return detectCategory(keyword)
+}
+
 // ---------- Opportunity Score ----------
 
 function calcOpportunityScore(row: AhrefsKeywordRow): number {
@@ -101,6 +112,91 @@ function calcPriority(
   return 0
 }
 
+// ---------- Site Explorer オーガニック（競合KW）向け。KD はスコア・優先度に使わない ----------
+
+/**
+ * Site Explorer「オーガニックキーワード」向けの施策スコア。KD は含めない。
+ */
+export function calculateOrganicActionScore(row: AhrefsKeywordRow): number {
+  const pos = row.position
+  const tc = row.trafficChange
+  const vol = row.volume
+
+  let s = 0
+  if (pos != null && pos >= 1) {
+    if (pos <= 3) s += 20
+    else if (pos <= 10) s += 40
+    else if (pos <= 20) s += 32
+    else if (pos <= 50) s += 18
+    else s += 8
+  } else {
+    s += 5
+  }
+
+  if (tc != null) {
+    if (tc <= -500) s += 45
+    else if (tc <= -200) s += 35
+    else if (tc <= -50) s += 22
+    else if (tc < 0) s += 10
+    else if (tc > 0) s += Math.min(tc / 50, 15)
+  }
+
+  s += Math.min(vol / 400, 22)
+  return Math.round(Math.min(s, 99) * 10) / 10
+}
+
+/**
+ * 競合KW向け優先度（順位・流入変動・ボリューム・SVトレンド）。KD は使わない。
+ */
+export function calcPriorityOrganic(
+  row: AhrefsKeywordRow,
+  trend: 'up' | 'down' | 'stable',
+): PriorityLevel {
+  const vol = row.volume
+  const pos = row.position
+  const tc = row.trafficChange
+
+  const strongDecline = tc != null && tc <= -150 && vol >= 200
+  const top3Erode = pos != null && pos <= 3 && tc != null && tc <= -30 && vol >= 100
+  const strikeZone = pos != null && pos >= 4 && pos <= 10
+  const almostPage1 = pos != null && pos >= 11 && pos <= 20
+  const highVolStrike = strikeZone && vol >= 400
+  const highVolAlmost = almostPage1 && vol >= 1200
+  const veryHighVolMid = strikeZone && vol >= 2500
+
+  if (strongDecline || top3Erode || highVolStrike || highVolAlmost || veryHighVolMid) return 3
+
+  const moderateDecline = tc != null && tc <= -40 && vol >= 150
+  const strikeOk = strikeZone && vol >= 150
+  const almostOk = almostPage1 && vol >= 400
+  const topStable = pos != null && pos <= 3 && vol >= 200
+  const trendUpMid = trend === 'up' && vol >= 800 && pos != null && pos <= 30
+
+  if (moderateDecline || strikeOk || almostOk || topStable || trendUpMid) return 2
+
+  if (vol >= 300 && pos != null && pos <= 30) return 1
+  if (vol >= 800) return 1
+  if (tc != null && tc < 0 && vol >= 80) return 1
+
+  return 0
+}
+
+export function analyzeOrganicKeywords(keywords: AhrefsKeywordRow[], excludeBranded = true): ScoredKeyword[] {
+  let filtered = keywords
+  if (excludeBranded) {
+    filtered = keywords.filter(kw => !kw.branded)
+  }
+  return filtered
+    .map(row => {
+      const score = calculateOrganicActionScore(row)
+      const { trend, changePercent } = detectSvTrend(row.svTrend)
+      const priority = calcPriorityOrganic(row, trend)
+      const detectedCategory = resolvedDetectedCategory(row.category, row.keyword)
+      return { ...row, score, priority, trend, trendPercent: changePercent, detectedCategory }
+    })
+    .sort((a, b) => b.priority - a.priority || b.score - a.score)
+}
+
 // ---------- Export functions ----------
 
 export function analyzeKeywords(keywords: AhrefsKeywordRow[]): ScoredKeyword[] {
@@ -109,7 +205,7 @@ export function analyzeKeywords(keywords: AhrefsKeywordRow[]): ScoredKeyword[] {
       const { trend, changePercent } = detectSvTrend(row.svTrend)
       const score = calcOpportunityScore(row)
       const priority = calcPriority(score, row.kd, row.volume, trend)
-      const detectedCategory = row.category || detectCategory(row.keyword)
+      const detectedCategory = resolvedDetectedCategory(row.category, row.keyword)
       return { ...row, score, priority, trend, trendPercent: changePercent, detectedCategory }
     })
     .sort((a, b) => b.priority - a.priority || b.score - a.score)
@@ -140,4 +236,17 @@ export function mergeAndAnalyze(datasetsKeywords: AhrefsKeywordRow[][]): ScoredK
     }
   }
   return analyzeKeywords([...seen.values()])
+}
+
+export function mergeAndAnalyzeOrganic(datasetsKeywords: AhrefsKeywordRow[][]): ScoredKeyword[] {
+  const merged = datasetsKeywords.flat()
+  const seen = new Map<string, AhrefsKeywordRow>()
+  for (const row of merged) {
+    const key = row.keyword.toLowerCase().trim()
+    const existing = seen.get(key)
+    if (!existing || row.volume > existing.volume) {
+      seen.set(key, row)
+    }
+  }
+  return analyzeOrganicKeywords([...seen.values()])
 }

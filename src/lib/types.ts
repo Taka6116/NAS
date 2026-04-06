@@ -44,6 +44,8 @@ export interface SavedArticle {
   scheduledTime?: string
   /** WordPress REST が返す投稿ステータス（予約投稿成功時に保存。future / publish / draft 等） */
   wordpressPostStatus?: string
+  /** WordPress REST の date_gmt または date（公開・予約日時の記録。KW分析の表示用） */
+  wordpressPublishedAt?: string
   slug?: string
   /** WordPress post_tag 用タグ名（保存・予約投稿で引き継ぎ） */
   wordpressTags?: string[]

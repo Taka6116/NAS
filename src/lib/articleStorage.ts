@@ -47,12 +47,14 @@ export async function updateArticleStatus(
   id: string,
   status: SavedArticle['status'],
   wordpressUrl?: string,
-  wordpressPostStatus?: string
+  wordpressPostStatus?: string,
+  wordpressPublishedAt?: string
 ): Promise<void> {
   const article = await getArticleById(id)
   if (!article) return
   article.status = status
   if (wordpressUrl) article.wordpressUrl = wordpressUrl
   if (wordpressPostStatus !== undefined) article.wordpressPostStatus = wordpressPostStatus
+  if (wordpressPublishedAt?.trim()) article.wordpressPublishedAt = wordpressPublishedAt.trim()
   await saveArticle(article)
 }

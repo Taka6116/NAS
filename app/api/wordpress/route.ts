@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       wordpressUrl: result.link, // クライアント（editor/page.tsx）が wordpressUrl で参照するため必須
       editUrl: result.editLink,
       status: result.status,
+      dateGmt: result.dateGmt,
     })
 
   } catch (error: any) {

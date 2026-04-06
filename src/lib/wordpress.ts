@@ -16,6 +16,8 @@ export interface WordPressPostResult {
   link: string;             // 投稿のURL
   editLink: string;         // 管理画面の編集URL
   status: 'draft' | 'publish' | 'future';
+  /** REST レスポンスの date_gmt または date（ISO 文字列） */
+  dateGmt?: string;
 }
 
 import { getSupervisorBlockHtml } from './supervisorBlock'
@@ -992,12 +994,25 @@ export async function postToWordPress(
       throw new Error(`WordPress API error: ${response.status} - ${message}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as {
+      id: number
+      link: string
+      status: 'draft' | 'publish' | 'future'
+      date_gmt?: string
+      date?: string
+    }
+    const dateGmt =
+      typeof data.date_gmt === 'string' && data.date_gmt.trim()
+        ? data.date_gmt.trim()
+        : typeof data.date === 'string' && data.date.trim()
+          ? data.date.trim()
+          : undefined
     return {
       id: data.id,
       link: data.link,
       editLink: `${wpUrl}/wp-admin/post.php?post=${data.id}&action=edit`,
       status: data.status,
+      dateGmt,
     };
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('WordPress API error:')) {

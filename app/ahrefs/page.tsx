@@ -9,13 +9,42 @@ import {
   detectTrends,
   getCategoryCounts,
   mergeAndAnalyze,
+  mergeAndAnalyzeOrganic,
   type ScoredKeyword,
   type PriorityLevel,
 } from '@/lib/ahrefsAnalyzer'
-import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, FileText, Trash2, ChevronDown } from 'lucide-react'
+import { getAllArticles } from '@/lib/articleStorage'
+import {
+  buildKeywordWpEntriesByKeyword,
+  keywordActionButtonLabel,
+  normalizeKeywordForArticleMatch,
+} from '@/lib/keywordPublishIndex'
+import { ColumnHint } from '@/components/ui/ColumnHint'
+import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, ChevronDown } from 'lucide-react'
 
-type TabKey = 'opportunity' | 'organic' | 'trends' | 'all'
+type TabKey = 'opportunity' | 'organic' | 'trends'
 const PAGE_SIZE = 50
+
+/** Ahrefs 各列の説明（ⓘ でポータル表示） */
+const AHREFS_COLUMN_HINTS = {
+  keyword: 'Ahrefsが分析対象とする検索クエリ（Keywords Explorer / Site Explorer）。',
+  volume: '対象国の月間検索回数の推定（平均）。Keywords Explorer / Site Explorer の指標。',
+  kd: 'そのキーワードで上位10件に入る難しさの目安（0〜100）。被リンク等に基づく Ahrefs の推定。',
+  cpc: '有料検索におけるクリック単価の目安（データの通貨に依存）。',
+  priorityKeywords:
+    '狙い目KW：ボリューム・KD・スコア・SVトレンドから算出した優先度です。',
+  priorityOrganic:
+    '競合KW：順位・流入変動・ボリューム・SVトレンドから算出します（KD は使いません）。',
+  scoreKeywords: '狙い目KW：新規獲得向けの機会スコア（アプリ内計算）。',
+  scoreOrganic:
+    '競合KW：順位・流入変動・ボリュームから算出する施策スコア（アプリ内計算）。',
+  trend: 'SV Trend 列から算出した、検索ボリューム推移の上昇・下降の傾向。',
+  category: 'Ahrefs のカテゴリ列、またはルールベースで付与したテーマ分類。',
+  position: 'オーガニック検索での現在の順位（Site Explorer）。',
+  trafficChange: '推定オーガニックトラフィックの前回比の変化。',
+  action:
+    '記事作成画面へ遷移します。保存済み記事のターゲットKWと一致する場合、公開日・予約を表示します。',
+} as const
 
 export default function AhrefsPage() {
   const router = useRouter()
@@ -31,6 +60,28 @@ export default function AhrefsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCount, setShowCount] = useState(PAGE_SIZE)
   const [error, setError] = useState<string | null>(null)
+  const [savedArticles, setSavedArticles] = useState<Awaited<ReturnType<typeof getAllArticles>>>([])
+
+  const refreshSavedArticles = useCallback(async () => {
+    setSavedArticles(await getAllArticles())
+  }, [])
+
+  useEffect(() => {
+    void refreshSavedArticles()
+  }, [refreshSavedArticles])
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refreshSavedArticles()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [refreshSavedArticles])
+
+  const keywordWpMap = useMemo(
+    () => buildKeywordWpEntriesByKeyword(savedArticles),
+    [savedArticles],
+  )
 
   const fetchData = useCallback(async () => {
     try {
@@ -91,23 +142,18 @@ export default function AhrefsPage() {
     [kwDatasets],
   )
   const organicScored = useMemo(
-    () => mergeAndAnalyze(organicDatasets.map(d => d.keywords)),
+    () => mergeAndAnalyzeOrganic(organicDatasets.map(d => d.keywords)),
     [organicDatasets],
   )
   const trendScored = useMemo(() => detectTrends(allKeywords), [allKeywords])
-  const allScored = useMemo(
-    () => mergeAndAnalyze(datasets.map(d => d.keywords)),
-    [datasets],
-  )
 
   const activeData = useMemo(() => {
     switch (activeTab) {
       case 'opportunity': return opportunityScored
       case 'organic': return organicScored
       case 'trends': return trendScored
-      case 'all': return allScored
     }
-  }, [activeTab, opportunityScored, organicScored, trendScored, allScored])
+  }, [activeTab, opportunityScored, organicScored, trendScored])
 
   // Reset filters on tab change
   useEffect(() => {
@@ -435,7 +481,6 @@ export default function AhrefsPage() {
               { key: 'opportunity', label: '狙い目KW' },
               { key: 'organic', label: '競合KW' },
               { key: 'trends', label: 'トレンド' },
-              { key: 'all', label: '全データ' },
             ] as { key: TabKey; label: string }[]).map(tab => (
               <button
                 key={tab.key}
@@ -466,24 +511,79 @@ export default function AhrefsPage() {
           {/* Data table */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed text-sm">
+              <table className="w-full min-w-[1040px] text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                    <th className="text-left px-4 py-3 font-semibold text-[#64748B]" style={{ width: isOrganicTab ? '20%' : '28%' }}>キーワード</th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '8%' }}>Volume</th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '6%' }}>KD</th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '8%' }}>CPC</th>
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B]" style={{ width: '8%' }}>優先度</th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '7%' }}>スコア</th>
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B]" style={{ width: '7%' }}>トレンド</th>
-                    <th className="text-left px-3 py-3 font-semibold text-[#64748B]" style={{ width: '10%' }}>カテゴリ</th>
+                    <th className="text-left px-4 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        キーワード
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.keyword} />
+                      </span>
+                    </th>
+                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        Volume
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.volume} />
+                      </span>
+                    </th>
+                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        KD
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.kd} />
+                      </span>
+                    </th>
+                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        CPC
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.cpc} />
+                      </span>
+                    </th>
+                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                        優先度
+                        <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.priorityOrganic : AHREFS_COLUMN_HINTS.priorityKeywords} />
+                      </span>
+                    </th>
+                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        スコア
+                        <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.scoreOrganic : AHREFS_COLUMN_HINTS.scoreKeywords} />
+                      </span>
+                    </th>
+                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                        トレンド
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.trend} />
+                      </span>
+                    </th>
+                    <th className="text-left px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        カテゴリ
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.category} />
+                      </span>
+                    </th>
                     {isOrganicTab && (
                       <>
-                        <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '6%' }}>順位</th>
-                        <th className="text-right px-3 py-3 font-semibold text-[#64748B]" style={{ width: '8%' }}>流入変動</th>
+                        <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                          <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                            順位
+                            <ColumnHint text={AHREFS_COLUMN_HINTS.position} />
+                          </span>
+                        </th>
+                        <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                          <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                            流入変動
+                            <ColumnHint text={AHREFS_COLUMN_HINTS.trafficChange} />
+                          </span>
+                        </th>
                       </>
                     )}
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B]" style={{ width: '10%' }}>アクション</th>
+                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                        アクション
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.action} />
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -494,7 +594,11 @@ export default function AhrefsPage() {
                       </td>
                     </tr>
                   ) : (
-                    displayed.map((row, i) => (
+                    displayed.map((row, i) => {
+                      const kwKey = normalizeKeywordForArticleMatch(row.keyword)
+                      const wpEntries = keywordWpMap.get(kwKey)
+                      const kwLabel = keywordActionButtonLabel(wpEntries)
+                      return (
                       <tr key={`${row.keyword}-${i}`} className="border-b border-[#F1F5F9] hover:bg-[#FAFBFC] transition-colors">
                         <td className="px-4 py-3 font-medium text-[#1A1A2E] truncate">{row.keyword}</td>
                         <td className="px-3 py-3 text-right tabular-nums">{row.volume.toLocaleString()}</td>
@@ -520,17 +624,28 @@ export default function AhrefsPage() {
                             </td>
                           </>
                         )}
-                        <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => handleWriteArticle(row)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors hover:opacity-90"
-                            style={{ backgroundColor: row.priority === 3 ? '#E67E22' : '#002C93' }}
-                          >
-                            記事作成
-                          </button>
+                        <td className="px-3 py-3 text-center align-top">
+                          <div className="flex flex-col items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleWriteArticle(row)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors hover:opacity-90"
+                              style={{ backgroundColor: row.priority === 3 ? '#E67E22' : '#002C93' }}
+                            >
+                              記事作成
+                            </button>
+                            {kwLabel.line ? (
+                              <span
+                                className="text-[10px] text-[#64748B] leading-snug text-center max-w-[140px] line-clamp-2"
+                                title={kwLabel.tooltip}
+                              >
+                                {kwLabel.line}
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
-                    ))
+                    )})
                   )}
                 </tbody>
               </table>

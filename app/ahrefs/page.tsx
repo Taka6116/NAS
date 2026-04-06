@@ -29,7 +29,7 @@ const PAGE_SIZE = 50
 const AHREFS_COLUMN_HINTS = {
   keyword: 'Ahrefsが分析対象とする検索クエリ（Keywords Explorer / Site Explorer）。',
   volume: '対象国の月間検索回数の推定（平均）。Keywords Explorer / Site Explorer の指標。',
-  kd: 'そのキーワードで上位10件に入る難しさの目安（0〜100）。被リンク等に基づく Ahrefs の推定。',
+  kd: 'そのキーワードで上位に表示される難しさを表す数字で、数字が高いほど競合が強くて難しく、低いほど比較的上位を狙えます。',
   cpc: '有料検索におけるクリック単価の目安（データの通貨に依存）。',
   priorityKeywords:
     '狙い目KW：ボリューム・KD・スコア・SVトレンドから算出した優先度です。',
@@ -508,78 +508,107 @@ export default function AhrefsPage() {
             />
           </div>
 
-          {/* Data table */}
+          {/* Data table（table-fixed + 列幅% でビュー内に収め、横スクロール不要） */}
           <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] text-sm border-collapse">
+            <div className="w-full overflow-hidden">
+              <table className="w-full table-fixed text-xs border-collapse">
+                <colgroup>
+                  {isOrganicTab ? (
+                    <>
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '5%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '5%' }} />
+                      <col style={{ width: '7%' }} />
+                      <col style={{ width: '16%' }} />
+                    </>
+                  ) : (
+                    <>
+                      <col style={{ width: '21%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '5%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '8%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '17%' }} />
+                    </>
+                  )}
+                </colgroup>
                 <thead>
                   <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                    <th className="text-left px-4 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <th className="text-left px-2 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
                         キーワード
                         <ColumnHint text={AHREFS_COLUMN_HINTS.keyword} />
                       </span>
                     </th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                        Volume
+                    <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
+                        Vol
                         <ColumnHint text={AHREFS_COLUMN_HINTS.volume} />
                       </span>
                     </th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                    <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
                         KD
                         <ColumnHint text={AHREFS_COLUMN_HINTS.kd} />
                       </span>
                     </th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                    <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
                         CPC
                         <ColumnHint text={AHREFS_COLUMN_HINTS.cpc} />
                       </span>
                     </th>
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                    <th className="text-center px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-0.5 whitespace-nowrap">
                         優先度
                         <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.priorityOrganic : AHREFS_COLUMN_HINTS.priorityKeywords} />
                       </span>
                     </th>
-                    <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                    <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
                         スコア
                         <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.scoreOrganic : AHREFS_COLUMN_HINTS.scoreKeywords} />
                       </span>
                     </th>
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                    <th className="text-center px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-0.5 whitespace-nowrap">
                         トレンド
                         <ColumnHint text={AHREFS_COLUMN_HINTS.trend} />
                       </span>
                     </th>
-                    <th className="text-left px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <th className="text-left px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
                         カテゴリ
                         <ColumnHint text={AHREFS_COLUMN_HINTS.category} />
                       </span>
                     </th>
                     {isOrganicTab && (
                       <>
-                        <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                          <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                          <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
                             順位
                             <ColumnHint text={AHREFS_COLUMN_HINTS.position} />
                           </span>
                         </th>
-                        <th className="text-right px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                          <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
-                            流入変動
+                        <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                          <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
+                            流入
                             <ColumnHint text={AHREFS_COLUMN_HINTS.trafficChange} />
                           </span>
                         </th>
                       </>
                     )}
-                    <th className="text-center px-3 py-3 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+                    <th className="text-center px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center gap-0.5 whitespace-nowrap">
                         アクション
                         <ColumnHint text={AHREFS_COLUMN_HINTS.action} />
                       </span>
@@ -600,22 +629,26 @@ export default function AhrefsPage() {
                       const kwLabel = keywordActionButtonLabel(wpEntries)
                       return (
                       <tr key={`${row.keyword}-${i}`} className="border-b border-[#F1F5F9] hover:bg-[#FAFBFC] transition-colors">
-                        <td className="px-4 py-3 font-medium text-[#1A1A2E] truncate">{row.keyword}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{row.volume.toLocaleString()}</td>
-                        <td className="px-3 py-3 text-right">
+                        <td className="px-2 py-2 font-medium text-[#1A1A2E] max-w-0">
+                          <div className="truncate" title={row.keyword}>{row.keyword}</div>
+                        </td>
+                        <td className="px-1.5 py-2 text-right tabular-nums">{row.volume.toLocaleString()}</td>
+                        <td className="px-1.5 py-2 text-right">
                           <span className="font-semibold tabular-nums" style={{ color: kdColor(row.kd) }}>{row.kd}</span>
                         </td>
-                        <td className="px-3 py-3 text-right tabular-nums">¥{Math.round(row.cpc).toLocaleString()}</td>
-                        <td className="px-3 py-3 text-center"><PriorityBadge level={row.priority} /></td>
-                        <td className="px-3 py-3 text-right tabular-nums font-medium">{row.score}</td>
-                        <td className="px-3 py-3 text-center"><TrendBadge trend={row.trend} percent={row.trendPercent} /></td>
-                        <td className="px-3 py-3 text-left">
-                          <span className="inline-block px-2 py-0.5 rounded text-xs bg-[#F1F5F9] text-[#475569] truncate max-w-full">{row.detectedCategory}</span>
+                        <td className="px-1.5 py-2 text-right tabular-nums">¥{Math.round(row.cpc).toLocaleString()}</td>
+                        <td className="px-1.5 py-2 text-center"><PriorityBadge level={row.priority} compact /></td>
+                        <td className="px-1.5 py-2 text-right tabular-nums font-medium">{row.score}</td>
+                        <td className="px-1.5 py-2 text-center"><TrendBadge trend={row.trend} percent={row.trendPercent} /></td>
+                        <td className="px-1.5 py-2 text-left max-w-0">
+                          <span className="inline-block max-w-full truncate align-middle px-1.5 py-0.5 rounded text-[11px] bg-[#F1F5F9] text-[#475569]" title={row.detectedCategory}>
+                            {row.detectedCategory}
+                          </span>
                         </td>
                         {isOrganicTab && (
                           <>
-                            <td className="px-3 py-3 text-right tabular-nums">{row.position ?? '-'}</td>
-                            <td className="px-3 py-3 text-right tabular-nums">
+                            <td className="px-1.5 py-2 text-right tabular-nums">{row.position ?? '-'}</td>
+                            <td className="px-1.5 py-2 text-right tabular-nums text-[11px]">
                               {row.trafficChange !== null ? (
                                 <span className={row.trafficChange >= 0 ? 'text-green-600' : 'text-red-600'}>
                                   {row.trafficChange >= 0 ? '+' : ''}{row.trafficChange}
@@ -624,19 +657,19 @@ export default function AhrefsPage() {
                             </td>
                           </>
                         )}
-                        <td className="px-3 py-3 text-center align-top">
-                          <div className="flex flex-col items-center gap-1.5">
+                        <td className="px-1.5 py-2 text-center align-top">
+                          <div className="flex flex-col items-center gap-1 min-w-0">
                             <button
                               type="button"
                               onClick={() => handleWriteArticle(row)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors hover:opacity-90"
+                              className="inline-flex items-center justify-center px-2 py-1 rounded-md text-[11px] font-semibold text-white transition-colors hover:opacity-90 whitespace-nowrap"
                               style={{ backgroundColor: row.priority === 3 ? '#E67E22' : '#002C93' }}
                             >
                               記事作成
                             </button>
                             {kwLabel.line ? (
                               <span
-                                className="text-[10px] text-[#64748B] leading-snug text-center max-w-[140px] line-clamp-2"
+                                className="text-[9px] text-[#64748B] leading-tight text-center w-full line-clamp-2 break-words"
                                 title={kwLabel.tooltip}
                               >
                                 {kwLabel.line}
@@ -692,7 +725,7 @@ function SummaryCard({ label, value, color, icon }: { label: string; value: numb
   )
 }
 
-function PriorityBadge({ level }: { level: PriorityLevel }) {
+function PriorityBadge({ level, compact }: { level: PriorityLevel; compact?: boolean }) {
   const config = {
     3: { label: '★★★', bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
     2: { label: '★★', bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
@@ -702,7 +735,7 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
 
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded text-xs font-semibold border"
+      className={`inline-block rounded font-semibold border ${compact ? 'px-1 py-0.5 text-[10px] leading-none' : 'px-2 py-0.5 text-xs'}`}
       style={{ backgroundColor: config.bg, color: config.text, borderColor: config.border }}
     >
       {config.label}
@@ -712,16 +745,16 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
 
 function TrendBadge({ trend, percent }: { trend: 'up' | 'down' | 'stable'; percent: number }) {
   if (trend === 'up') return (
-    <span className="inline-flex items-center gap-0.5 text-xs font-medium text-green-600">
-      <TrendingUp size={13} /> +{percent}%
+    <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-medium text-green-600 whitespace-nowrap">
+      <TrendingUp size={11} className="shrink-0" /> +{percent}%
     </span>
   )
   if (trend === 'down') return (
-    <span className="inline-flex items-center gap-0.5 text-xs font-medium text-red-500">
-      <TrendingDown size={13} /> {percent}%
+    <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-medium text-red-500 whitespace-nowrap">
+      <TrendingDown size={11} className="shrink-0" /> {percent}%
     </span>
   )
-  return <span className="text-xs text-[#CBD5E1]">—</span>
+  return <span className="text-[10px] text-[#CBD5E1]">—</span>
 }
 
 function kdColor(kd: number): string {

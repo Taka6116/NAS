@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArticleData, Step } from '@/lib/types'
 import { SavedPrompt, getAllPrompts } from '@/lib/promptStorage'
 import { SavedKeyword, getAllKeywords } from '@/lib/keywordStorage'
+import { DRAFT_MATERIAL_BINDING_SESSION_KEY } from '@/lib/draftMaterialBindingSession'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -139,10 +140,20 @@ export default function ArticleInput({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '一次執筆の生成に失敗しました')
-      
+
+      try {
+        if (data.materialBinding && typeof data.materialBinding === 'object') {
+          sessionStorage.setItem(DRAFT_MATERIAL_BINDING_SESSION_KEY, JSON.stringify(data.materialBinding))
+        } else {
+          sessionStorage.removeItem(DRAFT_MATERIAL_BINDING_SESSION_KEY)
+        }
+      } catch {
+        /* ignore */
+      }
+
       setGeneratingStep('done')
       await new Promise(resolve => setTimeout(resolve, 600))
-      
+
       const title = typeof data.title === 'string' ? data.title.trim() : ''
       const content = typeof data.content === 'string' ? data.content : ''
       if (title) onTitleChange(title)

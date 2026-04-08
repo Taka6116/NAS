@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { refineArticleWithGemini, generateSlugFromGemini } from '@/lib/api/gemini'
+import { materializeBoundMaterialsForPrompt, parseDraftMaterialBinding } from '@/lib/draftMaterialsContext'
+
+export const maxDuration = 120
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, content, targetKeyword } = await request.json()
+    const { title, content, targetKeyword, draftMaterialBinding } = await request.json()
     const titleStr = typeof title === 'string' ? title : ''
     const targetKeywordStr = typeof targetKeyword === 'string' ? targetKeyword : undefined
 
@@ -14,10 +17,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const binding = parseDraftMaterialBinding(draftMaterialBinding)
+    const referenceMaterialsContext = binding ? await materializeBoundMaterialsForPrompt(binding) : null
+
     const { refinedTitle, refinedContent } = await refineArticleWithGemini(
       titleStr,
       content,
-      targetKeywordStr
+      targetKeywordStr,
+      referenceMaterialsContext ?? undefined
     )
     const slug = await generateSlugFromGemini(
       refinedTitle || titleStr,

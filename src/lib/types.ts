@@ -16,6 +16,11 @@ export interface ArticleData {
   refinedContent: string
   /** Gemini推敲後のタイトル（未推敲時は空） */
   refinedTitle: string
+  /**
+   * 推敲確認画面の左列用。「Geminiで推敲する」を押した直前の一次執筆タイトル・本文を固定表示する。
+   * 再推敲のたびに上書きされる。
+   */
+  geminiSourceSnapshot?: { title: string; content: string } | null
   targetKeyword?: string
   /** 追加する内部リンク（担当者が設定） */
   internalLinks: InternalLinkEntry[]

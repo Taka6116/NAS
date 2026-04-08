@@ -13,8 +13,17 @@ import GeminiResult from '@/components/editor/GeminiResult'
 import ImageResult from '@/components/editor/ImageResult'
 import PublishResult from '@/components/editor/PublishResult'
 import { Plus } from 'lucide-react'
+import { DRAFT_MATERIAL_BINDING_SESSION_KEY } from '@/lib/draftMaterialBindingSession'
 
 const STORAGE_KEY = 'nas_editor_state'
+
+function clearDraftMaterialBindingSession() {
+  try {
+    sessionStorage.removeItem(DRAFT_MATERIAL_BINDING_SESSION_KEY)
+  } catch {
+    /* ignore */
+  }
+}
 
 const initialArticle: ArticleData = {
   title: '',
@@ -90,6 +99,7 @@ function EditorContent() {
     if (articleId) {
       const savedArticle = await getArticleById(articleId)
       if (savedArticle) {
+        clearDraftMaterialBindingSession()
         setArticle({
           title: savedArticle.title,
           refinedTitle: savedArticle.refinedTitle,
@@ -139,6 +149,7 @@ function EditorContent() {
     const kwPrompt = searchParams.get('kwPrompt')
     const kwTarget = searchParams.get('kwTarget')
     if (kwPrompt || kwTarget) {
+      clearDraftMaterialBindingSession()
       const fresh = { ...initialArticle }
       if (kwTarget) fresh.targetKeyword = kwTarget
       setArticle(fresh)
@@ -198,49 +209,77 @@ function EditorContent() {
     setArticle(prev => ({ ...prev, ...updates }))
   }, [])
 
-  const callGeminiApi = useCallback(async () => {
-    setGeminiError(null)
-    setGeminiStatus('loading')
-    try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: article.title,
-          content: article.originalContent,
-          targetKeyword: article.targetKeyword ?? '',
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '推敲に失敗しました')
-      const refinedTitle =
-        typeof data.refinedTitle === 'string' && data.refinedTitle.trim().length > 0
-          ? data.refinedTitle
-          : article.title
-      const refinedContent =
-        typeof data.refinedContent === 'string' ? data.refinedContent.trim() : ''
-      if (!refinedContent) {
-        throw new Error('Geminiの推敲結果が空です。再度お試しください。')
+  const runGeminiRefine = useCallback(
+    async (overrideTitle?: string, overrideContent?: string) => {
+      setGeminiError(null)
+      setGeminiStatus('loading')
+      const title =
+        (overrideTitle != null ? overrideTitle.trim() : '') ||
+        article.geminiSourceSnapshot?.title?.trim() ||
+        article.title.trim()
+      const content =
+        overrideContent ?? article.geminiSourceSnapshot?.content ?? article.originalContent
+      let draftMaterialBinding: unknown = undefined
+      try {
+        const raw = sessionStorage.getItem(DRAFT_MATERIAL_BINDING_SESSION_KEY)
+        if (raw) draftMaterialBinding = JSON.parse(raw) as unknown
+      } catch {
+        draftMaterialBinding = undefined
       }
-      updateArticle({ refinedTitle, refinedContent })
-      if (typeof data.slug === 'string' && data.slug.trim()) {
-        const s = data.slug.trim()
-        setRefineSlugSuggestion(s)
-        setSlug(s)
-      } else {
-        setRefineSlugSuggestion('')
+      try {
+        const res = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            content,
+            targetKeyword: article.targetKeyword ?? '',
+            draftMaterialBinding,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || '推敲に失敗しました')
+        const refinedTitle =
+          typeof data.refinedTitle === 'string' && data.refinedTitle.trim().length > 0
+            ? data.refinedTitle
+            : title
+        const refinedContent =
+          typeof data.refinedContent === 'string' ? data.refinedContent.trim() : ''
+        if (!refinedContent) {
+          throw new Error('Geminiの推敲結果が空です。再度お試しください。')
+        }
+        updateArticle({ refinedTitle, refinedContent })
+        if (typeof data.slug === 'string' && data.slug.trim()) {
+          const s = data.slug.trim()
+          setRefineSlugSuggestion(s)
+          setSlug(s)
+        } else {
+          setRefineSlugSuggestion('')
+        }
+        setGeminiStatus('success')
+      } catch (e) {
+        setGeminiStatus('error')
+        setGeminiError(e instanceof Error ? e.message : '推敲に失敗しました')
       }
-      setGeminiStatus('success')
-    } catch (e) {
-      setGeminiStatus('error')
-      setGeminiError(e instanceof Error ? e.message : '推敲に失敗しました')
-    }
-  }, [article.title, article.originalContent, article.targetKeyword, updateArticle])
+    },
+    [
+      article.geminiSourceSnapshot,
+      article.title,
+      article.originalContent,
+      article.targetKeyword,
+      updateArticle,
+    ]
+  )
 
   const handleStep1Next = useCallback(async () => {
+    const snapTitle = article.title.trim()
+    const snapContent = article.originalContent
+    updateArticle({
+      geminiSourceSnapshot: { title: snapTitle, content: snapContent },
+    })
     setCurrentStep(2)
-    await callGeminiApi()
-  }, [callGeminiApi])
+    await runGeminiRefine(snapTitle, snapContent)
+  }, [article.title, article.originalContent, updateArticle, runGeminiRefine])
 
   const handleStep2Next = useCallback(() => setCurrentStep(3), [])
 
@@ -514,6 +553,7 @@ function EditorContent() {
   ])
 
   const handleReset = useCallback(() => {
+    clearDraftMaterialBindingSession()
     clearState()
     setCurrentStep(1)
     setArticle({ ...initialArticle })
@@ -529,6 +569,7 @@ function EditorContent() {
   }, [])
 
   const handleClearArticle = useCallback(() => {
+    clearDraftMaterialBindingSession()
     setArticle({ ...initialArticle })
     setGeminiStatus('idle')
     setGeminiToastShown(false)
@@ -544,6 +585,7 @@ function EditorContent() {
 
   /** どのステップからでも一次執筆のまっさらな状態で始める */
   const handleNewArticle = useCallback(() => {
+    clearDraftMaterialBindingSession()
     clearState()
     setCurrentArticleId(null)
     setArticle({ ...initialArticle })
@@ -602,7 +644,7 @@ function EditorContent() {
           onRefinedContentChange={refinedContent => updateArticle({ refinedContent })}
           onBack={() => setCurrentStep(1)}
           onNext={handleStep2Next}
-          onRetry={callGeminiApi}
+          onRetry={runGeminiRefine}
             onStepClick={handleStepClick}
         />
       )}

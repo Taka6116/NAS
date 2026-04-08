@@ -1,6 +1,6 @@
- 'use client'
+'use client'
 
- import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
  import { ArticleData, ProcessingState, Step } from '@/lib/types'
  import StepIndicator from './StepIndicator'
  import Button from '@/components/ui/Button'
@@ -37,6 +37,8 @@
    const [copied, setCopied] = useState(false)
    const [showToast, setShowToast] = useState(false)
  const refinedContent = typeof article.refinedContent === 'string' ? article.refinedContent : ''
+  const leftTitle = article.geminiSourceSnapshot?.title ?? article.title
+  const leftBody = article.geminiSourceSnapshot?.content ?? article.originalContent
 
    useEffect(() => {
     if (geminiStatus === 'success' && showCompletionToast) {
@@ -98,7 +100,7 @@
                       元の記事
                     </span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E2E8F0] text-[#64748B]">
-                      入力済み
+                      推敲開始時点
                     </span>
                   </div>
                   {/* 右カラムのコピー ボタンと高さを揃えるためのダミーボタン（見た目は非表示） */}
@@ -122,7 +124,7 @@
                   <input
                     type="text"
                     readOnly
-                    value={article.title}
+                    value={leftTitle}
                     className="
                       w-full px-4 py-2 rounded-lg border border-[#E2E8F0]
                       bg-[#F1F5F9] text-[#64748B] text-sm placeholder-[#CBD5E1]
@@ -133,7 +135,7 @@
                 </div>
                  <textarea
                    readOnly
-                   value={article.originalContent}
+                   value={leftBody}
                    className="
                      flex-1 px-5 py-4
                      bg-[#F8FAFC] text-[#64748B] text-sm resize-none

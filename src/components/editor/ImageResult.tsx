@@ -1,13 +1,13 @@
 'use client'
 
-import { useRef, ChangeEvent } from 'react'
+import { useRef, useState, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Sparkles, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Sparkles, Upload, Loader2 } from 'lucide-react'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 
 interface ImageResultProps {
@@ -43,25 +43,33 @@ export default function ImageResult({
 }: ImageResultProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [previewNavigating, setPreviewNavigating] = useState(false)
 
   const handlePreview = async () => {
-    const savedId = await onSaveDraft()
-    const finalArticleId = savedId || articleId
-    
-    const content = article.refinedContent || article.originalContent || ''
-    sessionStorage.setItem('preview_content', content)
-    await setSessionPreviewImage(article.imageUrl || null)
-    const params = new URLSearchParams({
-      title: article.refinedTitle?.trim() || article.title || '',
-      category: 'お役立ち情報',
-      date: new Date().toLocaleDateString('ja-JP', {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-      }).replace(/\//g, '.'),
-    })
-    if (finalArticleId) params.set('articleId', finalArticleId)
-    router.push(`/preview?${params.toString()}`)
+    if (previewNavigating) return
+    setPreviewNavigating(true)
+    try {
+      const savedId = await onSaveDraft()
+      const finalArticleId = savedId || articleId
+
+      const content = article.refinedContent || article.originalContent || ''
+      sessionStorage.setItem('preview_content', content)
+      await setSessionPreviewImage(article.imageUrl || null)
+      const params = new URLSearchParams({
+        title: article.refinedTitle?.trim() || article.title || '',
+        category: 'お役立ち情報',
+        date: new Date().toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+        }).replace(/\//g, '.'),
+      })
+      if (finalArticleId) params.set('articleId', finalArticleId)
+      router.push(`/preview?${params.toString()}`)
+      /* 成功時は遷移でアンマウントされるまでオーバーレイを維持 */
+    } catch {
+      setPreviewNavigating(false)
+    }
   }
 
   const handleDownload = () => {
@@ -91,7 +99,9 @@ export default function ImageResult({
   }
 
   return (
-    <div className="w-full pt-6 pb-12">
+    <div className="w-full pt-6 pb-12 relative">
+      {previewNavigating && <PreviewNavigationOverlay />}
+
       {/* 2カラム：左＝メインコンテンツ、右＝StepIndicator */}
       <div className="flex gap-8 items-start">
         {/* 左：メインコンテンツ（可変幅） */}
@@ -186,7 +196,9 @@ export default function ImageResult({
                   variant="primary"
                   size="lg"
                   onClick={handlePreview}
-                  disabled={fireflyStatus !== 'success' || !article.imageUrl}
+                  disabled={
+                    previewNavigating || fireflyStatus !== 'success' || !article.imageUrl
+                  }
                   className="flex-shrink-0"
                 >
                   プレビューへ
@@ -209,6 +221,69 @@ export default function ImageResult({
           <ArrowLeft size={16} />
           Gemini推敲に戻る
         </Button>
+      </div>
+    </div>
+  )
+}
+
+/** プレビュー遷移：下書き保存〜ルーティング待ちの全画面オーバーレイ */
+function PreviewNavigationOverlay() {
+  const ringR = 40
+  const c = 2 * Math.PI * ringR
+  const dash = Math.round(c * 0.28)
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-6"
+      style={{ background: 'rgba(15, 23, 42, 0.45)' }}
+      role="alertdialog"
+      aria-busy="true"
+      aria-label="下書き保存とプレビュー準備中"
+    >
+      <div
+        className="absolute inset-0 backdrop-blur-md bg-white/30"
+        aria-hidden
+      />
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-white/80 px-8 py-10 text-center shadow-2xl"
+        style={{
+          background: 'linear-gradient(155deg, rgba(255,255,255,0.95) 0%, rgba(240,244,255,0.98) 100%)',
+          boxShadow:
+            '0 25px 50px -12px rgba(27, 42, 74, 0.25), 0 0 0 1px rgba(27, 42, 74, 0.06)',
+        }}
+      >
+        <div className="relative w-[92px] h-[92px] mx-auto mb-6 flex items-center justify-center">
+          <svg
+            className="absolute inset-0 w-[92px] h-[92px] text-[#1B2A4A] motion-reduce:animate-none animate-[spin_1.35s_linear_infinite]"
+            viewBox="0 0 100 100"
+            fill="none"
+            aria-hidden
+          >
+            <circle cx="50" cy="50" r={ringR} stroke="#E2E8F0" strokeWidth="5" fill="none" />
+            <circle
+              cx="50"
+              cy="50"
+              r={ringR}
+              stroke="currentColor"
+              strokeWidth="5"
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${dash} ${Math.round(c)}`}
+              transform="rotate(-90 50 50)"
+            />
+          </svg>
+          <Sparkles className="relative w-8 h-8 text-[#1B2A4A]" strokeWidth={1.75} aria-hidden />
+        </div>
+        <h2 className="text-lg sm:text-xl font-bold text-[#1A1A2E] tracking-tight leading-snug">
+          下書き保存とプレビューを作成中です
+        </h2>
+        <p className="text-sm text-[#64748B] mt-3 leading-relaxed">
+          そのままお待ちください。完了するとプレビュー画面へ移動します。
+        </p>
+        <p className="mt-6 flex items-center justify-center gap-2 text-xs text-[#64748B]">
+          <Loader2 className="w-4 h-4 animate-spin text-[#1B2A4A]/80 shrink-0" aria-hidden />
+          <span>処理中…</span>
+        </p>
       </div>
     </div>
   )

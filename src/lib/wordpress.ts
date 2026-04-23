@@ -24,6 +24,7 @@ import { getSupervisorBlockHtml } from './supervisorBlock'
 import { resolveCanonicalPostSlug } from './slugNormalize'
 import { normalizeWordPressTagsFromRequest } from './wordpressTags'
 import { decodeHtmlEntities } from './wpTagList'
+import { normalizeBoldLabelLines } from './contentFormat'
 
 /** 監修者画像のデフォルト（WordPressメディアライブラリ・左の丸画像用） */
 const DEFAULT_SUPERVISOR_IMAGE_URL = 'https://nihon-teikei.co.jp/wp-content/uploads/2026/03/3159097ae625791c1a400e6900330153.png'
@@ -284,7 +285,11 @@ function fixStrongParagraphNesting(html: string): string {
  * - 「・ラベル: 説明」のラベルを太字に
  */
 export function convertToHtml(content: string): string {
-  const lines = content.split('\n');
+  // 「**ラベル：本文**」のような太字ラップ行を見出し+段落に正規化してから
+  // 既存の行単位パースへ流す。これにより WordPress 側でも h3 見出し+段落
+  // 構造になり、NTS テーマの見出し下線スタイルが適用される。
+  const normalized = normalizeBoldLabelLines(content);
+  const lines = normalized.split('\n');
   const htmlLines: string[] = [];
   let currentParagraph: string[] = [];
   let h2Count = 0;

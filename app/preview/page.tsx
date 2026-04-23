@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState, useEffect, Suspense } from 'react'
 import StepIndicator from '@/components/editor/StepIndicator'
 import type { Step } from '@/lib/types'
 import { getSupervisorBlockHtml } from '@/lib/supervisorBlock'
+import { normalizeBoldLabelLines } from '@/lib/contentFormat'
 
 const DUMMY_ARTICLES = [
   {
@@ -64,6 +65,10 @@ function insertCtaBannersForPreview(html: string): string {
 }
 
 function formatContent(content: string, imageUrl: string): string {
+  // 「**ラベル：本文**」のような太字ラップ行を見出し+段落に正規化してから
+  // 既存の行単位パースへ流す（公開時の WordPress 変換と同じ事前処理）。
+  const normalized = normalizeBoldLabelLines(content)
+
   const imageHtml = imageUrl
     ? `<img src="${imageUrl}" style="width:100%;height:auto;margin-bottom:32px;display:block;" alt="" />`
     : ''
@@ -71,7 +76,9 @@ function formatContent(content: string, imageUrl: string): string {
   const supervisorBlock = getSupervisorBlockHtml(SUPERVISOR_FACE_IMAGE_URL)
 
   const H2_STYLE = "font-size:22px;font-weight:900;margin:48px 0 16px;padding-bottom:8px;border-bottom:3px solid #0e357f;font-family:'Noto Sans JP',sans-serif;"
-  const H3_STYLE = 'font-size:18px;font-weight:400;margin:32px 0 12px;color:#111;'
+  // NAS プレビューでも NTS サイトと同じ見出し下線を出すため、h3 にも
+  // 細めの下線（#0e357f）を付けて「1-1. 見出し」の視認性を上げる。
+  const H3_STYLE = "font-size:18px;font-weight:700;margin:32px 0 12px;padding-bottom:6px;border-bottom:1px solid #0e357f;color:#0e357f;font-family:'Noto Sans JP',sans-serif;"
   const P_STYLE = 'margin-bottom:1.6em;'
 
   const applyInlineFormatting = (text: string): string =>
@@ -81,7 +88,7 @@ function formatContent(content: string, imageUrl: string): string {
       .replace(/(?<!\*)\*(?!\*)([^*]+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
       .replace(/\*\*/g, '')
 
-  const lines = content.split('\n')
+  const lines = normalized.split('\n')
   const htmlLines: string[] = []
   let currentParagraph: string[] = []
 

@@ -120,6 +120,20 @@ function formatContent(content: string, imageUrl: string): string {
       continue
     }
 
+    // 行全体が **...** だけ（末尾の句読点・コロンは許容）の場合は h3 に昇格。
+    // 例: "**M&Aの目的設定と戦略立案：...**" のような太字ラベル行が連続するパターンを
+    // 段落ではなく見出しとしてレンダリングし、投稿できる体裁を保つための後処理。
+    if (/^\*\*[^*\n]+\*\*[\s　]*[：:。．.、,]?[\s　]*$/.test(trimmed) && currentParagraph.length === 0) {
+      const text = trimmed
+        .replace(/^\*\*/, '')
+        .replace(/\*\*[\s　]*[：:。．.、,]?[\s　]*$/, '')
+        .trim()
+      if (text) {
+        htmlLines.push(`<h3 style="${H3_STYLE}">${text}</h3>`)
+        continue
+      }
+    }
+
     currentParagraph.push(trimmed)
   }
 

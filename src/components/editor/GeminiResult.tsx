@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
  import StepIndicator from './StepIndicator'
  import Button from '@/components/ui/Button'
  import GeminiLoadingCard from './GeminiLoadingCard'
- import { ArrowLeft, ArrowRight, ClipboardCopy, Check, CheckCircle } from 'lucide-react'
+ import { ArrowLeft, ArrowRight, ClipboardCopy, Check, CheckCircle, Eraser } from 'lucide-react'
 
  interface GeminiResultProps {
    article: ArticleData
@@ -53,6 +53,25 @@ import { useState, useEffect } from 'react'
     await navigator.clipboard.writeText(refinedContent)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // マークダウン強調 **...** / *...* を本文から一括除去する。
+  // 見出し記号（1. / 1-1. / ■ など）は触らず、内側のテキストだけ残す。
+  const handleStripBold = () => {
+    if (!refinedContent) return
+    let cleaned = refinedContent
+    let prev = ''
+    while (cleaned !== prev) {
+      prev = cleaned
+      cleaned = cleaned.replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+    }
+    cleaned = cleaned
+      .replace(/\*\*/g, '')
+      .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '$1')
+      .replace(/\*/g, '')
+    if (cleaned !== refinedContent) {
+      onRefinedContentChange(cleaned)
+    }
   }
 
   return (
@@ -156,27 +175,43 @@ import { useState, useEffect } from 'react'
                        AI推敲済み
                      </span>
                    </div>
-                   <button
-                     onClick={handleCopy}
-                     className="
-                       inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                       border border-[#E2E8F0] text-[#1B2A4A]
-                       hover:bg-[#1B2A4A] hover:text-white hover:border-[#1B2A4A]
-                       transition-colors
-                     "
-                   >
-                     {copied ? (
-                       <>
-                         <Check size={13} className="text-green-500" />
-                         コピー済み
-                       </>
-                     ) : (
-                       <>
-                         <ClipboardCopy size={13} />
-                         全文コピー
-                       </>
-                     )}
-                   </button>
+                   <div className="flex items-center gap-2">
+                     <button
+                       type="button"
+                       onClick={handleStripBold}
+                       title="本文中の ** / * （マークダウン強調）を全て削除します"
+                       className="
+                         inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                         border border-[#E2E8F0] text-[#1B2A4A]
+                         hover:bg-amber-50 hover:text-[#B45309] hover:border-amber-300
+                         transition-colors
+                       "
+                     >
+                       <Eraser size={13} />
+                       ** を一括削除
+                     </button>
+                     <button
+                       onClick={handleCopy}
+                       className="
+                         inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                         border border-[#E2E8F0] text-[#1B2A4A]
+                         hover:bg-[#1B2A4A] hover:text-white hover:border-[#1B2A4A]
+                         transition-colors
+                       "
+                     >
+                       {copied ? (
+                         <>
+                           <Check size={13} className="text-green-500" />
+                           コピー済み
+                         </>
+                       ) : (
+                         <>
+                           <ClipboardCopy size={13} />
+                           全文コピー
+                         </>
+                       )}
+                     </button>
+                   </div>
                  </div>
                  <div className="px-5 py-3 border-b border-[#E2E8F0]">
                    <label className="block text-xs font-semibold text-[#16A34A] uppercase tracking-wider mb-1.5">

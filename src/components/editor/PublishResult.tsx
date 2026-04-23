@@ -5,7 +5,7 @@ import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon, Tag } from 'lucide-react'
+import { ArrowLeft, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Type, Link as LinkIcon, Tag, Eraser } from 'lucide-react'
 import { maAdvisorDateFallbackSlug, resolveCanonicalPostSlug } from '@/lib/slugNormalize'
 import type { WordPressPublishChoice } from '@/lib/wordpressPublishChoice'
 import WordPressTagsField from '@/components/editor/WordPressTagsField'
@@ -295,7 +295,38 @@ export default function PublishResult({
                   <div className="flex items-start gap-3">
                     <FileText size={16} className="text-[#64748B] mt-0.5 flex-shrink-0" />
                     <div className="w-full">
-                      <p className="text-xs font-mono text-[#64748B] mb-0.5">本文（最終確認・編集可）</p>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <p className="text-xs font-mono text-[#64748B]">本文（最終確認・編集可）</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!finalContent) return
+                            let cleaned = finalContent
+                            let prev = ''
+                            while (cleaned !== prev) {
+                              prev = cleaned
+                              cleaned = cleaned.replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+                            }
+                            cleaned = cleaned
+                              .replace(/\*\*/g, '')
+                              .replace(/(?<!\*)\*(?!\*)([^*\n]+?)(?<!\*)\*(?!\*)/g, '$1')
+                              .replace(/\*/g, '')
+                            if (cleaned !== finalContent) {
+                              onRefinedContentChange?.(cleaned)
+                            }
+                          }}
+                          title="本文中の ** / * （マークダウン強調）を全て削除します"
+                          className="
+                            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold
+                            border border-[#E2E8F0] text-[#1B2A4A]
+                            hover:bg-amber-50 hover:text-[#B45309] hover:border-amber-300
+                            transition-colors
+                          "
+                        >
+                          <Eraser size={12} />
+                          ** を一括削除
+                        </button>
+                      </div>
                       <textarea
                         value={finalContent}
                         onChange={e => onRefinedContentChange?.(e.target.value)}

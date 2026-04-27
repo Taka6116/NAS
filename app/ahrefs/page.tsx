@@ -7,7 +7,6 @@ import type { DatasetMeta } from '@/lib/ahrefsCsvParser'
 import {
   analyzeKeywords,
   detectTrends,
-  getCategoryCounts,
   mergeAndAnalyze,
   mergeAndAnalyzeOrganic,
   type ScoredKeyword,
@@ -24,6 +23,7 @@ import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, ChevronDown } f
 
 type TabKey = 'opportunity' | 'organic' | 'trends'
 const PAGE_SIZE = 50
+const MEMO_STORAGE_KEY = 'nas_ahrefs_keyword_memos_v1'
 
 /** Ahrefs 各列の説明（ⓘ でポータル表示） */
 const AHREFS_COLUMN_HINTS = {
@@ -35,11 +35,8 @@ const AHREFS_COLUMN_HINTS = {
     '狙い目KW：ボリューム・KD・スコア・SVトレンドから算出した優先度です。',
   priorityOrganic:
     '競合KW：順位・流入変動・ボリューム・SVトレンドから算出します（KD は使いません）。',
-  scoreKeywords: '狙い目KW：新規獲得向けの機会スコア（アプリ内計算）。',
-  scoreOrganic:
-    '競合KW：順位・流入変動・ボリュームから算出する施策スコア（アプリ内計算）。',
   trend: 'SV Trend 列から算出した、検索ボリューム推移の上昇・下降の傾向。',
-  category: 'Ahrefs のカテゴリ列、またはルールベースで付与したテーマ分類。',
+  memo: 'ユーザーが自由に入力できるメモ欄です。同じブラウザ内に自動保存されます。',
   position: 'オーガニック検索での現在の順位（Site Explorer）。',
   trafficChange: '推定オーガニックトラフィックの前回比の変化。',
   action:
@@ -55,12 +52,12 @@ export default function AhrefsPage() {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('opportunity')
-  const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState<'all' | PriorityLevel>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showCount, setShowCount] = useState(PAGE_SIZE)
   const [error, setError] = useState<string | null>(null)
   const [savedArticles, setSavedArticles] = useState<Awaited<ReturnType<typeof getAllArticles>>>([])
+  const [keywordMemos, setKeywordMemos] = useState<Record<string, string>>({})
 
   const refreshSavedArticles = useCallback(async () => {
     setSavedArticles(await getAllArticles())
@@ -69,6 +66,19 @@ export default function AhrefsPage() {
   useEffect(() => {
     void refreshSavedArticles()
   }, [refreshSavedArticles])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MEMO_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        setKeywordMemos(parsed as Record<string, string>)
+      }
+    } catch {
+      setKeywordMemos({})
+    }
+  }, [])
 
   useEffect(() => {
     const onVis = () => {
@@ -82,6 +92,33 @@ export default function AhrefsPage() {
     () => buildKeywordWpEntriesByKeyword(savedArticles),
     [savedArticles],
   )
+
+  const getMemoKey = useCallback((tab: TabKey, keyword: string) => {
+    return `${tab}:${normalizeKeywordForArticleMatch(keyword)}`
+  }, [])
+
+  const getKeywordMemo = useCallback(
+    (tab: TabKey, keyword: string) => keywordMemos[getMemoKey(tab, keyword)] ?? '',
+    [getMemoKey, keywordMemos],
+  )
+
+  const handleMemoChange = useCallback((tab: TabKey, keyword: string, value: string) => {
+    const key = getMemoKey(tab, keyword)
+    setKeywordMemos(prev => {
+      const next = { ...prev }
+      if (value.trim()) {
+        next[key] = value
+      } else {
+        delete next[key]
+      }
+      try {
+        localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // localStorage が使えない環境でも画面上の入力は維持する
+      }
+      return next
+    })
+  }, [getMemoKey])
 
   const fetchData = useCallback(async () => {
     try {
@@ -159,7 +196,6 @@ export default function AhrefsPage() {
   useEffect(() => {
     setShowCount(PAGE_SIZE)
     setSelectedPriority('all')
-    setSelectedCategory('all')
   }, [activeTab])
 
   // Filter & search
@@ -168,19 +204,16 @@ export default function AhrefsPage() {
     if (selectedPriority !== 'all') {
       data = data.filter(k => k.priority === selectedPriority)
     }
-    if (selectedCategory !== 'all') {
-      data = data.filter(k => k.detectedCategory === selectedCategory)
-    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim()
       data = data.filter(k =>
         k.keyword.toLowerCase().includes(q) ||
-        k.detectedCategory.toLowerCase().includes(q) ||
-        k.parentTopic.toLowerCase().includes(q)
+        k.parentTopic.toLowerCase().includes(q) ||
+        getKeywordMemo(activeTab, k.keyword).toLowerCase().includes(q)
       )
     }
     return data
-  }, [activeData, selectedPriority, selectedCategory, searchQuery])
+  }, [activeData, activeTab, getKeywordMemo, selectedPriority, searchQuery])
 
   const displayed = filtered.slice(0, showCount)
 
@@ -189,9 +222,6 @@ export default function AhrefsPage() {
   const p3Count = activeData.filter(k => k.priority === 3).length
   const p2Count = activeData.filter(k => k.priority === 2).length
   const trendUpCount = activeData.filter(k => k.trend === 'up').length
-
-  const categoryCounts = useMemo(() => getCategoryCounts(activeData), [activeData])
-  const categoryList = useMemo(() => Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]), [categoryCounts])
 
   const isOrganicTab = activeTab === 'organic'
 
@@ -458,35 +488,6 @@ ${row.keyword}
             ))}
           </div>
 
-          {/* Category filter */}
-          {categoryList.length > 1 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  selectedCategory === 'all'
-                    ? 'bg-[#002C93] text-white border-[#002C93]'
-                    : 'bg-white text-[#64748B] border-[#E2E8F0] hover:border-[#002C93] hover:text-[#002C93]'
-                }`}
-              >
-                すべて
-              </button>
-              {categoryList.map(([cat, count]) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    selectedCategory === cat
-                      ? 'bg-[#002C93] text-white border-[#002C93]'
-                      : 'bg-white text-[#64748B] border-[#E2E8F0] hover:border-[#002C93] hover:text-[#002C93]'
-                  }`}
-                >
-                  {cat} ({count})
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Tabs */}
           <div className="flex gap-6 mb-4 border-b border-[#E2E8F0]">
             {([
@@ -515,7 +516,7 @@ ${row.keyword}
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="キーワードを検索..."
+              placeholder="キーワード・メモを検索..."
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#E2E8F0] text-sm text-[#1A1A2E] bg-white focus:outline-none focus:ring-2 focus:ring-[#002C93]/20 focus:border-[#002C93]"
             />
           </div>
@@ -532,23 +533,21 @@ ${row.keyword}
                       <col style={{ width: '5%' }} />
                       <col style={{ width: '7%' }} />
                       <col style={{ width: '8%' }} />
-                      <col style={{ width: '7%' }} />
                       <col style={{ width: '8%' }} />
-                      <col style={{ width: '12%' }} />
-                      <col style={{ width: '5%' }} />
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '6%' }} />
                       <col style={{ width: '7%' }} />
                       <col style={{ width: '16%' }} />
                     </>
                   ) : (
                     <>
-                      <col style={{ width: '21%' }} />
+                      <col style={{ width: '24%' }} />
                       <col style={{ width: '8%' }} />
                       <col style={{ width: '5%' }} />
                       <col style={{ width: '8%' }} />
                       <col style={{ width: '9%' }} />
-                      <col style={{ width: '8%' }} />
                       <col style={{ width: '9%' }} />
-                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '20%' }} />
                       <col style={{ width: '17%' }} />
                     </>
                   )}
@@ -585,12 +584,6 @@ ${row.keyword}
                         <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.priorityOrganic : AHREFS_COLUMN_HINTS.priorityKeywords} />
                       </span>
                     </th>
-                    <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
-                      <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">
-                        スコア
-                        <ColumnHint text={isOrganicTab ? AHREFS_COLUMN_HINTS.scoreOrganic : AHREFS_COLUMN_HINTS.scoreKeywords} />
-                      </span>
-                    </th>
                     <th className="text-center px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
                       <span className="inline-flex items-center justify-center gap-0.5 whitespace-nowrap">
                         トレンド
@@ -599,8 +592,8 @@ ${row.keyword}
                     </th>
                     <th className="text-left px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
                       <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
-                        カテゴリ
-                        <ColumnHint text={AHREFS_COLUMN_HINTS.category} />
+                        メモ
+                        <ColumnHint text={AHREFS_COLUMN_HINTS.memo} />
                       </span>
                     </th>
                     {isOrganicTab && (
@@ -630,7 +623,7 @@ ${row.keyword}
                 <tbody>
                   {displayed.length === 0 ? (
                     <tr>
-                      <td colSpan={isOrganicTab ? 11 : 9} className="px-4 py-12 text-center text-[#94A3B8]">
+                      <td colSpan={isOrganicTab ? 10 : 8} className="px-4 py-12 text-center text-[#94A3B8]">
                         該当するキーワードがありません
                       </td>
                     </tr>
@@ -639,6 +632,7 @@ ${row.keyword}
                       const kwKey = normalizeKeywordForArticleMatch(row.keyword)
                       const wpEntries = keywordWpMap.get(kwKey)
                       const kwLabel = keywordActionButtonLabel(wpEntries)
+                      const memo = getKeywordMemo(activeTab, row.keyword)
                       return (
                       <tr key={`${row.keyword}-${i}`} className="border-b border-[#F1F5F9] hover:bg-[#FAFBFC] transition-colors">
                         <td className="px-2 py-2 font-medium text-[#1A1A2E] max-w-0">
@@ -650,12 +644,15 @@ ${row.keyword}
                         </td>
                         <td className="px-1.5 py-2 text-right tabular-nums">¥{Math.round(row.cpc).toLocaleString()}</td>
                         <td className="px-1.5 py-2 text-center"><PriorityBadge level={row.priority} compact /></td>
-                        <td className="px-1.5 py-2 text-right tabular-nums font-medium">{row.score}</td>
                         <td className="px-1.5 py-2 text-center"><TrendBadge trend={row.trend} percent={row.trendPercent} /></td>
-                        <td className="px-1.5 py-2 text-left max-w-0">
-                          <span className="inline-block max-w-full truncate align-middle px-1.5 py-0.5 rounded text-[11px] bg-[#F1F5F9] text-[#475569]" title={row.detectedCategory}>
-                            {row.detectedCategory}
-                          </span>
+                        <td className="px-1.5 py-2 text-left align-top">
+                          <textarea
+                            value={memo}
+                            onChange={e => handleMemoChange(activeTab, row.keyword, e.target.value)}
+                            placeholder="メモを入力..."
+                            rows={2}
+                            className="w-full min-h-[44px] resize-y rounded-md border border-[#E2E8F0] bg-white px-2 py-1 text-[11px] leading-snug text-[#1A1A2E] placeholder-[#CBD5E1] focus:outline-none focus:ring-2 focus:ring-[#002C93]/20 focus:border-[#002C93]"
+                          />
                         </td>
                         {isOrganicTab && (
                           <>

@@ -81,7 +81,7 @@ function buildCtaBannerHtml(): string {
   const imageUrl = getCtaBannerImageUrl();
   return `<div style="text-align:center;margin:40px 0;padding:0;">
   <a href="https://nihon-teikei.co.jp/contact/" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;">
-    <img src="${imageUrl}" alt="M&Aの専門家に無料で相談してみる - 03-6455-2940（10:00〜20:00 年中無休）" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" />
+    <img src="${imageUrl}" alt="M&Aの専門家に無料で相談してみる - 03-6667-0221（10:00〜20:00 年中無休）" style="max-width:100%;width:700px;height:auto;border:none;border-radius:8px;" loading="lazy" />
   </a>
 </div>`;
 }

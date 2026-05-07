@@ -53,6 +53,15 @@ function isAlreadyHeading(trimmed: string): boolean {
   )
 }
 
+/** `https://...` のような URL スキーム由来のコロンかどうかを判定する */
+function isUrlSchemeColon(source: string, colonIdx: number, body: string): boolean {
+  const label = source.slice(0, colonIdx).trim().toLowerCase()
+  // 例: 「導入事例はこちらから https://...」で split されると label が "... https" になり、body が "//..." になる
+  if (label.endsWith('http') || label.endsWith('https')) return true
+  if (body.startsWith('//')) return true
+  return false
+}
+
 /**
  * 本文テキスト中の「ラベル形式行」を「■ ラベル」+ 段落に正規化する。
  *
@@ -121,6 +130,10 @@ export function normalizeBoldLabelLines(content: string): string {
         if (colonIdx > 0) {
           const label = trimmed.slice(0, colonIdx).trim()
           const body = trimmed.slice(colonIdx + 1).trim()
+          if (isUrlSchemeColon(trimmed, colonIdx, body)) {
+            out.push(line)
+            continue
+          }
           // ラベル部分が完結した文章（句点・文末表現）で終わっていたら通常段落とみなす。
           // 本文側（body）が「〜ます。」で終わるのは正常なので行全体では判定しない。
           const labelEndsSentence =

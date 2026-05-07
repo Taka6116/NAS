@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
-import { SavedKeyword, getAllKeywords, saveKeyword, deleteKeyword } from '@/lib/keywordStorage'
+import { Plus, Pencil, Trash2, X, Check, Loader2 } from 'lucide-react'
+import { SavedKeyword, getAllKeywords, saveKeyword, deleteKeyword, migrateOldLocalStorageToS3 } from '@/lib/keywordStorage'
 import Button from '@/components/ui/Button'
 
 export default function KeywordsPage() {
@@ -12,11 +12,19 @@ export default function KeywordsPage() {
   const [editContent, setEditContent] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<SavedKeyword | null>(null)
 
   useEffect(() => {
-    setKeywords(getAllKeywords())
     setMounted(true)
+    void (async () => {
+      // 旧 localStorage からのマイグレーション（初回のみ）
+      await migrateOldLocalStorageToS3()
+      const kws = await getAllKeywords()
+      setKeywords(kws)
+      setLoading(false)
+    })()
   }, [])
 
   if (!mounted) return null
@@ -40,31 +48,41 @@ export default function KeywordsPage() {
     setEditingId(null)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editTitle.trim() || !editContent.trim()) return
-    saveKeyword({
-      id: editingId || undefined,
-      title: editTitle.trim(),
-      content: editContent.trim(),
-    })
-    setKeywords(getAllKeywords())
-    setIsCreating(false)
-    setEditingId(null)
+    setSaving(true)
+    try {
+      const updated = await saveKeyword({
+        id: editingId ?? undefined,
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+      setKeywords(updated)
+    } finally {
+      setSaving(false)
+      setIsCreating(false)
+      setEditingId(null)
+    }
   }
 
   const handleRequestDelete = (k: SavedKeyword) => {
     setDeleteTarget(k)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return
-    deleteKeyword(deleteTarget.id)
-    setKeywords(getAllKeywords())
-    if (editingId === deleteTarget.id) {
-      setEditingId(null)
-      setIsCreating(false)
+    setSaving(true)
+    try {
+      const updated = await deleteKeyword(deleteTarget.id)
+      setKeywords(updated)
+      if (editingId === deleteTarget.id) {
+        setEditingId(null)
+        setIsCreating(false)
+      }
+    } finally {
+      setSaving(false)
+      setDeleteTarget(null)
     }
-    setDeleteTarget(null)
   }
 
   const handleCloseDeleteModal = () => {
@@ -79,7 +97,7 @@ export default function KeywordsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#1A1A2E] mb-2">キーワードライブラリ</h1>
           <p className="text-sm text-[#64748B]">
-            よく使うキーワードを保存して、一次執筆でいつでも呼び出せるように管理します。
+            よく使うキーワードを保存して、一次執筆でいつでも呼び出せるように管理します。クラウドに保存されるため端末をまたいで利用できます。
           </p>
         </div>
         {!isEditorOpen && (
@@ -128,8 +146,16 @@ export default function KeywordsPage() {
               <Button variant="ghost" onClick={handleCancel}>
                 キャンセル
               </Button>
-              <Button variant="primary" disabled={!editTitle.trim() || !editContent.trim()} onClick={handleSave}>
-                <Check size={18} className="mr-2" />
+              <Button
+                variant="primary"
+                disabled={!editTitle.trim() || !editContent.trim() || saving}
+                onClick={() => void handleSave()}
+              >
+                {saving ? (
+                  <Loader2 size={18} className="mr-2 animate-spin" />
+                ) : (
+                  <Check size={18} className="mr-2" />
+                )}
                 保存する
               </Button>
             </div>
@@ -138,7 +164,12 @@ export default function KeywordsPage() {
       )}
 
       <div className="space-y-4">
-        {keywords.length === 0 && !isEditorOpen ? (
+        {loading ? (
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-12 flex items-center justify-center gap-3 text-[#64748B]">
+            <Loader2 size={20} className="animate-spin" />
+            <span>読み込み中...</span>
+          </div>
+        ) : keywords.length === 0 && !isEditorOpen ? (
           <div className="bg-white border border-[#E2E8F0] rounded-xl p-12 text-center text-[#64748B]">
             保存されているキーワードセットはありません。
           </div>
@@ -195,7 +226,8 @@ export default function KeywordsPage() {
               <Button variant="ghost" onClick={handleCloseDeleteModal}>
                 キャンセル
               </Button>
-              <Button variant="primary" onClick={handleConfirmDelete}>
+              <Button variant="primary" disabled={saving} onClick={() => void handleConfirmDelete()}>
+                {saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
                 削除する
               </Button>
             </div>

@@ -43,7 +43,7 @@ export default function ArticleInput({
 
   const reloadLibraries = useCallback(() => {
     setSavedPrompts(getAllPrompts())
-    setSavedKeywords(getAllKeywords())
+    void getAllKeywords().then(setKeywords => setSavedKeywords(setKeywords))
   }, [])
 
   useEffect(() => {

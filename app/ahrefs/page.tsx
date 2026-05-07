@@ -20,10 +20,10 @@ import {
 } from '@/lib/keywordPublishIndex'
 import { ColumnHint } from '@/components/ui/ColumnHint'
 import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, ChevronDown } from 'lucide-react'
+import { loadMemos, saveMemos, migrateLocalStorageToS3 } from '@/lib/keywordMemoStorage'
 
 type TabKey = 'opportunity' | 'organic' | 'trends'
 const PAGE_SIZE = 50
-const MEMO_STORAGE_KEY = 'nas_ahrefs_keyword_memos_v1'
 
 /** Ahrefs 各列の説明（ⓘ でポータル表示） */
 const AHREFS_COLUMN_HINTS = {
@@ -36,7 +36,7 @@ const AHREFS_COLUMN_HINTS = {
   priorityOrganic:
     '競合KW：順位・流入変動・ボリューム・SVトレンドから算出します（KD は使いません）。',
   trend: 'SV Trend 列から算出した、検索ボリューム推移の上昇・下降の傾向。',
-  memo: 'ユーザーが自由に入力できるメモ欄です。同じブラウザ内に自動保存されます。',
+  memo: 'ユーザーが自由に入力できるメモ欄です。クラウド（S3）に自動保存されるため、端末・ブラウザをまたいで参照できます。',
   position: 'オーガニック検索での現在の順位（Site Explorer）。',
   trafficChange: '推定オーガニックトラフィックの前回比の変化。',
   action:
@@ -68,16 +68,12 @@ export default function AhrefsPage() {
   }, [refreshSavedArticles])
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(MEMO_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setKeywordMemos(parsed as Record<string, string>)
-      }
-    } catch {
-      setKeywordMemos({})
-    }
+    void (async () => {
+      const s3Memos = await loadMemos()
+      // localStorage に残っている古いデータがあれば S3 にマイグレーション
+      const merged = await migrateLocalStorageToS3(s3Memos)
+      setKeywordMemos(merged)
+    })()
   }, [])
 
   useEffect(() => {
@@ -111,11 +107,8 @@ export default function AhrefsPage() {
       } else {
         delete next[key]
       }
-      try {
-        localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(next))
-      } catch {
-        // localStorage が使えない環境でも画面上の入力は維持する
-      }
+      // S3 に保存（debounce 1.5秒・localStorage キャッシュも同時更新）
+      saveMemos(next)
       return next
     })
   }, [getMemoKey])

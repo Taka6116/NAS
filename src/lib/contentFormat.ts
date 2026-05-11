@@ -113,6 +113,38 @@ export function normalizeBoldLabelLines(content: string): string {
       }
     }
 
+    // ─── パターン D: 記号付き「■ ラベル：本文」行 ───
+    // 例: "■ 準備：買い手から依頼を受け..." を
+    //     "■ 準備" + 段落本文 に分割して、長文見出し化を防ぐ
+    const markerMatch = trimmed.match(/^[■▶◆●▼]\s*(.+)$/)
+    if (markerMatch) {
+      const inner = markerMatch[1]!.trim()
+      const colonIdx = findTopLevelColon(inner)
+      if (colonIdx > 0) {
+        const label = inner.slice(0, colonIdx).trim()
+        const body = inner.slice(colonIdx + 1).trim()
+        if (!isUrlSchemeColon(inner, colonIdx, body)) {
+          const labelEndsSentence =
+            /(?:です|ます|ません|でした|ました|でしょう|ましょう)[。．]?$/.test(label) ||
+            /[。．]$/.test(label)
+          if (isValidLabel(label) && body && !labelEndsSentence) {
+            if (out.length > 0 && out[out.length - 1]!.trim() !== '') out.push('')
+            out.push(`■ ${label}`)
+            out.push('')
+            out.push(body)
+            out.push('')
+            continue
+          }
+        }
+      }
+
+      // コロンなしでも長文の記号行は見出しではなく通常段落として扱う
+      if (inner.length >= 40 || /[。．]$/.test(inner)) {
+        out.push(inner)
+        continue
+      }
+    }
+
     // ─── パターン C: 素の「ラベル：本文」行（太字なし）───
     // 変換条件:
     //   1. 既に見出し形式でない

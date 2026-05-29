@@ -1,6 +1,6 @@
 'use client'
 
-import { ButtonHTMLAttributes, ReactNode } from 'react'
+import { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 
 type ButtonVariant = 'primary' | 'ghost' | 'navy'
 
@@ -11,13 +11,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-const variantStyles: Record<ButtonVariant, string> = {
-  primary:
-    'bg-[#C0392B] text-white hover:bg-[#a93226] border border-[#C0392B] hover:border-[#a93226]',
-  ghost:
-    'bg-transparent text-[#1B2A4A] border border-[#E2E8F0] hover:bg-[#F5F7FA] hover:border-[#1B2A4A]',
-  navy:
-    'bg-[#1B2A4A] text-white hover:bg-[#2C3E6B] border border-[#1B2A4A] hover:border-[#2C3E6B]',
+const gradientBase: CSSProperties = {
+  background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)',
+  border: 'none',
+  boxShadow: '0 4px 15px rgba(0,85,255,0.35), inset 0 1px 0 rgba(255,255,255,0.25)',
+}
+
+const navyGradientBase: CSSProperties = {
+  background: 'linear-gradient(135deg, #001250 0%, #002C93 60%, #0047C8 100%)',
+  border: 'none',
+  boxShadow: '0 4px 14px rgba(0,44,147,0.40), inset 0 1px 0 rgba(255,255,255,0.15)',
+}
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: 'text-white hover:brightness-110 active:brightness-95 active:scale-[0.98]',
+  ghost: 'bg-transparent text-[#1B2A4A] border border-[#E2E8F0] hover:bg-[#F5F7FA] hover:border-[#1B2A4A]',
+  navy: 'text-white hover:brightness-110 active:brightness-95 active:scale-[0.98]',
 }
 
 const sizeStyles = {
@@ -33,20 +42,29 @@ export default function Button({
   loading = false,
   disabled,
   className = '',
+  style,
   ...props
 }: ButtonProps) {
   const isDisabled = disabled || loading
+
+  const inlineStyle: CSSProperties =
+    variant === 'primary'
+      ? gradientBase
+      : variant === 'navy'
+        ? navyGradientBase
+        : {}
 
   return (
     <button
       {...props}
       disabled={isDisabled}
+      style={{ ...inlineStyle, ...style }}
       className={`
         inline-flex items-center justify-center gap-2
         font-semibold rounded-lg
         transition-all duration-150
         cursor-pointer select-none
-        ${variantStyles[variant]}
+        ${variantClasses[variant]}
         ${sizeStyles[size]}
         ${isDisabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}
         ${className}

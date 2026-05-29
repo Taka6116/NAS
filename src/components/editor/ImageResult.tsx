@@ -7,7 +7,7 @@ import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Sparkles, Upload, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Upload, Loader2 } from 'lucide-react'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
 
 interface ImageResultProps {
@@ -272,7 +272,11 @@ function PreviewNavigationOverlay() {
               transform="rotate(-90 50 50)"
             />
           </svg>
-          <Sparkles className="relative w-8 h-8 text-[#1B2A4A]" strokeWidth={1.75} aria-hidden />
+          <div
+            className="relative w-8 h-8 rounded-full"
+            style={{ background: 'linear-gradient(135deg, rgba(0,85,255,0.18) 0%, rgba(0,180,255,0.22) 100%)' }}
+            aria-hidden
+          />
         </div>
         <h2 className="text-lg sm:text-xl font-bold text-[#1A1A2E] tracking-tight leading-snug">
           下書き保存とプレビューを作成中です
@@ -281,7 +285,7 @@ function PreviewNavigationOverlay() {
           そのままお待ちください。完了するとプレビュー画面へ移動します。
         </p>
         <p className="mt-6 flex items-center justify-center gap-2 text-xs text-[#64748B]">
-          <Loader2 className="w-4 h-4 animate-spin text-[#1B2A4A]/80 shrink-0" aria-hidden />
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: '#0055ff' }} aria-hidden />
           <span>処理中…</span>
         </p>
       </div>
@@ -328,7 +332,11 @@ function ImageGenerationLoader() {
               transform="rotate(-90 50 50)"
             />
           </svg>
-          <Sparkles className="relative w-9 h-9 text-[#1B2A4A]" strokeWidth={1.75} aria-hidden />
+          <div
+            className="relative w-9 h-9 rounded-full"
+            style={{ background: 'linear-gradient(135deg, rgba(0,85,255,0.15) 0%, rgba(0,180,255,0.20) 100%)' }}
+            aria-hidden
+          />
         </div>
 
         <h2 className="text-lg sm:text-xl font-bold text-[#1A1A2E] leading-snug tracking-tight">

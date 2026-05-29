@@ -615,8 +615,11 @@ function EditorContent() {
         <button
           type="button"
           onClick={handleNewArticle}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: '#1B2A4A', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all duration-150 hover:brightness-110 active:scale-[0.98]"
+          style={{
+            background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)',
+            boxShadow: '0 4px 15px rgba(0,85,255,0.35), inset 0 1px 0 rgba(255,255,255,0.25)',
+          }}
         >
           <Plus size={16} />
           新規作成

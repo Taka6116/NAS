@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
 
 const STEPS = [
   { label: '記事を読み込んでいます',      detail: '文章構造・段落・キーワードを解析中...' },
@@ -18,7 +17,7 @@ export default function GeminiLoadingCard() {
   useEffect(() => {
     const stepTimer = setInterval(() => {
       setActiveStep(prev => (prev < STEPS.length - 1 ? prev + 1 : prev))
-    }, 4000) // 2200から4000に延長して、最後のステップ到達を遅らせる
+    }, 4000)
     return () => clearInterval(stepTimer)
   }, [])
 
@@ -27,7 +26,6 @@ export default function GeminiLoadingCard() {
       setProgress(prev => {
         if (prev >= 98) return 98
         const remaining = 98 - prev
-        // 50%以降はスピードを落とし、98%で長く止まらないようにする
         let step: number
         if (prev >= 80) {
           step = Math.max(0.03, remaining * 0.008)
@@ -60,18 +58,19 @@ export default function GeminiLoadingCard() {
         boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.06)',
       }}
     >
-      {/* 上部：アイコン + タイトル */}
+      {/* 上部：タイトル */}
       <div
         className="px-8 pt-10 pb-6 flex flex-col items-center text-center"
-        style={{ background: 'linear-gradient(180deg, #F8FAFC 0%, white 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #EFF6FF 0%, white 100%)' }}
       >
+        {/* グラデーション二重リング（アイコンなし） */}
         <div className="relative w-20 h-20 mb-5">
           <div
             className="absolute inset-0 rounded-full"
             style={{
               border: '2px solid transparent',
-              borderTopColor: '#C0392B',
-              borderRightColor: '#C0392B40',
+              borderTopColor: '#0055ff',
+              borderRightColor: 'rgba(0,85,255,0.25)',
               animation: 'spin 1.2s linear infinite',
             }}
           />
@@ -79,24 +78,25 @@ export default function GeminiLoadingCard() {
             className="absolute inset-2 rounded-full"
             style={{
               border: '2px solid transparent',
-              borderTopColor: '#1B2A4A',
-              borderLeftColor: '#1B2A4A40',
+              borderTopColor: '#00b4ff',
+              borderLeftColor: 'rgba(0,180,255,0.25)',
               animation: 'spin 2s linear infinite reverse',
             }}
           />
           <div
-            className="absolute inset-4 rounded-full flex items-center justify-center"
-            style={{ background: '#FDF0EE' }}
-          >
-            <Sparkles size={20} style={{ color: '#C0392B' }} />
-          </div>
+            className="absolute inset-5 rounded-full"
+            style={{
+              background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)',
+              opacity: 0.15,
+            }}
+          />
         </div>
 
         <h3 className="text-lg font-bold mb-1" style={{ color: '#1A1A2E' }}>
-          Gemini が記事を推敲中{dots}
+          AI が記事を推敲中{dots}
         </h3>
         <p className="text-sm" style={{ color: '#64748B' }}>
-          AIが品質・読みやすさ・SEOを自動改善しています
+          品質・読みやすさ・SEOを自動改善しています
         </p>
       </div>
 
@@ -116,8 +116,12 @@ export default function GeminiLoadingCard() {
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-300"
                 style={{
-                  background: isDone ? '#1B2A4A' : isActive ? '#FDF0EE' : '#F1F5F9',
-                  border: isActive ? '2px solid #C0392B' : 'none',
+                  background: isDone
+                    ? 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)'
+                    : isActive
+                    ? 'rgba(0,85,255,0.08)'
+                    : '#F1F5F9',
+                  border: isActive ? '2px solid #0055ff' : 'none',
                 }}
               >
                 {isDone ? (
@@ -127,7 +131,10 @@ export default function GeminiLoadingCard() {
                 ) : isActive ? (
                   <div
                     className="w-2 h-2 rounded-full"
-                    style={{ background: '#C0392B', animation: 'pulse 1s ease infinite' }}
+                    style={{
+                      background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)',
+                      animation: 'pulse 1s ease infinite',
+                    }}
                   />
                 ) : (
                   <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#CBD5E1' }} />
@@ -142,8 +149,8 @@ export default function GeminiLoadingCard() {
                   {step.label}
                   {isDone && (
                     <span
-                      className="ml-2 text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: '#F0FDF4', color: '#16A34A', fontFamily: 'DM Mono' }}
+                      className="ml-2 text-xs px-2 py-0.5 rounded-full font-mono"
+                      style={{ background: '#EFF6FF', color: '#0055ff' }}
                     >
                       完了
                     </span>
@@ -166,22 +173,22 @@ export default function GeminiLoadingCard() {
       {/* プログレスバー */}
       <div className="px-8 pb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs" style={{ color: '#94A3B8', fontFamily: 'DM Mono' }}>
+          <span className="text-xs font-mono" style={{ color: '#94A3B8' }}>
             処理中
           </span>
-          <span className="text-xs font-medium" style={{ color: '#1B2A4A', fontFamily: 'DM Mono' }}>
+          <span
+            className="text-xs font-medium font-mono"
+            style={{ background: 'linear-gradient(135deg,#0055ff,#00b4ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+          >
             {Math.round(progress)}%
           </span>
         </div>
-        <div
-          className="w-full h-1.5 rounded-full overflow-hidden"
-          style={{ background: '#F1F5F9' }}
-        >
+        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: '#E2E8F0' }}>
           <div
             className="h-full rounded-full transition-all duration-300 ease-out"
             style={{
               width: `${progress}%`,
-              background: 'linear-gradient(90deg, #1B2A4A 0%, #C0392B 100%)',
+              background: 'linear-gradient(90deg, #0055ff 0%, #00b4ff 100%)',
             }}
           />
         </div>

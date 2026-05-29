@@ -9,7 +9,7 @@ import { DRAFT_MATERIAL_BINDING_SESSION_KEY } from '@/lib/draftMaterialBindingSe
 import StepIndicator from './StepIndicator'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ArrowRight, Trash2, Sparkles, ChevronDown, Check } from 'lucide-react'
+import { ArrowRight, Trash2, ChevronDown, Check } from 'lucide-react'
 
 interface ArticleInputProps {
   article: ArticleData
@@ -313,10 +313,7 @@ export default function ArticleInput({
                   {generating ? (
                     <span className="font-bold text-base">記事を作成中...</span>
                   ) : (
-                    <>
-                      <Sparkles size={18} className="mr-2" />
-                      <span className="font-bold text-base">記事作成</span>
-                    </>
+                    <span className="font-bold text-base">記事作成</span>
                   )}
                 </Button>
               </div>
@@ -498,21 +495,28 @@ function GeneratingLoader({ step }: { step: string }) {
     >
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-md w-full p-6 sm:p-8 text-left">
         <div className="flex items-start gap-4 mb-6">
-          <div
-            className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center border border-indigo-100"
-            style={{
-              background: '#EEF2FF',
-              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
-            }}
-          >
-            <Sparkles
-              className={`w-5 h-5 text-[#1B2A4A] ${reduceMotion ? '' : 'motion-safe:opacity-90 motion-safe:animate-pulse'}`}
-              aria-hidden
+          {/* グラデーションリング（アイコンなし） */}
+          <div className="relative flex-shrink-0 w-11 h-11">
+            <div
+              className={`absolute inset-0 rounded-full ${reduceMotion ? '' : 'animate-spin'}`}
+              style={{
+                border: '2px solid transparent',
+                borderTopColor: '#0055ff',
+                borderRightColor: 'rgba(0,85,255,0.25)',
+                animationDuration: '1.2s',
+                animationTimingFunction: 'linear',
+              }}
+            />
+            <div
+              className="absolute inset-1.5 rounded-full"
+              style={{
+                background: 'linear-gradient(135deg, rgba(0,85,255,0.10) 0%, rgba(0,180,255,0.15) 100%)',
+              }}
             />
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
             <h2 id="generating-loader-title" className="text-base font-bold text-[#1A1A2E] leading-snug">
-              Gemini が執筆しています
+              AI が執筆しています
             </h2>
             <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">
               編集方針に沿って下書きを生成しています
@@ -520,7 +524,11 @@ function GeneratingLoader({ step }: { step: string }) {
           </div>
           <div
             className="flex-shrink-0 text-2xl font-bold tabular-nums leading-none pt-0.5"
-            style={{ color: '#1B2A4A' }}
+            style={{
+              background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
             role="progressbar"
             aria-valuenow={progress}
             aria-valuemin={0}
@@ -537,7 +545,7 @@ function GeneratingLoader({ step }: { step: string }) {
               className="h-full rounded-full transition-[width] duration-500 ease-out"
               style={{
                 width: `${progress}%`,
-                backgroundColor: '#1B2A4A',
+                background: 'linear-gradient(90deg, #0055ff 0%, #00b4ff 100%)',
               }}
             />
           </div>
@@ -573,12 +581,12 @@ function GeneratingLoader({ step }: { step: string }) {
                     className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center bg-white ${
                       reduceMotion ? '' : 'animate-loader-ring'
                     }`}
-                    style={{ borderColor: '#1B2A4A' }}
+                    style={{ borderColor: '#0055ff' }}
                     aria-current="step"
                   >
                     <span
                       className={`w-2 h-2 rounded-full ${reduceMotion ? '' : 'animate-loader-dot-soft'}`}
-                      style={{ backgroundColor: '#1B2A4A' }}
+                      style={{ background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)' }}
                     />
                   </span>
                 )}
@@ -599,19 +607,19 @@ function GeneratingLoader({ step }: { step: string }) {
                     </span>
                     {state === 'active' && !reduceMotion && (
                       <span className="inline-flex gap-1 items-center" aria-hidden>
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft" />
+                        <span className="inline-block w-1.5 h-1.5 rounded-full animate-loader-dot-soft" style={{ background: 'linear-gradient(135deg, #0055ff, #00b4ff)' }} />
                         <span
-                          className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft"
-                          style={{ animationDelay: '120ms' }}
+                          className="inline-block w-1.5 h-1.5 rounded-full animate-loader-dot-soft"
+                          style={{ background: 'linear-gradient(135deg, #0055ff, #00b4ff)', animationDelay: '120ms' }}
                         />
                         <span
-                          className="inline-block w-1.5 h-1.5 rounded-full bg-[#1B2A4A] animate-loader-dot-soft"
-                          style={{ animationDelay: '240ms' }}
+                          className="inline-block w-1.5 h-1.5 rounded-full animate-loader-dot-soft"
+                          style={{ background: 'linear-gradient(135deg, #0055ff, #00b4ff)', animationDelay: '240ms' }}
                         />
                       </span>
                     )}
                     {state === 'active' && reduceMotion && (
-                      <span className="text-xs font-semibold text-[#1B2A4A]" aria-hidden>
+                      <span className="text-xs font-semibold text-[#0055ff]" aria-hidden>
                         …
                       </span>
                     )}
@@ -636,8 +644,8 @@ function GeneratingLoader({ step }: { step: string }) {
               You
             </div>
             <div
-              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-[#1B2A4A]"
-              style={{ background: '#EEF2FF' }}
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #0055ff 0%, #00b4ff 100%)' }}
             >
               AI
             </div>

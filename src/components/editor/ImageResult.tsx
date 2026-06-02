@@ -106,9 +106,6 @@ export default function ImageResult({
 
           {/* Page header */}
           <div>
-            <p className="text-xs font-bold tracking-[0.11em] uppercase mb-0.5" style={{ color: 'var(--primary)' }}>
-              Image Generation Studio
-            </p>
             <h2 className="text-base font-bold" style={{ color: 'var(--ink)' }}>記事用画像の生成</h2>
           </div>
 

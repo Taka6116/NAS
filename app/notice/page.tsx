@@ -6,9 +6,6 @@ import Link from 'next/link'
 export default function NoticePage() {
   return (
     <div className="w-full py-8 max-w-4xl mx-auto">
-      <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-        Guardrails &amp; Policy
-      </p>
       <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--ink)' }}>注意書き</h1>
       <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
         基本プロンプトひな形 V2 の推奨とターゲットキーワードに関する注意です。システム側の出力形式（番号見出し・太字ルール等）と併せてご利用ください。

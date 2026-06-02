@@ -316,9 +316,6 @@ export default function SchedulePage() {
 
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-          Scheduling Console
-        </p>
         <h1 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>投稿スケジュール</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           記事の投稿予定日を設定・管理できます

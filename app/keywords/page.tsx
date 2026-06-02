@@ -104,9 +104,6 @@ export default function KeywordsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-            Keyword Workspace
-          </p>
           <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--ink)' }}>キーワードライブラリ</h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             よく使うキーワードセットを保存・管理します。クラウド保存で端末をまたいで利用できます。

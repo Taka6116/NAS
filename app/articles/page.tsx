@@ -148,9 +148,6 @@ export default function ArticlesPage() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-            Content Library
-          </p>
           <h1 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>保存済み記事一覧</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             作成済み記事の確認・修正・投稿予定日の設定ができます

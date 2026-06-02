@@ -354,9 +354,6 @@ ${row.keyword}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-            Insight Dashboard
-          </p>
           <h1 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>KW分析ダッシュボード</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Ahrefs CSVをインポートして、狙い目キーワードを分析</p>
         </div>

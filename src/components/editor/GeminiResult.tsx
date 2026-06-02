@@ -78,9 +78,6 @@ export default function GeminiResult({
     <div className="w-full pt-6 pb-12">
       {/* Page header */}
       <div className="mb-5">
-        <p className="text-xs font-bold tracking-[0.11em] uppercase mb-0.5" style={{ color: 'var(--primary)' }}>
-          Refinement Review Studio
-        </p>
         <h2 className="text-base font-bold" style={{ color: 'var(--ink)' }}>推敲前 / 推敲後の比較</h2>
       </div>
 

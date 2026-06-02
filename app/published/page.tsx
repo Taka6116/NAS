@@ -138,9 +138,6 @@ export default function PublishedArticlesPage() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-            Published Archive
-          </p>
           <h1 className="text-xl font-bold" style={{ color: 'var(--ink)' }}>過去投稿済み記事一覧</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             投稿済みの記事を確認・複製できます。削除しても WordPress 上の公開記事は削除されません。

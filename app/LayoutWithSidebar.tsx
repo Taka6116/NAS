@@ -67,15 +67,6 @@ export default function LayoutWithSidebar({
           className="flex items-center gap-3 px-5 py-5"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.11)' }}
         >
-          <div
-            className="w-10 h-10 rounded-[11px] flex items-center justify-center font-black text-[15px] text-white flex-shrink-0"
-            style={{
-              background: 'linear-gradient(145deg, #1769f6, #063994)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 12px 24px rgba(0,0,0,0.22)',
-            }}
-          >
-            N
-          </div>
           <div>
             <div className="text-[18px] font-black text-white tracking-tight leading-none">NAS</div>
             <div

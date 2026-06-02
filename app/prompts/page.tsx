@@ -86,9 +86,6 @@ export default function PromptsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.11em] uppercase mb-1" style={{ color: 'var(--primary)' }}>
-            Prompt Library
-          </p>
           <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--ink)' }}>プロンプトライブラリ</h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             よく使うプロンプトを保存して、一次執筆でいつでも呼び出せます

@@ -151,9 +151,16 @@ export default function AhrefsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-      const data = await res.json() as { rowCount?: number; fileName?: string; error?: string; usage?: { units_used_this_month: number; units_limit_per_month: number } | null }
+      const data = await res.json() as { rowCount?: number; fileName?: string; error?: string; usage?: Record<string, number> | null }
       if (!res.ok || data.error) throw new Error(data.error ?? '取得に失敗しました')
-      const usageMsg = data.usage ? `（今月 ${data.usage.units_used_this_month.toLocaleString()} / ${data.usage.units_limit_per_month.toLocaleString()} units使用）` : ''
+      let usageMsg = ''
+      if (data.usage) {
+        const used  = data.usage.units_used_this_month ?? data.usage.used
+        const total = data.usage.units_limit_per_month ?? data.usage.limit
+        if (typeof used === 'number' && typeof total === 'number') {
+          usageMsg = `（今月 ${used.toLocaleString()} / ${total.toLocaleString()} units使用）`
+        }
+      }
       setApiToast({ msg: `更新完了：${data.rowCount ?? 0} KW 取得${usageMsg}`, isError: false })
       await fetchData()
     } catch (e) {

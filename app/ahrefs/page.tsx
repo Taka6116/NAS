@@ -19,7 +19,7 @@ import {
   normalizeKeywordForArticleMatch,
 } from '@/lib/keywordPublishIndex'
 import { ColumnHint } from '@/components/ui/ColumnHint'
-import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, ChevronDown, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { Upload, X, Search, TrendingUp, TrendingDown, BarChart3, ChevronDown, ChevronUp, ChevronsUpDown, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { loadMemos, saveMemos, migrateLocalStorageToS3 } from '@/lib/keywordMemoStorage'
 
 type TabKey = 'opportunity' | 'organic' | 'trends'
@@ -54,6 +54,7 @@ export default function AhrefsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('opportunity')
   const [selectedPriority, setSelectedPriority] = useState<'all' | PriorityLevel>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateSort, setDateSort] = useState<'desc' | 'asc' | null>(null)
   const [showCount, setShowCount] = useState(PAGE_SIZE)
   const [error, setError] = useState<string | null>(null)
   const [savedArticles, setSavedArticles] = useState<Awaited<ReturnType<typeof getAllArticles>>>([])
@@ -211,7 +212,7 @@ export default function AhrefsPage() {
   }
   const tagRows = (d: AhrefsDataset) => {
     const dt = formatDatasetDate(d.uploadedAt)
-    return d.keywords.map(row => ({ ...row, datasetDate: dt }))
+    return d.keywords.map(row => ({ ...row, datasetDate: dt, datasetDateRaw: d.uploadedAt }))
   }
 
   const kwDatasets = useMemo(() => datasets.filter(d => d.type === 'keywords'), [datasets])
@@ -259,7 +260,22 @@ export default function AhrefsPage() {
     return data
   }, [activeData, activeTab, getKeywordMemo, selectedPriority, searchQuery])
 
-  const displayed = filtered.slice(0, showCount)
+  const sorted = useMemo(() => {
+    if (!dateSort) return filtered
+    const dir = dateSort === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      const av = a.datasetDateRaw ? new Date(a.datasetDateRaw).getTime() : 0
+      const bv = b.datasetDateRaw ? new Date(b.datasetDateRaw).getTime() : 0
+      return (av - bv) * dir
+    })
+  }, [filtered, dateSort])
+
+  const toggleDateSort = useCallback(() => {
+    setDateSort(prev => (prev === 'desc' ? 'asc' : 'desc'))
+    setShowCount(PAGE_SIZE)
+  }, [])
+
+  const displayed = sorted.slice(0, showCount)
 
   // Stats from activeData
   const activeTotal = activeData.length
@@ -647,7 +663,21 @@ ${row.keyword}
                       </span>
                     </th>
                     <th className="text-center px-1 py-2 font-semibold text-[#94A3B8] whitespace-nowrap text-[10px]">
-                      取得日
+                      <button
+                        type="button"
+                        onClick={toggleDateSort}
+                        title="取得日でソート（クリックで昇順・降順を切り替え）"
+                        className={`inline-flex items-center justify-center gap-0.5 whitespace-nowrap transition-colors hover:text-[#002C93] ${dateSort ? 'text-[#002C93]' : ''}`}
+                      >
+                        取得日
+                        {dateSort === 'desc' ? (
+                          <ChevronDown size={11} className="shrink-0" />
+                        ) : dateSort === 'asc' ? (
+                          <ChevronUp size={11} className="shrink-0" />
+                        ) : (
+                          <ChevronsUpDown size={11} className="shrink-0 opacity-50" />
+                        )}
+                      </button>
                     </th>
                     <th className="text-right px-1.5 py-2 font-semibold text-[#64748B] whitespace-nowrap">
                       <span className="inline-flex items-center justify-end gap-0.5 whitespace-nowrap">

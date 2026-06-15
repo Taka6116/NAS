@@ -25,6 +25,8 @@ export interface AhrefsKeywordRow {
   serpFeatures: string
   /** データセット取得日（M/D 表示用。マージ時に付与） */
   datasetDate?: string
+  /** データセット取得日のISO文字列（ソート用。マージ時に付与） */
+  datasetDateRaw?: string
 }
 
 export interface AhrefsDataset {

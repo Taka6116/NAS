@@ -1,13 +1,14 @@
 'use client'
 
-import { useRef, useState, ChangeEvent } from 'react'
+import { useRef, useState, useCallback, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArticleData, ProcessingState, Step } from '@/lib/types'
 import StepIndicator from './StepIndicator'
 import Button from '@/components/ui/Button'
-import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Upload, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Clock, Download, RefreshCw, Upload, Loader2, Images, X, ImageOff, Check } from 'lucide-react'
 import { setSessionPreviewImage } from '@/lib/sessionPreviewImage'
+import type { ImageEntry } from '@/lib/imageLibrary'
 
 interface ImageResultProps {
   article: ArticleData
@@ -39,6 +40,47 @@ export default function ImageResult({
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [previewNavigating, setPreviewNavigating] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerImages, setPickerImages] = useState<ImageEntry[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [pickerSelectingId, setPickerSelectingId] = useState<string | null>(null)
+
+  const openPicker = useCallback(async () => {
+    setPickerOpen(true)
+    setPickerLoading(true)
+    try {
+      const res = await fetch('/api/image-library')
+      const data = await res.json()
+      setPickerImages(data.images ?? [])
+    } catch {
+      setPickerImages([])
+    } finally {
+      setPickerLoading(false)
+    }
+  }, [])
+
+  const handleSelectPastImage = useCallback(
+    async (entry: ImageEntry) => {
+      if (!onImageUpload || pickerSelectingId) return
+      setPickerSelectingId(entry.id)
+      try {
+        // WordPress公開・プレビューは data URL を前提とするため base64 に変換する
+        const res = await fetch(entry.url)
+        const blob = await res.blob()
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+        onImageUpload(dataUrl)
+        setPickerOpen(false)
+      } catch {
+        setPickerSelectingId(null)
+      }
+    },
+    [onImageUpload, pickerSelectingId]
+  )
 
   const handlePreview = async () => {
     if (previewNavigating) return
@@ -98,6 +140,19 @@ export default function ImageResult({
   return (
     <div className="w-full pt-6 pb-12 relative">
       {previewNavigating && <PreviewNavigationOverlay />}
+
+      {pickerOpen && (
+        <PastImagePicker
+          images={pickerImages}
+          loading={pickerLoading}
+          selectingId={pickerSelectingId}
+          onSelect={handleSelectPastImage}
+          onClose={() => {
+            if (pickerSelectingId) return
+            setPickerOpen(false)
+          }}
+        />
+      )}
 
       {/* 2-column: main + step rail */}
       <div className="flex gap-6 items-start">
@@ -195,12 +250,20 @@ export default function ImageResult({
                       生成後に保存してプレビューへ進めます
                     </p>
                   </div>
-                  <Button variant="primary" size="lg" onClick={onGenerate}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.636 5.636l2.122 2.122m8.486 8.486 2.122 2.122M5.636 18.364l2.122-2.122m8.486-8.486 2.122-2.122" />
-                    </svg>
-                    画像を生成する
-                  </Button>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5">
+                    <Button variant="primary" size="lg" onClick={onGenerate}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.636 5.636l2.122 2.122m8.486 8.486 2.122 2.122M5.636 18.364l2.122-2.122m8.486-8.486 2.122-2.122" />
+                      </svg>
+                      画像を生成する
+                    </Button>
+                    {onImageUpload && (
+                      <Button variant="ghost" size="lg" onClick={openPicker}>
+                        <Images size={16} />
+                        過去に生成した画像を使用する
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -239,6 +302,12 @@ export default function ImageResult({
                   <Upload size={14} />
                   画像をアップロード
                 </Button>
+                {onImageUpload && (
+                  <Button variant="ghost" size="md" onClick={openPicker} disabled={isLoading}>
+                    <Images size={14} />
+                    過去の画像を使用
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="md"
@@ -312,6 +381,153 @@ export default function ImageResult({
         </Button>
       </div>
     </div>
+  )
+}
+
+/** 過去に生成・アップロードした画像から選んで使うピッカーモーダル */
+function PastImagePicker({
+  images,
+  loading,
+  selectingId,
+  onSelect,
+  onClose,
+}: {
+  images: ImageEntry[]
+  loading: boolean
+  selectingId: string | null
+  onSelect: (entry: ImageEntry) => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ background: 'rgba(10,20,50,0.55)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-[760px] max-h-[82vh] flex flex-col rounded-[18px] overflow-hidden"
+        style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div
+            className="w-8 h-8 rounded-[9px] flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(18,103,242,0.08)', border: '1px solid rgba(18,103,242,0.16)' }}
+          >
+            <Images size={15} style={{ color: 'var(--primary)' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-none" style={{ color: 'var(--ink)' }}>過去に生成した画像から選ぶ</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>クリックすると記事に適用されます</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={!!selectingId}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-black/5 disabled:opacity-40"
+            aria-label="閉じる"
+          >
+            <X size={16} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <Loader2 size={30} className="animate-spin" style={{ color: 'var(--primary)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>読み込み中...</p>
+            </div>
+          ) : images.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <ImageOff size={30} style={{ color: 'var(--text-faint)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>過去の画像がありません</p>
+              <p className="text-xs" style={{ color: 'var(--text-faint)' }}>画像を生成すると、ここに自動で蓄積されます</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {images.map((entry) => (
+                <PastImageThumb
+                  key={entry.id}
+                  entry={entry}
+                  selecting={selectingId === entry.id}
+                  disabled={!!selectingId && selectingId !== entry.id}
+                  onSelect={() => onSelect(entry)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PastImageThumb({
+  entry,
+  selecting,
+  disabled,
+  onSelect,
+}: {
+  entry: ImageEntry
+  selecting: boolean
+  disabled: boolean
+  onSelect: () => void
+}) {
+  const [imgError, setImgError] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled || selecting}
+      className="group relative rounded-[12px] overflow-hidden transition-all duration-150 disabled:opacity-50 hover:ring-2 hover:ring-[#1267f2]/40"
+      style={{ border: '1px solid var(--border)', background: 'rgba(18,103,242,0.04)' }}
+    >
+      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+        {imgError ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <ImageOff size={20} style={{ color: 'var(--text-faint)' }} />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.url}
+            alt=""
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+          />
+        )}
+        {/* Source badge */}
+        <span
+          className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold text-white"
+          style={{ background: entry.source === 'generated' ? 'rgba(14,165,233,0.92)' : 'rgba(16,185,129,0.92)' }}
+        >
+          {entry.source === 'generated' ? 'AI生成' : 'アップロード'}
+        </span>
+        {/* Selecting overlay */}
+        {selecting && (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.7)' }}>
+            <Loader2 size={22} className="animate-spin" style={{ color: 'var(--primary)' }} />
+          </div>
+        )}
+        {/* Hover check */}
+        {!selecting && (
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+            style={{ background: 'rgba(18,103,242,0.18)' }}
+          >
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: 'var(--primary)' }}
+            >
+              <Check size={16} color="#fff" />
+            </span>
+          </div>
+        )}
+      </div>
+    </button>
   )
 }
 

@@ -153,8 +153,13 @@ function formatContent(content: string, imageUrl: string): string {
       '<a href="https://nihon-teikei.co.jp/news/casestudy/" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">導入事例はこちらから</a>'
     )
     .replace(
+      /新しいM&A\s+ニュースタンダードはこちら\s+https?:\/\/nihon-teikei\.co\.jp\/ma-newstandard\/?/g,
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">新しいM&A ニュースタンダードはこちら</a>'
+    )
+    // 旧CTAが残っている記事にも対応（後方互換）
+    .replace(
       /待っているだけでオファーが届くM&Aオファーはこちら\s+https?:\/\/nihon-teikei\.com\/ma-offer/g,
-      '<a href="https://nihon-teikei.com/ma-offer" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">待っているだけでオファーが届くM&Aオファーはこちら</a>'
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/" target="_blank" rel="noopener noreferrer" style="color:#0e357f;text-decoration:underline;">新しいM&A ニュースタンダードはこちら</a>'
     )
 
   bodyHtml = insertCtaBannersForPreview(bodyHtml)

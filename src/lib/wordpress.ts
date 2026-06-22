@@ -721,12 +721,21 @@ function linkifyCtaUrls(html: string): string {
       '<a href="https://nihon-teikei.co.jp/news/casestudy/">導入事例はこちらから</a>'
     )
     .replace(
+      /新しいM&A\s+ニュースタンダードはこちら\s+https?:\/\/nihon-teikei\.co\.jp\/ma-newstandard\/?/g,
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/">新しいM&A ニュースタンダードはこちら</a>'
+    )
+    .replace(
+      /新しいM&amp;A\s+ニュースタンダードはこちら\s+https?:\/\/nihon-teikei\.co\.jp\/ma-newstandard\/?/g,
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/">新しいM&amp;A ニュースタンダードはこちら</a>'
+    )
+    // 旧CTAが残っている記事にも対応（後方互換）
+    .replace(
       /待っているだけでオファーが届くM&Aオファーはこちら\s+https?:\/\/nihon-teikei\.com\/ma-offer/g,
-      '<a href="https://nihon-teikei.com/ma-offer">待っているだけでオファーが届くM&Aオファーはこちら</a>'
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/">新しいM&A ニュースタンダードはこちら</a>'
     )
     .replace(
       /待っているだけでオファーが届くM&amp;Aオファーはこちら\s+https?:\/\/nihon-teikei\.com\/ma-offer/g,
-      '<a href="https://nihon-teikei.com/ma-offer">待っているだけでオファーが届くM&amp;Aオファーはこちら</a>'
+      '<a href="https://nihon-teikei.co.jp/ma-newstandard/">新しいM&amp;A ニュースタンダードはこちら</a>'
     );
 }
 
